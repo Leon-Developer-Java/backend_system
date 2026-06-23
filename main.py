@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from adapters import (
     cma_adapter,
@@ -58,7 +59,9 @@ app = FastAPI(title="Weather Data Display Backend", version="0.1.0")
 
 _cors_origins = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5177,http://127.0.0.1:5177",
+    "http://localhost:5173,http://127.0.0.1:5173,"
+    "http://localhost:5174,http://127.0.0.1:5174,"
+    "http://localhost:5177,http://127.0.0.1:5177",
 ).split(",")
 
 app.add_middleware(
@@ -68,6 +71,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 关键：让前端可以访问后端生成的 PNG：
+# http://127.0.0.1:8002/data/GFS/xxx.png
+# http://127.0.0.1:8002/data/GFS/wait_process/xxx.png
+app.mount("/data", StaticFiles(directory=str(DATA_DIR)), name="data")
+
 
 def ok(data: Any = None, message: str = "success") -> dict[str, Any]:
     return {"code": 0, "data": data, "message": message}
@@ -143,7 +152,7 @@ def parse_file(file: UploadFile = File(...)) -> dict[str, Any]:
             "directory": str(saved_path.parent).replace("\\", "/") + "/",
             "business_type": business_type,
             "meta": meta,
-            "weather_info": meta["weather_info"],
+            "weather_info": meta.get("weather_info", {}),
         }
     )
 
@@ -187,4 +196,5 @@ def radar_grid(
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)

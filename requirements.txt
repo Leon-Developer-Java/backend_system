@@ -8,3 +8,6 @@ rasterio==1.4.3
 xarray==2025.4.0
 Pillow==11.1.0
 netCDF4==1.7.4
+cfgrib
+eccodes
+matplotlib
