@@ -19,7 +19,8 @@ from adapters.base import process_basic_file
 
 def _open_grib_groups(file_path: str) -> list[xr.Dataset]:
     """
-    优先使用 cfgrib.open_datasets，避免 tp / instant / accum 混合时被跳过。
+    使用 cfgrib.open_datasets 打开 GRIB/GRIB2。
+    open_datasets 可以处理一个文件里包含多个 message group 的情况。
     """
     try:
         groups = cfgrib.open_datasets(
@@ -70,11 +71,12 @@ def _format_time_value(value: Any) -> str:
 
 def _summarize_time(ds: xr.Dataset) -> str:
     """
-    优先使用 valid_time，其次 time。
+    优先使用 valid_time，其次使用 time。
     """
     for name in ["valid_time", "time"]:
         if name in ds.coords:
             arr = np.asarray(ds.coords[name].values).reshape(-1)
+
             if arr.size == 0:
                 continue
 
@@ -149,21 +151,22 @@ def _convert_values(
     values: np.ndarray,
 ) -> tuple[np.ndarray, str, str, str]:
     """
-    返回：转换后数组、展示单位、转换说明、变量类型
+    返回：
+    converted_arr, display_unit, conversion, var_type
     """
     arr = np.asarray(values, dtype=float)
     units_lower = (units or "").lower()
     var_type = _infer_var_type(var_name, units, long_name)
 
-    # 温度：K → ℃
+    # 温度：K -> ℃
     if var_type == "temperature" and units_lower in ["k", "kelvin"]:
         return arr - 273.15, "°C", "K → °C", var_type
 
-    # 气压：Pa → hPa
+    # 气压：Pa -> hPa
     if var_type == "pressure" and units_lower in ["pa", "pascal", "pascals"]:
         return arr / 100.0, "hPa", "Pa → hPa", var_type
 
-    # 降水：m → mm
+    # 降水：m -> mm
     if var_type == "precipitation" and units_lower in ["m", "meter", "metre"]:
         return arr * 1000.0, "mm", "m → mm", var_type
 
@@ -180,13 +183,14 @@ def _convert_values(
 def _choose_main_variable(groups: list[xr.Dataset]) -> tuple[int, xr.Dataset, str]:
     """
     选择主展示变量。
+
     优先级：
-    1. t2m
-    2. tp
+    1. t2m / 2t / tmp
+    2. tp / apcp
     3. prmsl / msl / sp
     4. d2m
     5. u10 / v10
-    6. 第一个变量
+    6. 第一个可用变量
     """
     priority = [
         "t2m", "2t", "tmp",
@@ -213,11 +217,11 @@ def _choose_main_variable(groups: list[xr.Dataset]) -> tuple[int, xr.Dataset, st
 def _to_2d_or_3d_array(ds: xr.Dataset, var_name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     输出：
-    - values: 2D 或 3D 数组
-    - lat
-    - lon
+    values: 2D 或 3D 数组
+    lat: 纬度数组
+    lon: 经度数组
 
-    如果变量有额外维度，例如 level / heightAboveGround，默认取第 0 层。
+    如果变量还有 level / heightAboveGround 等额外维度，默认取第 0 层。
     """
     lat_name, lon_name = _find_lat_lon_names(ds)
 
@@ -233,11 +237,8 @@ def _to_2d_or_3d_array(ds: xr.Dataset, var_name: str) -> tuple[np.ndarray, np.nd
             da = da.isel({dim: 0})
 
     arr = np.asarray(da.values, dtype=float)
-
-    # 去掉长度为 1 的维度
     arr = np.squeeze(arr)
 
-    # 最终保证最后两维是 lat × lon
     if arr.ndim == 2:
         pass
     elif arr.ndim == 3:
@@ -252,6 +253,7 @@ def _to_2d_or_3d_array(ds: xr.Dataset, var_name: str) -> tuple[np.ndarray, np.nd
     # 纬度统一为北到南
     if lat.size >= 2 and lat[0] < lat[-1]:
         lat = lat[::-1]
+
         if arr.ndim == 2:
             arr = arr[::-1, :]
         else:
@@ -260,6 +262,7 @@ def _to_2d_or_3d_array(ds: xr.Dataset, var_name: str) -> tuple[np.ndarray, np.nd
     # 经度统一为西到东
     if lon.size >= 2 and lon[0] > lon[-1]:
         lon = lon[::-1]
+
         if arr.ndim == 2:
             arr = arr[:, ::-1]
         else:
@@ -271,8 +274,10 @@ def _to_2d_or_3d_array(ds: xr.Dataset, var_name: str) -> tuple[np.ndarray, np.nd
 def _stats(values: np.ndarray) -> dict[str, Any]:
     arr = np.asarray(values, dtype=float)
     total_count = int(arr.size)
+
     valid_mask = np.isfinite(arr)
     valid_count = int(valid_mask.sum())
+
     missing_count = total_count - valid_count
     missing_ratio = missing_count / total_count if total_count else 1.0
 
@@ -398,8 +403,11 @@ def _collect_variable_names(groups: list[xr.Dataset]) -> str:
 
 def _save_png(values: np.ndarray, output_path: Path) -> str:
     """
-    生成前端 WebglLayer 可用的透明 PNG。
-    注意：这里不是地理严格配准图，只是 MVP 阶段的格点场贴图。
+    生成前端 WebglLayer 可用 PNG。
+
+    注意：
+    这里输出的是格点场 PNG。
+    地理定位由 meta.extent 控制。
     """
     arr = np.asarray(values, dtype=float)
 
@@ -440,10 +448,66 @@ def _save_png(values: np.ndarray, output_path: Path) -> str:
     return str(output_path).replace("\\", "/")
 
 
+def _to_png_url(png_path: Path) -> str:
+    """
+    将本地 PNG 路径转换成前端可访问的 URL。
+
+    支持：
+    backend/data/GFS/xxx.png
+    backend/data/GFS/wait_process/xxx.png
+
+    返回：
+    /data/GFS/xxx.png
+    /data/GFS/wait_process/xxx.png
+    """
+    parts = list(png_path.parts)
+
+    if "data" in parts:
+        idx = parts.index("data")
+        rel_parts = parts[idx + 1:]
+        return "/data/" + "/".join(rel_parts).replace("\\", "/")
+
+    return f"/data/GFS/{png_path.name}"
+
+
+def _build_panel_meta(
+    path: Path,
+    weather_info: dict[str, Any],
+    extent: list[float] | None,
+    png_file: str | None,
+    png_url: str | None,
+) -> dict[str, Any]:
+    """
+    构造前端 MetaPanel 需要的 meta 对象。
+    """
+    return {
+        "file": path.name,
+        "element": weather_info.get("element", "待解析"),
+        "time": weather_info.get("time", "待解析"),
+        "level": weather_info.get("level", "待解析"),
+        "range": weather_info.get("range", "待解析"),
+        "grid": weather_info.get("grid", "待解析"),
+        "missing": weather_info.get("missing", "待解析"),
+        "unit": weather_info.get("unit", "待解析"),
+        "vars": weather_info.get("variables", "待解析"),
+        "steps": weather_info.get("steps", "待解析"),
+        "extent": extent,
+        "png": png_file,
+        "png_url": png_url,
+        "status": weather_info.get("status", "待解析"),
+        "quality": weather_info.get("quality", "待解析"),
+        "max": weather_info.get("max"),
+        "min": weather_info.get("min"),
+        "mean": weather_info.get("mean"),
+        "alert": weather_info.get("alert"),
+    }
+
+
 def _write_meta_again(result: dict[str, Any]) -> None:
     """
     process_basic_file 可能先写了 meta.json。
-    这里把补强后的 result 再写回一次，确保 meta.json 中有 png/png_files/weather_info。
+    这里把补强后的 result 再写回一次，确保 meta.json 中有：
+    weather_info、meta、extent、png、png_url。
     """
     meta_file = result.get("meta_file")
 
@@ -453,6 +517,7 @@ def _write_meta_again(result: dict[str, Any]) -> None:
     try:
         meta_path = Path(meta_file)
         meta_path.parent.mkdir(parents=True, exist_ok=True)
+
         meta_path.write_text(
             json.dumps(result, ensure_ascii=False, indent=2),
             encoding="utf-8"
@@ -492,6 +557,10 @@ def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
 
     file_format = "GRIB2" if path.suffix.lower() == ".grib2" else "GRIB"
 
+    extent: list[float] | None = None
+    png_file: str | None = None
+    png_url: str | None = None
+
     try:
         groups = _open_grib_groups(str(path))
         group_index, ds, main_var = _choose_main_variable(groups)
@@ -506,6 +575,7 @@ def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
         step_type = attrs.get("GRIB_stepType", attrs.get("stepType", "unknown"))
 
         raw_arr, lat, lon = _to_2d_or_3d_array(ds, main_var)
+
         converted_arr, display_unit, conversion, var_type = _convert_values(
             main_var,
             units,
@@ -520,8 +590,12 @@ def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
         lon_min = round(float(np.nanmin(lon)), 4)
         lon_max = round(float(np.nanmax(lon)), 4)
 
+        # 前端 WebglLayer 要求：[west, south, east, north]
+        extent = [lon_min, lat_min, lon_max, lat_max]
+
         png_path = path.with_name(path.name + ".png")
         png_file = _save_png(converted_arr, png_path)
+        png_url = _to_png_url(png_path)
 
         weather_info.update({
             "source": "GFS",
@@ -560,9 +634,11 @@ def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
             "latMax": lat_max,
             "lonMin": lon_min,
             "lonMax": lon_max,
+            "extent": extent,
             "fileSizeMB": round(path.stat().st_size / 1024 / 1024, 3) if path.exists() else None,
             "png": png_file,
             "png_file": png_file,
+            "png_url": png_url,
         })
 
     except Exception as exc:
@@ -582,21 +658,21 @@ def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
     )
 
     if isinstance(basic_result, dict):
-        basic_result["weather_info"] = weather_info
-        basic_result.update(weather_info)
-
         variable_text = weather_info.get("variables", "")
         variable_items = []
+
         if isinstance(variable_text, str) and variable_text not in ["", "待解析"]:
             variable_items = [x.strip() for x in variable_text.split(";") if x.strip()]
 
         time_text = weather_info.get("time", "")
         times = []
+
         if isinstance(time_text, str) and time_text not in ["", "待解析"]:
             times = [time_text]
 
         level_text = weather_info.get("level", "")
         levels = []
+
         if isinstance(level_text, str) and level_text not in ["", "待解析"]:
             levels = [level_text]
 
@@ -606,6 +682,7 @@ def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
         lon_max = weather_info.get("lonMax")
 
         bbox = None
+
         if None not in [lat_min, lat_max, lon_min, lon_max]:
             bbox = {
                 "south": lat_min,
@@ -614,16 +691,34 @@ def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
                 "east": lon_max,
             }
 
-        png_file = weather_info.get("png_file") or weather_info.get("png")
+        panel_meta = _build_panel_meta(
+            path=path,
+            weather_info=weather_info,
+            extent=extent,
+            png_file=png_file,
+            png_url=png_url,
+        )
+
+        basic_result["file_name"] = path.name
+        basic_result["directory"] = str(path.parent).replace("\\", "/") + "/"
+        basic_result["business_type"] = data_type
+        basic_result["data_type"] = data_type
+
+        basic_result["weather_info"] = weather_info
+        basic_result["meta"] = panel_meta
 
         basic_result["variables"] = variable_items
         basic_result["times"] = times
         basic_result["levels"] = levels
         basic_result["bbox"] = bbox
+        basic_result["extent"] = extent
 
         if png_file:
-            basic_result["png_files"] = [png_file]
             basic_result["png"] = png_file
+            basic_result["png_file"] = png_file
+            basic_result["png_url"] = png_url
+            basic_result["png_files"] = [png_file]
+            basic_result["png_urls"] = [png_url]
 
         basic_result["extra"] = {
             "status": "parsed",
@@ -640,11 +735,21 @@ def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
             "lat_max": lat_max,
             "lon_min": lon_min,
             "lon_max": lon_max,
+            "extent": extent,
             "png": png_file,
+            "png_url": png_url,
         }
 
+        # 同步把 weather_info 字段平铺一份，方便旧前端兼容
+        basic_result.update(weather_info)
+
         _write_meta_again(basic_result)
+
         return basic_result
 
     weather_info["basic_result"] = basic_result
+    weather_info["extent"] = extent
+    weather_info["png"] = png_file
+    weather_info["png_url"] = png_url
+
     return weather_info
