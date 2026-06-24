@@ -200,7 +200,7 @@ def display_data(
     if service is None:
         raise HTTPException(status_code=404, detail="不支持的数据类型。")
 
-    if business_type.upper() == "CMA":
+    if business_type.upper() in {"CMA", "ERA5"}:
         return ok(service.get_display_data(variable=variable, level_index=level_index))
 
     return ok(service.get_display_data())
