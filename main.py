@@ -86,6 +86,8 @@ def infer_business_type(filename: str) -> str:
     name = filename.lower()
     suffix = Path(filename).suffix.lower()
 
+    if himawari_adapter.is_hsd_filename(filename):
+        return "Himawari"
     if name.startswith("z_radr") or "z_radr" in name:
         return "Radar"
     if "cma" in name:
@@ -113,11 +115,13 @@ def infer_business_type(filename: str) -> str:
     raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、Himawari、Radar 或 WRF。")
 
 
-def save_upload_file(file: UploadFile, target_dir: Path) -> Path:
+def save_upload_file(file: UploadFile, target_dir: Path, business_type: str | None = None) -> Path:
     if not file.filename:
         raise ValueError("上传文件名为空。")
 
     safe_name = Path(file.filename).name
+    if business_type and (adapter := ADAPTERS.get(business_type)) and hasattr(adapter, "upload_target_dir"):
+        target_dir = adapter.upload_target_dir(safe_name, target_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / safe_name
 
@@ -125,6 +129,24 @@ def save_upload_file(file: UploadFile, target_dir: Path) -> Path:
         output.write(file.file.read())
 
     return target_path
+
+
+def save_upload_files(files: list[UploadFile], target_dir: Path, business_type: str) -> list[Path]:
+    return [save_upload_file(item, target_dir, business_type=business_type) for item in files]
+
+
+def infer_upload_business_type(files: list[UploadFile]) -> str:
+    for item in files:
+        if item.filename and himawari_adapter.is_hsd_filename(Path(item.filename).name):
+            return "Himawari"
+    for item in files:
+        if not item.filename:
+            continue
+        try:
+            return infer_business_type(item.filename)
+        except ValueError:
+            continue
+    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、Himawari、Radar 或 WRF。")
 
 
 @app.get("/")
@@ -138,10 +160,20 @@ def health() -> dict[str, Any]:
 
 
 @app.post("/api/files/parse")
-def parse_file(file: UploadFile = File(...)) -> dict[str, Any]:
+def parse_file(
+    file: UploadFile | None = File(default=None),
+    files: list[UploadFile] | None = File(default=None),
+) -> dict[str, Any]:
     try:
-        business_type = infer_business_type(file.filename or "")
-        saved_path = save_upload_file(file, BUSINESS_DIRS[business_type])
+        upload_files = [item for item in ([file] if file else []) + (files or []) if item.filename]
+        if not upload_files:
+            raise ValueError("请选择要解析的文件。")
+        business_type = infer_upload_business_type(upload_files)
+        adapter = ADAPTERS[business_type]
+        if hasattr(adapter, "select_upload_files"):
+            upload_files = adapter.select_upload_files(upload_files)
+        saved_paths = save_upload_files(upload_files, BUSINESS_DIRS[business_type], business_type)
+        saved_path = saved_paths[0]
         meta = ADAPTERS[business_type].process_file(str(saved_path), data_type=business_type)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -149,6 +181,7 @@ def parse_file(file: UploadFile = File(...)) -> dict[str, Any]:
     return ok(
         {
             "file_name": saved_path.name,
+            "file_count": len(saved_paths),
             "directory": str(saved_path.parent).replace("\\", "/") + "/",
             "business_type": business_type,
             "meta": meta,

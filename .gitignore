@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+.DS_Store
 
 .idea/
 
@@ -17,3 +18,7 @@ data/ERA5/*.grib
 data/ERA5/*.grib2
 data/ERA5/*.meta.json
 data/ERA5/*.png
+
+data/.DS_Store
+data/Himawari/.DS_Store
+data/Himawari/20*/
