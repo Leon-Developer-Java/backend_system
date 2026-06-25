@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,9 @@ import numpy as np
 import xarray as xr
 from PIL import Image
 from scipy.ndimage import map_coordinates
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, Path(__file__).resolve().parents[1].as_posix())
 
 from adapters.base import process_basic_file
 
