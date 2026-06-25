@@ -1,0 +1,203 @@
+{
+  "dataset_id": "wrfout_d02_2025-07-16_03_00_00",
+  "data_type": "WRF",
+  "file_format": "NC",
+  "source_file": "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00",
+  "meta_file": "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.meta.json",
+  "png_files": [
+    "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs/2025-07-16_03_00_00_PM2_5_DRY.png",
+    "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs/2025-07-16_03_00_00_PM10.png",
+    "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs/2025-07-16_03_00_00_AOD2D_OUT.png",
+    "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs/2025-07-16_03_00_00_T2.png",
+    "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs/2025-07-16_03_00_00_U10.png",
+    "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs/2025-07-16_03_00_00_V10.png",
+    "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs/2025-07-16_03_00_00_PSFC.png",
+    "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs/2025-07-16_03_00_00_PBLH.png",
+    "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs/2025-07-16_03_00_00_RAINC.png",
+    "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs/2025-07-16_03_00_00_RAINNC.png"
+  ],
+  "variables": [
+    {
+      "name": "PM2_5_DRY",
+      "label": "PM2.5 干质量浓度",
+      "description": "近地面细颗粒物浓度，用于空气质量预报展示。",
+      "units": "ug m^-3",
+      "shape": [
+        24,
+        30
+      ],
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    {
+      "name": "PM10",
+      "label": "PM10 颗粒物浓度",
+      "description": "可吸入颗粒物浓度，适合与 PM2.5 联合展示污染过程。",
+      "units": "ug m^-3",
+      "shape": [
+        24,
+        30
+      ],
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    {
+      "name": "AOD2D_OUT",
+      "label": "气溶胶光学厚度",
+      "description": "柱积分气溶胶光学厚度，反映大气浑浊程度。",
+      "units": "",
+      "shape": [
+        24,
+        30
+      ],
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    {
+      "name": "T2",
+      "label": "2 米气温",
+      "description": "近地面 2 米气温，可用于天气背景场展示。",
+      "units": "K",
+      "shape": [
+        24,
+        30
+      ],
+      "min": 303.86749267578125,
+      "max": 310.34893798828125,
+      "mean": 307.89230770534937
+    },
+    {
+      "name": "U10",
+      "label": "10 米东西风",
+      "description": "10 米高度东西向风速，正值表示偏西风分量。",
+      "units": "m s-1",
+      "shape": [
+        24,
+        30
+      ],
+      "min": 1.0687217712402344,
+      "max": 6.236263751983643,
+      "mean": 4.522142897380723
+    },
+    {
+      "name": "V10",
+      "label": "10 米南北风",
+      "description": "10 米高度南北向风速，正值表示偏南风分量。",
+      "units": "m s-1",
+      "shape": [
+        24,
+        30
+      ],
+      "min": -0.7434026002883911,
+      "max": 6.433858394622803,
+      "mean": 2.541270119800336
+    },
+    {
+      "name": "PSFC",
+      "label": "地面气压",
+      "description": "模式地面气压场，可辅助判断天气系统。",
+      "units": "Pa",
+      "shape": [
+        24,
+        30
+      ],
+      "min": 99450.171875,
+      "max": 99676.4375,
+      "mean": 99561.23739149305
+    },
+    {
+      "name": "PBLH",
+      "label": "边界层高度",
+      "description": "行星边界层高度，对污染扩散能力判断很关键。",
+      "units": "m",
+      "shape": [
+        24,
+        30
+      ],
+      "min": 28.523571014404297,
+      "max": 1695.4520263671875,
+      "mean": 1029.1883588208093
+    },
+    {
+      "name": "RAINC",
+      "label": "累积对流降水",
+      "description": "对流降水累积量，用于识别强对流降水贡献。",
+      "units": "mm",
+      "shape": [
+        24,
+        30
+      ],
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    },
+    {
+      "name": "RAINNC",
+      "label": "累积非对流降水",
+      "description": "非对流降水累积量，常用于连续性降水展示。",
+      "units": "mm",
+      "shape": [
+        24,
+        30
+      ],
+      "min": 0.0,
+      "max": 0.0,
+      "mean": 0.0
+    }
+  ],
+  "times": [
+    "2025-07-16_03:00:00"
+  ],
+  "levels": [
+    "surface_or_level_0"
+  ],
+  "bbox": {
+    "west": 118.3450927734375,
+    "south": 33.01082229614258,
+    "east": 119.284912109375,
+    "north": 33.632328033447266
+  },
+  "weather_info": {
+    "source": "WRF",
+    "product": "WRF-Chem 模式产品图层",
+    "element": "PM2.5 干质量浓度",
+    "time": "2025-07-16 03:00:00",
+    "level": "地面/近地面或第 0 层",
+    "range": "118.345°E-119.285°E, 33.011°N-33.632°N",
+    "resolution": "3 km",
+    "grid": "30 × 24",
+    "validGrid": "720",
+    "coverage": "d02",
+    "missing": "NaN/FillValue",
+    "unit": "ug m^-3",
+    "variables": "10",
+    "steps": "1",
+    "status": "已解析",
+    "quality": "已生成透明 PNG overlay",
+    "max": 0.0,
+    "min": 0.0,
+    "mean": 0.0,
+    "alert": "无",
+    "update": "2026-06-25T01:52:40.956416+00:00",
+    "bars": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "trend": []
+  },
+  "extra": {
+    "status": "parsed",
+    "generated_at": "2026-06-25T01:52:40.956416+00:00",
+    "domain": "d02",
+    "dx": 3000.0,
+    "dy": 3000.0,
+    "png_dir": "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_03_00_00.pngs",
+    "note": "WRF adapter 已完成 NetCDF 解析，并生成前端地图叠加用透明 PNG。"
+  }
+}
