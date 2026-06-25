@@ -35,6 +35,19 @@ def test_himawari_uploads_are_grouped_into_scene_raw_directory(tmp_path):
     assert saved[1].read_bytes() == b"two"
 
 
+def test_upload_save_uses_unique_name_when_target_exists(tmp_path):
+    target_dir = tmp_path / "ERA5"
+    target_dir.mkdir()
+    existing = target_dir / "data_0.nc"
+    existing.write_bytes(b"existing")
+
+    saved = main.save_upload_files([FakeUpload("data_0.nc", b"new")], target_dir, "ERA5")
+
+    assert saved == [target_dir / "data_0_1.nc"]
+    assert existing.read_bytes() == b"existing"
+    assert saved[0].read_bytes() == b"new"
+
+
 def test_himawari_directory_upload_ignores_unrelated_files_for_type_and_save():
     files = [
         FakeUpload(".DS_Store", b"noise"),

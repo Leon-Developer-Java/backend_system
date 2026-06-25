@@ -18,34 +18,44 @@ def _png_data_url(path: Path | None) -> str | None:
     return f"data:image/png;base64,{encoded}"
 
 
-def _existing_path(value: str | None) -> Path | None:
+def _existing_path(value: str | None, meta_path: Path | None = None) -> Path | None:
     if not value:
         return None
     path = Path(value)
-    return path if path.exists() else None
+    if path.exists():
+        return path
+    if meta_path:
+        for folder in ("latlon", "composites"):
+            if folder not in path.parts:
+                continue
+            relative_parts = path.parts[path.parts.index(folder) :]
+            candidate = meta_path.parent.parent.joinpath(*relative_parts)
+            if candidate.exists():
+                return candidate
+    return None
 
 
-def _select_default_png(meta_json: dict[str, Any] | None, fallback: list[Path]) -> Path | None:
+def _select_default_png(meta_json: dict[str, Any] | None, fallback: list[Path], meta_path: Path | None = None) -> Path | None:
     if not meta_json:
         return fallback[0] if fallback else None
 
     for key in ("true_color", "natural_color", "water_vapor_enhanced"):
         for item in meta_json.get("composites", []):
-            if item.get("key") == key and (path := _existing_path(item.get("png"))):
+            if item.get("key") == key and (path := _existing_path(item.get("png"), meta_path)):
                 return path
 
     for key in ("B13", "B14", "B08"):
         for item in meta_json.get("variables", []):
-            if item.get("key") == key and (path := _existing_path(item.get("png"))):
+            if item.get("key") == key and (path := _existing_path(item.get("png"), meta_path)):
                 return path
 
     return fallback[0] if fallback else None
 
 
-def _with_png_data_urls(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _with_png_data_urls(items: list[dict[str, Any]], meta_path: Path | None = None) -> list[dict[str, Any]]:
     enriched = []
     for item in items:
-        path = _existing_path(item.get("png"))
+        path = _existing_path(item.get("png"), meta_path)
         enriched.append({**item, "png_data_url": _png_data_url(path)})
     return enriched
 
@@ -53,12 +63,12 @@ def _with_png_data_urls(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def get_display_data() -> dict[str, Any]:
     meta_files = sorted(
         list(DATA_DIR.glob("*/*/meta/scene.meta.json")) + list(DATA_DIR.glob("*.meta.json")),
-        key=lambda item: item.stat().st_mtime,
+        key=lambda item: (item.stat().st_mtime, item.as_posix()),
         reverse=True,
     )
     png_files = sorted(
         list(DATA_DIR.glob("*/*/latlon/*.png")) + list(DATA_DIR.glob("*/*/composites/*.png")) + list(DATA_DIR.glob("*.png")),
-        key=lambda item: item.stat().st_mtime,
+        key=lambda item: (item.stat().st_mtime, item.as_posix()),
         reverse=True,
     )
 
@@ -67,9 +77,10 @@ def get_display_data() -> dict[str, Any]:
         with meta_files[0].open("r", encoding="utf-8") as file:
             meta_json = json.load(file)
 
-    png_path = _select_default_png(meta_json, png_files)
-    variables = _with_png_data_urls(meta_json.get("variables", [])) if meta_json else []
-    composites = _with_png_data_urls(meta_json.get("composites", [])) if meta_json else []
+    meta_path = meta_files[0] if meta_files else None
+    png_path = _select_default_png(meta_json, png_files, meta_path)
+    variables = _with_png_data_urls(meta_json.get("variables", []), meta_path) if meta_json else []
+    composites = _with_png_data_urls(meta_json.get("composites", []), meta_path) if meta_json else []
 
     return {
         "business_type": "Himawari",

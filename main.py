@@ -123,12 +123,27 @@ def save_upload_file(file: UploadFile, target_dir: Path, business_type: str | No
     if business_type and (adapter := ADAPTERS.get(business_type)) and hasattr(adapter, "upload_target_dir"):
         target_dir = adapter.upload_target_dir(safe_name, target_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
-    target_path = target_dir / safe_name
+    target_path = unique_upload_path(target_dir / safe_name)
 
     with target_path.open("wb") as output:
         output.write(file.file.read())
 
     return target_path
+
+
+def unique_upload_path(target_path: Path) -> Path:
+    if not target_path.exists():
+        return target_path
+
+    stem = target_path.stem
+    suffix = target_path.suffix
+    parent = target_path.parent
+    index = 1
+    while True:
+        candidate = parent / f"{stem}_{index}{suffix}"
+        if not candidate.exists():
+            return candidate
+        index += 1
 
 
 def save_upload_files(files: list[UploadFile], target_dir: Path, business_type: str) -> list[Path]:

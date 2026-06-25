@@ -21,4 +21,9 @@ data/ERA5/*.png
 
 data/.DS_Store
 data/Himawari/.DS_Store
-data/Himawari/20*/
+data/Himawari/20*/raw/
+data/Himawari/20*/*/raw/
+data/Himawari/20*/*/latlon/*.float32
+data/Himawari/20*/*/latlon/*.nc
+data/Himawari/20*/.DS_Store
+data/Himawari/20*/*/.DS_Store
