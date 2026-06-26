@@ -1,0 +1,589 @@
+{
+  "file": "Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1.nc",
+  "element": "反射率 DBZH",
+  "time": "2025-06-01 00:00",
+  "level": "500-15000 m 高度层最大值合成（30 层）",
+  "range": "115.4°E-117.6°E, 39.4°N-41.1°N",
+  "grid": "746 × 755",
+  "missing": "NaN",
+  "unit": "dBZ",
+  "vars": "12",
+  "steps": "1",
+  "extent": [
+    115.4,
+    39.4,
+    117.6,
+    41.1
+  ],
+  "dataset_id": "Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1_nc",
+  "data_type": "Radar",
+  "file_format": "RADAR_NC_CAP_FMT",
+  "source_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Radar/Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1.nc",
+  "meta_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Radar/Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1.nc.meta.json",
+  "png_files": [
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Radar/Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1.png"
+  ],
+  "default_png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Radar/Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1.png",
+  "default_variable": "observation.base_ref_cor_log",
+  "variables": [
+    {
+      "short_name": "DBZH",
+      "raw_name": "observation.base_ref_cor_log",
+      "long_name": "反射率",
+      "name_cn": "反射率",
+      "units": "dBZ",
+      "units_original": "dBZ",
+      "dims": [
+        "axis.default.3.1",
+        "axis.default.3.2",
+        "axis.default.3.3"
+      ],
+      "shape": [
+        30,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": -9.5,
+        "max": 37.166668,
+        "mean": 4.799516,
+        "std": 5.251297
+      }
+    },
+    {
+      "short_name": "VRAD",
+      "raw_name": "observation.base_vel_raw_lin",
+      "long_name": "径向速度",
+      "name_cn": "径向速度",
+      "units": "m/s",
+      "units_original": "m/s",
+      "dims": [
+        "axis.default.3.1",
+        "axis.default.3.2",
+        "axis.default.3.3"
+      ],
+      "shape": [
+        30,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": 0.0,
+        "max": 31.0,
+        "mean": 7.895171,
+        "std": 7.028327
+      }
+    },
+    {
+      "short_name": "ZDR",
+      "raw_name": "observation.base_zdr_cor_log",
+      "long_name": "差分反射率",
+      "name_cn": "差分反射率",
+      "units": "dB",
+      "units_original": "dB",
+      "dims": [
+        "axis.default.3.1",
+        "axis.default.3.2",
+        "axis.default.3.3"
+      ],
+      "shape": [
+        30,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": -3.201396,
+        "max": 4.798604,
+        "mean": 0.352575,
+        "std": 0.425243
+      }
+    },
+    {
+      "short_name": "RHV",
+      "raw_name": "observation.base_rhv_flt_lin",
+      "long_name": "相关系数",
+      "name_cn": "相关系数",
+      "units": "",
+      "units_original": "",
+      "dims": [
+        "axis.default.3.1",
+        "axis.default.3.2",
+        "axis.default.3.3"
+      ],
+      "shape": [
+        30,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": 0.745,
+        "max": 1.045,
+        "mean": 0.984073,
+        "std": 0.026629
+      }
+    },
+    {
+      "short_name": "KDP",
+      "raw_name": "observation.base_kdp_lsf_x_lin",
+      "long_name": "差分传播相移率",
+      "name_cn": "差分传播相移率",
+      "units": "deg/km",
+      "units_original": "deg/km",
+      "dims": [
+        "axis.default.3.1",
+        "axis.default.3.2",
+        "axis.default.3.3"
+      ],
+      "shape": [
+        30,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": -1.653951,
+        "max": 8.755217,
+        "mean": 0.03294,
+        "std": 0.157787
+      }
+    },
+    {
+      "short_name": "HCL",
+      "raw_name": "observation.prdt_hcl_flt_lin",
+      "long_name": "水凝物分类",
+      "name_cn": "水凝物分类",
+      "units": "",
+      "units_original": "",
+      "dims": [
+        "axis.default.3.1",
+        "axis.default.3.2",
+        "axis.default.3.3"
+      ],
+      "shape": [
+        30,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": 1.0,
+        "max": 7.0,
+        "mean": 3.798282,
+        "std": 1.50845
+      }
+    },
+    {
+      "short_name": "MLT",
+      "raw_name": "observation.prdt_mlt_hgt_pol",
+      "long_name": "融化层高度",
+      "name_cn": "融化层高度",
+      "units": "m",
+      "units_original": "m",
+      "dims": [
+        "axis.custom1.3.1",
+        "axis.custom1.3.2",
+        "axis.custom1.3.3"
+      ],
+      "shape": [
+        1,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": 0.0,
+        "max": 0.0,
+        "mean": 0.0,
+        "std": 0.0
+      }
+    },
+    {
+      "short_name": "HCL_SRF",
+      "raw_name": "observation.prdt_hcl_srf_lin",
+      "long_name": "地面水凝物分类",
+      "name_cn": "地面水凝物分类",
+      "units": "",
+      "units_original": "",
+      "dims": [
+        "axis.custom1.3.1",
+        "axis.custom1.3.2",
+        "axis.custom1.3.3"
+      ],
+      "shape": [
+        1,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": 7.0,
+        "max": 8.0,
+        "mean": 7.000647,
+        "std": 0.025432
+      }
+    },
+    {
+      "short_name": "CCL",
+      "raw_name": "observation.prdt_ccl_raw_lin",
+      "long_name": "云分类",
+      "name_cn": "云分类",
+      "units": "",
+      "units_original": "",
+      "dims": [
+        "axis.custom1.3.1",
+        "axis.custom1.3.2",
+        "axis.custom1.3.3"
+      ],
+      "shape": [
+        1,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": 0.0,
+        "max": 1.0,
+        "mean": 0.9967,
+        "std": 0.057351
+      }
+    },
+    {
+      "short_name": "CRF",
+      "raw_name": "observation.prdt_crf_raw_log",
+      "long_name": "组合反射率",
+      "name_cn": "组合反射率",
+      "units": "dBZ",
+      "units_original": "dBZ",
+      "dims": [
+        "axis.custom1.3.1",
+        "axis.custom1.3.2",
+        "axis.custom1.3.3"
+      ],
+      "shape": [
+        1,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": -9.833333,
+        "max": 37.166668,
+        "mean": 4.538204,
+        "std": 5.841911
+      }
+    },
+    {
+      "short_name": "ETP",
+      "raw_name": "observation.prdt_etp_raw_lin",
+      "long_name": "回波顶高",
+      "name_cn": "回波顶高",
+      "units": "km",
+      "units_original": "km",
+      "dims": [
+        "axis.custom1.3.1",
+        "axis.custom1.3.2",
+        "axis.custom1.3.3"
+      ],
+      "shape": [
+        1,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": 1.348811,
+        "max": 6.479958,
+        "mean": 3.198879,
+        "std": 1.466067
+      }
+    },
+    {
+      "short_name": "QPR",
+      "raw_name": "observation.prdt_qpr_mix_lin",
+      "long_name": "定量降水估测",
+      "name_cn": "定量降水估测",
+      "units": "mm/h",
+      "units_original": "mm/h",
+      "dims": [
+        "axis.custom1.3.1",
+        "axis.custom1.3.2",
+        "axis.custom1.3.3"
+      ],
+      "shape": [
+        1,
+        755,
+        746
+      ],
+      "category": "雷达产品",
+      "definition": "",
+      "applications": [
+        "强对流监测",
+        "短临预报",
+        "降水估测"
+      ],
+      "stats": {
+        "min": 0.64842,
+        "max": 7.680503,
+        "mean": 1.819686,
+        "std": 1.763316
+      }
+    }
+  ],
+  "times": [
+    "2025-06-01T00:00:00Z"
+  ],
+  "levels": [
+    500.0,
+    1000.0,
+    1500.0,
+    2000.0,
+    2500.0,
+    3000.0,
+    3500.0,
+    4000.0,
+    4500.0,
+    5000.0,
+    5500.0,
+    6000.0,
+    6500.0,
+    7000.0,
+    7500.0,
+    8000.0,
+    8500.0,
+    9000.0,
+    9500.0,
+    10000.0,
+    10500.0,
+    11000.0,
+    11500.0,
+    12000.0,
+    12500.0,
+    13000.0,
+    13500.0,
+    14000.0,
+    14500.0,
+    15000.0
+  ],
+  "bbox": [
+    115.4,
+    39.4,
+    117.6,
+    41.1
+  ],
+  "weather_info": {
+    "file": "Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1.nc",
+    "source": "Radar",
+    "product": "CAP_FMT 组合雷达 NetCDF",
+    "element": "反射率 DBZH",
+    "time": "2025-06-01 00:00",
+    "level": "500-15000 m 高度层最大值合成（30 层）",
+    "range": "115.4°E-117.6°E, 39.4°N-41.1°N",
+    "resolution": "0.0030° × 0.0023°",
+    "grid": "746 × 755",
+    "validGrid": "35350",
+    "coverage": "6.3%",
+    "missing": "NaN",
+    "unit": "dBZ",
+    "vars": "12",
+    "variables": "12",
+    "steps": "1",
+    "status": "解析完成",
+    "quality": "有效覆盖正常",
+    "max": "37.17",
+    "min": "-9.50",
+    "mean": "4.56",
+    "alert": "存在中等回波",
+    "update": "2026-06-25 04:10:32",
+    "bars": [
+      23829,
+      4108,
+      553,
+      128,
+      0
+    ],
+    "trend": [],
+    "extent": [
+      115.4,
+      39.4,
+      117.6,
+      41.1
+    ],
+    "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Radar/Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1.png",
+    "meta_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Radar/Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1.nc.meta.json"
+  },
+  "file_detail": {
+    "name": "Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1.nc",
+    "path": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Radar/Z_RADR_I_BJSCN_20250601000000_O_DOR_MOC_CAP_FMT_1.nc",
+    "format": "RADAR_NC_CAP_FMT",
+    "size_bytes": 4267722,
+    "mtime": "2026-06-25T04:10:31.627040+00:00",
+    "parsed_at": "2026-06-25T04:10:32.669449+00:00",
+    "parse_duration_s": 1.042,
+    "parse_status": "success"
+  },
+  "time_detail": {
+    "start": "2025-06-01T00:00:00Z",
+    "end": "2025-06-01T00:00:00Z",
+    "count": 1,
+    "step_seconds": 360.0,
+    "reference_time": null
+  },
+  "spatial": {
+    "lon_min": 115.4,
+    "lon_max": 117.6,
+    "lat_min": 39.4,
+    "lat_max": 41.1,
+    "resolution_lon": 0.002953,
+    "resolution_lat": 0.002251,
+    "nx": 746,
+    "ny": 755,
+    "levels": [
+      500.0,
+      1000.0,
+      1500.0,
+      2000.0,
+      2500.0,
+      3000.0,
+      3500.0,
+      4000.0,
+      4500.0,
+      5000.0,
+      5500.0,
+      6000.0,
+      6500.0,
+      7000.0,
+      7500.0,
+      8000.0,
+      8500.0,
+      9000.0,
+      9500.0,
+      10000.0,
+      10500.0,
+      11000.0,
+      11500.0,
+      12000.0,
+      12500.0,
+      13000.0,
+      13500.0,
+      14000.0,
+      14500.0,
+      15000.0
+    ],
+    "level_type": "height_m",
+    "projection": "latlon"
+  },
+  "format_specific": {
+    "radar_name": "BJSCN",
+    "radar_type": "MOC-S",
+    "draw_type": "image_grid_hor",
+    "institution": "Chinese_Academy_of_Meteorological_Science",
+    "producer": "wuchong@cma.gov.cn",
+    "version": "3.0",
+    "stations": [
+      {
+        "name": "BeiJing",
+        "longitude": 116.471947,
+        "latitude": 39.808887,
+        "height_m": 91.0
+      },
+      {
+        "name": "HaiTuoShan",
+        "longitude": 115.814163,
+        "latitude": 40.558334,
+        "height_m": 2203.0
+      },
+      {
+        "name": "BaoDi",
+        "longitude": 117.404167,
+        "latitude": 39.55389,
+        "height_m": 87.0
+      },
+      {
+        "name": "TianJin",
+        "longitude": 117.786392,
+        "latitude": 39.158054,
+        "height_m": 105.0
+      }
+    ],
+    "render": {
+      "variable": "observation.base_ref_cor_log",
+      "mode": "vertical_max",
+      "description": "30 个高度层取垂直最大值合成 PNG"
+    }
+  },
+  "extra": {
+    "status": "parsed",
+    "generated_at": "2026-06-25T04:10:32.669459+00:00",
+    "note": "当前实现面向 Z_RADR CAP_FMT NetCDF case。原始极坐标 CINRAD/bz2 后续接入 wradlib。"
+  }
+}
