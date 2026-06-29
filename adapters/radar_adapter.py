@@ -7,6 +7,7 @@ import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import numpy as np
 import xarray as xr
@@ -111,7 +112,7 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
             )
 
             render_stats = _stats(render_data)
-            variables = _variables(dataset)
+            variables = _variables(dataset, source_file)
             levels = _levels_for_var(dataset, dataset[render_name])
             observation_time = _observation_time(dataset, source_file)
             resolution_lon = _resolution(lon_values)
@@ -120,6 +121,39 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
             total_grid = int(render_data.size)
             coverage = valid_grid / total_grid if total_grid else 0.0
             product_code, product_name, unit = _product_info(render_name)
+            generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            render_description = (
+                "vertical maximum value from height layers"
+                if render_mode == "vertical_max"
+                else "single layer product render"
+            )
+            format_specific = {
+                "radar_name": str(dataset.attrs.get("information.name", "")),
+                "radar_type": str(dataset.attrs.get("information.type.radar", "")),
+                "draw_type": str(dataset.attrs.get("information.type.draw", "")),
+                "institution": str(dataset.attrs.get("information.institution", "")),
+                "producer": str(dataset.attrs.get("information.producer", "")),
+                "version": str(dataset.attrs.get("information.version", "")),
+                "stations": stations,
+                "render": {
+                    "variable": render_name,
+                    "code": product_code,
+                    "mode": render_mode,
+                    "description": render_description,
+                },
+            }
+            radar_extra = {
+                "radar_name": format_specific["radar_name"],
+                "radar_type": format_specific["radar_type"],
+                "institution": format_specific["institution"],
+                "stations": stations,
+                "render": {
+                    "variable": product_code,
+                    "raw_name": render_name,
+                    "mode": render_mode,
+                    "description": render_description,
+                },
+            }
 
             weather_info = {
                 "file": source_file.name,
@@ -131,28 +165,35 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 "range": _range_text(extent),
                 "resolution": f"{resolution_lon:.4f}° × {resolution_lat:.4f}°",
                 "grid": f"{render_data.shape[1]} × {render_data.shape[0]}",
+                "valid_grid": valid_grid,
                 "validGrid": str(valid_grid),
                 "coverage": f"{coverage:.1%}",
                 "missing": "NaN",
                 "unit": unit,
+                "variable_count": len(variables),
+                "step_count": 1,
                 "vars": str(len(variables)),
                 "variables": str(len(variables)),
                 "steps": "1",
                 "status": "解析完成",
                 "quality": _quality_text(coverage),
-                "max": _fmt_number(render_stats["max"]),
-                "min": _fmt_number(render_stats["min"]),
-                "mean": _fmt_number(render_stats["mean"]),
+                "max": render_stats["max"],
+                "min": render_stats["min"],
+                "mean": render_stats["mean"],
                 "alert": _alert_text(render_stats["max"]),
-                "update": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+                "updated_at": generated_at,
+                "update": generated_at,
                 "bars": _histogram_bars(render_data),
+                "bars_labels": ["0-10", "10-20", "20-30", "30-40", ">=40"],
                 "trend": [],
+                "trend_times": [],
                 "extent": extent,
                 "png": png_file.as_posix(),
                 "meta_file": meta_file.as_posix(),
             }
 
             meta: dict[str, Any] = {
+                "schema_version": "1.0",
                 "file": source_file.name,
                 "element": weather_info["element"],
                 "time": weather_info["time"],
@@ -171,8 +212,9 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 "meta_file": meta_file.as_posix(),
                 "png_files": [png_file.as_posix()],
                 "default_png": png_file.as_posix(),
-                "default_variable": render_name,
+                "default_variable": product_code,
                 "variables": variables,
+                "composites": [],
                 "times": [observation_time["iso"]],
                 "levels": levels,
                 "bbox": extent,
@@ -183,7 +225,7 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                     "format": "RADAR_NC_CAP_FMT",
                     "size_bytes": source_file.stat().st_size,
                     "mtime": datetime.fromtimestamp(source_file.stat().st_mtime, tz=timezone.utc).isoformat(),
-                    "parsed_at": datetime.now(timezone.utc).isoformat(),
+                    "parsed_at": generated_at,
                     "parse_duration_s": round(time.perf_counter() - started, 3),
                     "parse_status": "success",
                 },
@@ -223,7 +265,13 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 },
                 "extra": {
                     "status": "parsed",
-                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "generated_at": generated_at,
+                    "cma": {},
+                    "era5": {},
+                    "gfs": {},
+                    "himawari": {},
+                    "radar": radar_extra,
+                    "wrf": {},
                     "note": "当前实现面向 Z_RADR CAP_FMT NetCDF case。原始极坐标 CINRAD/bz2 后续接入 wradlib。",
                 },
             }
@@ -232,6 +280,105 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
 
     write_meta(meta_file, meta)
     return meta
+
+
+def process_files(file_paths: list[str], data_type: str = "Radar") -> dict[str, Any]:
+    paths = [Path(item).resolve() for item in file_paths]
+    if not paths:
+        raise ValueError("No radar files were provided.")
+
+    metas = [process_file(str(path), data_type=data_type) for path in paths]
+    if len(metas) == 1:
+        return metas[0]
+
+    frames = [_frame_from_meta(meta, index) for index, meta in enumerate(metas)]
+    frames.sort(key=lambda item: item.get("time") or item.get("file") or "")
+    for index, frame in enumerate(frames):
+        frame["index"] = index
+
+    first = metas[0]
+    times = [str(frame["time"]) for frame in frames if frame.get("time")]
+    source_files = [str(frame["source_file"]) for frame in frames if frame.get("source_file")]
+    png_files = [str(frame["png"]) for frame in frames if frame.get("png")]
+    bbox = _merge_bboxes([frame.get("extent") for frame in frames])
+    generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    weather_info = dict(first.get("weather_info", {}))
+    if times:
+        weather_info["time"] = f"{times[0]} - {times[-1]}"
+    weather_info.update(
+        {
+            "file": f"{len(frames)} radar files",
+            "step_count": len(frames),
+            "steps": str(len(frames)),
+            "status": "parsed_series",
+            "updated_at": generated_at,
+            "update": generated_at,
+            "times": times,
+        }
+    )
+
+    batch_id = f"{paths[0].parent.name}_{times[0]}_{times[-1]}" if times else f"{paths[0].parent.name}_radar_series"
+    batch_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", batch_id).strip("._")
+    meta_file = paths[0].parent / f"{batch_id}.series.meta.json"
+    radar_extra = dict(first.get("extra", {}).get("radar", {}))
+    radar_extra.update({"file_count": len(frames), "frame_count": len(frames)})
+
+    combined = {
+        "schema_version": "1.0",
+        "file": weather_info["file"],
+        "element": weather_info.get("element"),
+        "time": weather_info.get("time"),
+        "level": weather_info.get("level"),
+        "range": weather_info.get("range"),
+        "grid": weather_info.get("grid"),
+        "missing": weather_info.get("missing"),
+        "unit": weather_info.get("unit"),
+        "vars": weather_info.get("vars"),
+        "steps": weather_info.get("steps"),
+        "extent": bbox,
+        "dataset_id": batch_id,
+        "data_type": data_type,
+        "file_format": "RADAR_NC_CAP_FMT",
+        "source_file": source_files[0] if source_files else "",
+        "source_files": source_files,
+        "meta_file": meta_file.as_posix(),
+        "png_files": png_files,
+        "default_png": png_files[0] if png_files else None,
+        "default_variable": first.get("default_variable"),
+        "variables": first.get("variables", []),
+        "composites": [],
+        "times": times,
+        "levels": first.get("levels", []),
+        "bbox": bbox,
+        "frames": frames,
+        "weather_info": weather_info,
+        "file_detail": {
+            "name": weather_info["file"],
+            "path": paths[0].parent.as_posix(),
+            "format": "RADAR_NC_CAP_FMT",
+            "parsed_at": generated_at,
+            "parse_status": "success",
+            "file_count": len(frames),
+        },
+        "time_detail": {
+            "start": times[0] if times else None,
+            "end": times[-1] if times else None,
+            "count": len(frames),
+            "step_seconds": first.get("time_detail", {}).get("step_seconds"),
+            "reference_time": None,
+        },
+        "spatial": first.get("spatial", {}),
+        "format_specific": first.get("format_specific", {}),
+        "extra": {
+            **first.get("extra", {}),
+            "status": "parsed_series",
+            "generated_at": generated_at,
+            "radar": radar_extra,
+        },
+    }
+    write_meta(meta_file, combined)
+    return combined
 
 
 def build_render_catalog(source_file: str | Path, cache_dir: str | Path | None = None) -> dict[str, Any]:
@@ -607,6 +754,67 @@ def _safe_name(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("._") or "radar"
 
 
+def _frame_from_meta(meta: dict[str, Any], index: int) -> dict[str, Any]:
+    source_file = str(meta.get("source_file") or meta.get("file_detail", {}).get("path") or "")
+    weather_info = dict(meta.get("weather_info", {}))
+    times = meta.get("times") if isinstance(meta.get("times"), list) else []
+    time_value = str(times[0]) if times else str(weather_info.get("time") or "")
+    png = meta.get("default_png")
+    if not png and isinstance(meta.get("png_files"), list) and meta["png_files"]:
+        png = meta["png_files"][0]
+    if not png:
+        png = weather_info.get("png")
+
+    return {
+        "index": index,
+        "file": Path(source_file).name if source_file else str(meta.get("file") or ""),
+        "source_file": source_file,
+        "meta_file": meta.get("meta_file"),
+        "time": time_value,
+        "time_label": weather_info.get("time") or time_value,
+        "extent": meta.get("bbox") or meta.get("extent") or weather_info.get("extent"),
+        "png": png,
+        "default_png": png,
+        "weather_info": weather_info,
+    }
+
+
+def _merge_bboxes(extents: list[Any]) -> list[float] | None:
+    values: list[list[float]] = []
+    for extent in extents:
+        if isinstance(extent, dict):
+            candidate = [extent.get("west"), extent.get("south"), extent.get("east"), extent.get("north")]
+        else:
+            candidate = extent
+        if not isinstance(candidate, (list, tuple)) or len(candidate) != 4:
+            continue
+        try:
+            nums = [float(item) for item in candidate]
+        except (TypeError, ValueError):
+            continue
+        if all(math.isfinite(item) for item in nums) and nums[0] < nums[2] and nums[1] < nums[3]:
+            values.append(nums)
+    if not values:
+        return None
+    return [
+        _round_float(min(item[0] for item in values)),
+        _round_float(min(item[1] for item in values)),
+        _round_float(max(item[2] for item in values)),
+        _round_float(max(item[3] for item in values)),
+    ]
+
+
+def _grid_url(source_file: Path, variable_name: str, level_key: str = "max") -> str:
+    query = urlencode(
+        {
+            "file": source_file.name,
+            "product": variable_name,
+            "level": level_key,
+        }
+    )
+    return f"/api/radar/grid?{query}"
+
+
 def _lat_lon_for_var(dataset: xr.Dataset, data_array: xr.DataArray) -> tuple[np.ndarray, np.ndarray]:
     dims = list(data_array.dims)
     if len(dims) >= 3:
@@ -676,7 +884,7 @@ def _stations(dataset: xr.Dataset) -> list[dict[str, Any]]:
     return stations
 
 
-def _variables(dataset: xr.Dataset) -> list[dict[str, Any]]:
+def _variables(dataset: xr.Dataset, source_file: Path) -> list[dict[str, Any]]:
     variables = []
     for name, data_array in dataset.data_vars.items():
         if not name.startswith("observation."):
@@ -685,14 +893,24 @@ def _variables(dataset: xr.Dataset) -> list[dict[str, Any]]:
         stat = _stats(np.asarray(data_array.values, dtype=np.float32))
         variables.append(
             {
+                "name": product_code,
                 "short_name": product_code,
                 "raw_name": name,
                 "long_name": product_name,
                 "name_cn": product_name,
+                "unit": unit,
+                "display_unit": None,
                 "units": unit,
                 "units_original": unit,
                 "dims": list(data_array.dims),
                 "shape": [int(item) for item in data_array.shape],
+                "level": None,
+                "missing": "NaN",
+                "description": None,
+                "wavelength": None,
+                "float32": _grid_url(source_file, name),
+                "netcdf": source_file.as_posix(),
+                "png": None,
                 "category": "雷达产品",
                 "definition": "",
                 "applications": ["强对流监测", "短临预报", "降水估测"],

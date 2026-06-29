@@ -189,7 +189,10 @@ def parse_file(
             upload_files = adapter.select_upload_files(upload_files)
         saved_paths = save_upload_files(upload_files, BUSINESS_DIRS[business_type], business_type)
         saved_path = saved_paths[0]
-        meta = ADAPTERS[business_type].process_file(str(saved_path), data_type=business_type)
+        if business_type == "Radar" and len(saved_paths) > 1:
+            meta = radar_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
+        else:
+            meta = ADAPTERS[business_type].process_file(str(saved_path), data_type=business_type)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

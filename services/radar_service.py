@@ -46,10 +46,80 @@ def _source_from_meta(meta_json: dict[str, Any] | None) -> Path | None:
     if not meta_json:
         return None
     value = meta_json.get("source_file") or meta_json.get("file_detail", {}).get("path")
+    if isinstance(value, list):
+        value = value[0] if value else None
     if not value:
         return None
     path = Path(value)
     return path if path.exists() else None
+
+
+def _frame_source(frame: dict[str, Any] | None) -> Path | None:
+    if not frame:
+        return None
+    value = frame.get("source_file")
+    if not value:
+        return None
+    path = Path(value)
+    return path if path.exists() else None
+
+
+def _frame_png(frame: dict[str, Any] | None) -> Path | None:
+    if not frame:
+        return None
+    for key in ("default_png", "png"):
+        value = frame.get(key)
+        if value:
+            path = Path(value)
+            if path.exists():
+                return path
+    return None
+
+
+def _frame_from_meta(meta_json: dict[str, Any]) -> dict[str, Any] | None:
+    source = _source_from_meta(meta_json)
+    if not source:
+        return None
+    weather_info = meta_json.get("weather_info", {})
+    times = meta_json.get("times") if isinstance(meta_json.get("times"), list) else []
+    time_value = str(times[0]) if times else str(weather_info.get("time") or "")
+    png = _png_from_meta(meta_json)
+    return {
+        "index": 0,
+        "file": source.name,
+        "source_file": source.as_posix(),
+        "meta_file": meta_json.get("meta_file"),
+        "time": time_value,
+        "time_label": weather_info.get("time") or time_value,
+        "extent": meta_json.get("bbox") or meta_json.get("extent") or weather_info.get("extent"),
+        "png": _as_posix(png),
+        "default_png": _as_posix(png),
+        "weather_info": weather_info,
+    }
+
+
+def _frames_from_meta(meta_json: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not meta_json:
+        return []
+    frames = meta_json.get("frames")
+    if isinstance(frames, list) and frames:
+        normalized = []
+        for index, item in enumerate(frames):
+            if not isinstance(item, dict):
+                continue
+            source = _frame_source(item)
+            frame = dict(item)
+            frame["index"] = index
+            if source:
+                frame["file"] = frame.get("file") or source.name
+                frame["source_file"] = source.as_posix()
+            normalized.append(frame)
+        normalized = sorted(normalized, key=lambda item: item.get("time") or item.get("file") or "")
+        for index, item in enumerate(normalized):
+            item["index"] = index
+        return normalized
+    frame = _frame_from_meta(meta_json)
+    return [frame] if frame else []
 
 
 def _latest_source_file() -> Path | None:
@@ -124,18 +194,27 @@ def get_display_data() -> dict[str, Any]:
 
     png_path = _png_from_meta(meta_json) or (png_files[0] if png_files else None)
     weather_info = meta_json.get("weather_info", {}) if meta_json else {}
+    frames = _frames_from_meta(meta_json)
+    current_frame = frames[0] if frames else None
+    frame_png = _frame_png(current_frame)
+    if frame_png:
+        png_path = frame_png
     extent = None
     if meta_json:
         extent = meta_json.get("extent") or meta_json.get("bbox") or weather_info.get("extent")
+    if current_frame and current_frame.get("extent"):
+        extent = current_frame.get("extent")
 
     grid_error = None
     grid_products: list[dict[str, Any]] = []
-    source_path = _source_from_meta(meta_json)
+    source_path = _frame_source(current_frame) or _source_from_meta(meta_json)
     if source_path:
         try:
             grid_products = _with_grid_urls(radar_adapter.build_grid_catalog(source_path))
         except Exception as exc:  # pragma: no cover - surfaced to frontend for diagnostics
             grid_error = str(exc)
+
+    times = [str(frame.get("time")) for frame in frames if frame.get("time")]
 
     return {
         "business_type": "Radar",
@@ -146,6 +225,9 @@ def get_display_data() -> dict[str, Any]:
         "png": _as_posix(png_path),
         "png_data_url": _png_data_url(png_path),
         "png_files": [_as_posix(path) for path in png_files],
+        "frames": frames,
+        "times": times,
+        "frame_count": len(frames),
         "grid_products": grid_products,
         "grid_error": grid_error,
     }
