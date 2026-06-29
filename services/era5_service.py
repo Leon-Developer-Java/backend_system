@@ -8,6 +8,8 @@ import xarray as xr
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "ERA5"
 NODATA = -999999.0
+LAT_NAMES = ("latitude", "lat", "y")
+LON_NAMES = ("longitude", "lon", "x")
 
 
 def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[str, Any]:
@@ -49,10 +51,11 @@ def get_grid_data(variable: str | None = None, meta: dict[str, Any] | None = Non
             variable = _first_grid_variable(dataset)
 
         data_array = _select_first_slice(dataset[variable])
-        data_array = data_array.transpose("latitude", "longitude")
+        lat_name, lon_name = _lat_lon_names(dataset)
+        data_array = data_array.transpose(lat_name, lon_name)
 
-        lat = data_array["latitude"].values.astype("float64")
-        lon = data_array["longitude"].values.astype("float64")
+        lat = data_array[lat_name].values.astype("float64")
+        lon = data_array[lon_name].values.astype("float64")
         values = data_array.values.astype("float32")
 
         if lat[0] < lat[-1]:
@@ -158,14 +161,27 @@ def _display_variables(meta: dict[str, Any] | None) -> list[dict[str, Any]]:
 
 
 def _normalize_longitude(dataset: xr.Dataset) -> xr.Dataset:
-    if "longitude" not in dataset.coords:
+    try:
+        _, lon_name = _lat_lon_names(dataset)
+    except KeyError:
         return dataset
 
-    lon = dataset.longitude.values
+    lon = dataset[lon_name].values
     if np.any(lon > 180):
-        dataset = dataset.assign_coords(longitude=(((lon + 180) % 360) - 180))
-        dataset = dataset.sortby("longitude")
+        dataset = dataset.assign_coords({lon_name: (((lon + 180) % 360) - 180)})
+        dataset = dataset.sortby(lon_name)
     return dataset
+
+
+def _coord_name(dataset: xr.Dataset, candidates: tuple[str, ...]) -> str:
+    for name in candidates:
+        if name in dataset.coords or name in dataset.variables:
+            return name
+    raise KeyError(f"ERA5 NetCDF missing coordinate: one of {', '.join(candidates)}")
+
+
+def _lat_lon_names(dataset: xr.Dataset) -> tuple[str, str]:
+    return _coord_name(dataset, LAT_NAMES), _coord_name(dataset, LON_NAMES)
 
 
 def _open_dataset(source_file: Path) -> xr.Dataset:
@@ -181,23 +197,26 @@ def _open_dataset(source_file: Path) -> xr.Dataset:
 
 
 def _first_grid_variable(dataset: xr.Dataset) -> str:
+    lat_name, lon_name = _lat_lon_names(dataset)
     for name, data_array in dataset.data_vars.items():
         dims = set(data_array.dims)
-        if {"latitude", "longitude"}.issubset(dims):
+        if {lat_name, lon_name}.issubset(dims):
             return name
     raise ValueError("No renderable ERA5 grid variable found.")
 
 
 def _select_first_slice(data_array: xr.DataArray) -> xr.DataArray:
+    lat_name = next((name for name in LAT_NAMES if name in data_array.dims), "latitude")
+    lon_name = next((name for name in LON_NAMES if name in data_array.dims), "longitude")
     selectors = {}
     for dim in data_array.dims:
-        if dim not in {"latitude", "longitude"}:
+        if dim not in {lat_name, lon_name}:
             selectors[dim] = 0
 
     if selectors:
         data_array = data_array.isel(selectors)
 
-    if not {"latitude", "longitude"}.issubset(set(data_array.dims)):
+    if not {lat_name, lon_name}.issubset(set(data_array.dims)):
         raise ValueError(f"ERA5 variable {data_array.name} is not a latitude/longitude grid.")
 
     return data_array
