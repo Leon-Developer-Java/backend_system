@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+
+  "dataset_id": "",
+  "data_type": "",
+  "file_format": "",
+
+  "source_file": "",
+  "meta_file": "",
+  "png_files": [],
+  "default_png": null,
+  "default_variable": null,
+
+  "times": [],
+  "levels": [],
+  "bbox": [null, null, null, null],
+
+  "variables": [
+    {
+      "name": "",
+      "long_name": null,
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+
+      "unit": null,
+      "display_unit": null,
+
+      "shape": [],
+      "dims": [],
+      "level": null,
+      "missing": null,
+
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+
+      "category": null,
+      "description": null,
+      "wavelength": null,
+
+      "float32": null,
+      "netcdf": null,
+      "png": null
+    }
+  ],
+
+  "composites": [
+    {
+      "name": "",
+      "name_cn": null,
+      "description": null,
+      "source_bands": [],
+      "float32": null,
+      "netcdf": null,
+      "png": null
+    }
+  ],
+
+  "weather_info": {
+    "source": "",
+    "product": "",
+    "element": "",
+    "time": "",
+    "level": "",
+    "range": "",
+    "resolution": "",
+    "grid": "",
+
+    "valid_grid": null,
+    "coverage": null,
+    "missing": null,
+    "unit": null,
+
+    "variable_count": null,
+    "step_count": null,
+
+    "status": "",
+    "quality": "",
+    "max": null,
+    "min": null,
+    "mean": null,
+    "alert": null,
+    "updated_at": null,
+
+    "bars": [],
+    "bars_labels": [],
+    "trend": [],
+    "trend_times": []
+  },
+
+  "extra": {
+    "status": "",
+    "generated_at": null,
+    "note": null,
+
+    "cma": {},
+    "era5": {},
+    "gfs": {},
+    "himawari": {},
+    "radar": {},
+    "wrf": {}
+  }
+}
