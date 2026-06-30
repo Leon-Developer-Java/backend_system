@@ -11,3 +11,4 @@ netCDF4==1.7.4
 cfgrib
 eccodes
 matplotlib
+scipy

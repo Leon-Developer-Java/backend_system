@@ -1,6 +1,8 @@
 import json
+import io
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import h5py
 import numpy as np
@@ -10,7 +12,25 @@ from adapters import cma_adapter
 
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "CMA"
+PROJECT_DATA_DIR = Path(__file__).resolve().parents[2] / "data"
+CMA_SOURCE_DIRS = (
+    PROJECT_DATA_DIR / "NC",
+    PROJECT_DATA_DIR / "GRIB",
+    DATA_DIR,
+)
 NODATA = -999999.0
+COMMON_NC_DISPLAY_VARIABLES = (
+    "Tair_f_inst",
+    "Rainf_tavg",
+    "TotalPrecip_tavg",
+    "Wind_f_inst",
+    "Qair_f_inst",
+    "Psurf_f_inst",
+    "AvgSurfT_inst",
+    "SoilMoist_inst",
+    "SoilTemp_inst",
+    "SWdown_f_tavg",
+)
 
 
 def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[str, Any]:
@@ -26,9 +46,13 @@ def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[
 
     variables = _display_variables(meta_json)
     grid = None
+    frames: list[dict[str, Any]] = []
     if meta_json:
         try:
             grid = get_grid_data(variable=variable, level_index=level_index)
+            frames = _frames_from_meta(meta_json) or _series_frames(_source_file(meta_json))
+            grid["values"] = []
+            grid["binary_url"] = _grid_url(grid["file"], grid["variable"], level_index)
         except ValueError:
             grid = None
 
@@ -40,13 +64,17 @@ def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[
         "png_files": [str(path).replace("\\", "/") for path in png_files],
         "variables": variables,
         "grid": grid,
+        "frames": frames,
+        "times": [frame["time"] for frame in frames],
+        "frame_count": len(frames),
     }
 
 
-def get_grid_data(variable: str | None = None, level_index: int = 0) -> dict[str, Any]:
+def get_grid_data(variable: str | None = None, level_index: int = 0, file_name: str | None = None) -> dict[str, Any]:
     meta = _latest_meta()
-    source_file = _source_file(meta)
-    file_format = str(meta.get("file_format") or source_file.suffix.lstrip(".")).upper()
+    source_file = _resolve_source_file(file_name) if file_name else _source_file(meta)
+    suffix = source_file.suffix.lower()
+    file_format = "NC" if suffix == ".nc" else "GRIB" if suffix in {".grib", ".grib2"} else str(meta.get("file_format") or suffix.lstrip(".")).upper()
     variable_name = variable or _primary_variable(meta)
 
     if file_format == "NC" or source_file.suffix.lower() == ".nc":
@@ -77,6 +105,12 @@ def get_grid_data(variable: str | None = None, level_index: int = 0) -> dict[str
     }
 
 
+def get_binary_grid_data(file_name: str | None = None, variable: str | None = None, level_index: int = 0) -> dict[str, Any]:
+    grid = get_grid_data(variable=variable, level_index=level_index, file_name=file_name)
+    values = np.asarray(grid.pop("values"), dtype="float32")
+    return {**grid, "bytes": values.tobytes(), "dtype": "float32"}
+
+
 def _latest_meta() -> dict[str, Any]:
     _ensure_latest_meta()
     meta_files = _meta_files()
@@ -91,22 +125,39 @@ def _source_file(meta: dict[str, Any]) -> Path:
     if by_name.exists():
         return by_name
 
-    source = Path(str(meta.get("source_file", "")))
+    source_value = meta.get("source_file", "")
+    if isinstance(source_value, list):
+        source_value = source_value[0] if source_value else ""
+    source = Path(str(source_value))
     if source.exists():
         return source
 
-    candidates = sorted(
-        _source_files(),
-        key=lambda item: item.stat().st_mtime,
-        reverse=True,
-    )
+    candidates = sorted(_source_files(), key=_source_sort_key)
     if not candidates:
         raise ValueError("No CMA source data file found.")
     return candidates[0]
 
 
+def _resolve_source_file(file_name: str | None) -> Path:
+    if file_name:
+        safe_name = Path(file_name).name
+        matches = [path for path in _source_files() if path.name == safe_name]
+        if matches:
+            return sorted(matches, key=lambda item: item.stat().st_mtime, reverse=True)[0]
+        raise ValueError("CMA source file not found.")
+    return _source_file(_latest_meta())
+
+
 def _meta_files() -> list[Path]:
-    files = sorted(DATA_DIR.rglob("*.meta.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    files = sorted(
+        {
+            path
+            for directory in CMA_SOURCE_DIRS
+            if directory.exists()
+            for path in directory.rglob("*.meta.json")
+        },
+        key=_source_sort_key,
+    )
     fallback = DATA_DIR / "meta.json"
     if fallback.exists() and fallback not in files:
         files.append(fallback)
@@ -114,16 +165,98 @@ def _meta_files() -> list[Path]:
 
 
 def _source_files() -> list[Path]:
-    return [
+    files: list[Path] = []
+    for directory in CMA_SOURCE_DIRS:
+        if not directory.exists():
+            continue
+        for pattern in ("*.nc", "*.grib", "*.grib2"):
+            files.extend(path for path in directory.rglob(pattern) if path.is_file())
+    return files
+
+
+def _source_sort_key(path: Path) -> tuple[int, float]:
+    resolved = path.resolve()
+    for index, directory in enumerate(CMA_SOURCE_DIRS):
+        try:
+            resolved.relative_to(directory.resolve())
+            return (index, -path.stat().st_mtime)
+        except ValueError:
+            continue
+    return (len(CMA_SOURCE_DIRS), -path.stat().st_mtime)
+
+
+def _series_frames(source_file: Path) -> list[dict[str, Any]]:
+    frames = []
+    for index, path in enumerate(_series_files(source_file)):
+        time_value = _parse_time(path)
+        frames.append(
+            {
+                "index": index,
+                "file": path.name,
+                "source_file": path.as_posix(),
+                "time": time_value,
+                "time_label": _format_time(time_value),
+                "extent": None,
+            }
+        )
+    return frames
+
+
+def _frames_from_meta(meta: dict[str, Any] | None) -> list[dict[str, Any]]:
+    frames = meta.get("frames") if isinstance(meta, dict) else None
+    if not isinstance(frames, list) or not frames:
+        return []
+
+    normalized = []
+    for index, frame in enumerate(frames):
+        if not isinstance(frame, dict):
+            continue
+        source_value = str(frame.get("source_file") or "")
+        source = Path(source_value) if source_value else None
+        normalized.append(
+            {
+                **frame,
+                "index": index,
+                "file": frame.get("file") or (source.name if source else ""),
+                "source_file": source.as_posix() if source else frame.get("source_file"),
+                "time": str(frame.get("time") or ""),
+                "time_label": frame.get("time_label") or _format_time(str(frame.get("time") or "")),
+            }
+        )
+    return sorted(normalized, key=lambda item: item.get("time") or item.get("file") or "")
+
+
+def _series_files(source_file: Path) -> list[Path]:
+    suffix = source_file.suffix.lower()
+    patterns = ("*.grib", "*.grib2") if suffix in {".grib", ".grib2"} else (f"*{suffix}",)
+    files = [
         path
-        for pattern in ("*.nc", "*.grib", "*.grib2")
-        for path in DATA_DIR.rglob(pattern)
-        if path.is_file()
+        for pattern in patterns
+        for path in source_file.parent.glob(pattern)
+        if path.is_file() and path.suffix.lower() in ({".grib", ".grib2"} if suffix in {".grib", ".grib2"} else {suffix})
     ]
+    return sorted(files, key=lambda item: _parse_time(item) or item.name) or [source_file]
+
+
+def _parse_time(path: Path) -> str:
+    import re
+
+    match = re.search(r"_(\d{10})_", path.name)
+    return match.group(1) if match else ""
+
+
+def _format_time(value: str) -> str:
+    if len(value) != 10:
+        return value
+    return f"{value[:4]}-{value[4:6]}-{value[6:8]} {value[8:10]}:00"
+
+
+def _grid_url(file_name: str, variable: str, level_index: int) -> str:
+    return f"/api/cma/grid?{urlencode({'file': file_name, 'variable': variable, 'level_index': level_index})}"
 
 
 def _ensure_latest_meta() -> None:
-    sources = sorted(_source_files(), key=lambda item: item.stat().st_mtime, reverse=True)
+    sources = sorted(_source_files(), key=_source_sort_key)
     if not sources:
         return
 
@@ -137,7 +270,13 @@ def _ensure_latest_meta() -> None:
 
 def _primary_variable(meta: dict[str, Any]) -> str:
     cma = meta.get("extra", {}).get("cma", {})
-    primary = cma.get("primary_variable") or meta.get("variables", [None])[0]
+    variables = meta.get("variables", [])
+    first_variable = None
+    if variables and isinstance(variables[0], dict):
+        first_variable = variables[0].get("name")
+    elif variables:
+        first_variable = variables[0]
+    primary = meta.get("default_variable") or cma.get("primary_variable") or first_variable
     if not primary:
         raise ValueError("No CMA variable found in meta.json.")
     return str(primary)
@@ -146,12 +285,31 @@ def _primary_variable(meta: dict[str, Any]) -> str:
 def _display_variables(meta: dict[str, Any] | None) -> list[dict[str, Any]]:
     if not meta:
         return []
+    top_variables = meta.get("variables", [])
+    if top_variables and isinstance(top_variables[0], dict):
+        display_variables = [
+            {
+                "name": item.get("name"),
+                "label": item.get("long_name") or item.get("name"),
+                "unit": item.get("display_unit") or item.get("unit", ""),
+                "dims": item.get("dims", []),
+                "shape": item.get("shape", []),
+            }
+            for item in top_variables
+            if _is_grid_variable(item)
+        ]
+        if meta.get("extra", {}).get("cma", {}).get("product_type") == "LAND_NC":
+            common = _common_nc_variables(display_variables)
+            if common:
+                return common
+        return display_variables
+
     cma = meta.get("extra", {}).get("cma", {})
     products = cma.get("products", {})
     for product in products.values():
         variables = product.get("variables", [])
         if variables:
-            return [
+            display_variables = [
                 {
                     "name": item.get("name"),
                     "label": item.get("long_name") or item.get("name"),
@@ -162,17 +320,27 @@ def _display_variables(meta: dict[str, Any] | None) -> list[dict[str, Any]]:
                 for item in variables
                 if _is_grid_variable(item)
             ]
-    return [{"name": name, "label": name, "unit": ""} for name in meta.get("variables", [])]
+            if product.get("product_type") == "LAND_NC":
+                common = _common_nc_variables(display_variables)
+                if common:
+                    return common
+            return display_variables
+    return [{"name": name, "label": name, "unit": ""} for name in top_variables]
+
+
+def _common_nc_variables(variables: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    by_name = {str(item.get("name")): item for item in variables if item.get("name")}
+    return [by_name[name] for name in COMMON_NC_DISPLAY_VARIABLES if name in by_name]
 
 
 def _is_grid_variable(item: dict[str, Any]) -> bool:
     dims = item.get("dims") or []
     shape = item.get("shape") or []
-    return bool(item.get("band")) or dims[-2:] == ["lat", "lon"] or len(shape) == 2
+    return bool(item.get("float32")) or bool(item.get("band")) or dims[-2:] == ["lat", "lon"] or len(shape) in {2, 3}
 
 
 def _read_nc_grid(source_file: Path, meta: dict[str, Any], variable: str, level_index: int) -> dict[str, Any]:
-    with h5py.File(source_file, "r") as dataset:
+    with h5py.File(io.BytesIO(source_file.read_bytes()), "r") as dataset:
         if variable not in dataset:
             variable = _first_available_nc_variable(dataset)
         item = dataset[variable]
@@ -186,6 +354,7 @@ def _read_nc_grid(source_file: Path, meta: dict[str, Any], variable: str, level_
         else:
             raise ValueError(f"CMA variable {variable} is not a 2D grid.")
         data = _clean_grid(raw, attrs.get("_FillValue") or attrs.get("missing_value"))
+        data = _orient_nc_grid(dataset, data)
         extent = _nc_extent(dataset, meta)
 
     return _grid_payload(
@@ -231,8 +400,41 @@ def _nc_extent(dataset: h5py.File, meta: dict[str, Any]) -> list[float]:
     if "lon" in dataset and "lat" in dataset:
         lon = np.array(dataset["lon"][:], dtype="float64")
         lat = np.array(dataset["lat"][:], dtype="float64")
-        return [float(np.nanmin(lon)), float(np.nanmin(lat)), float(np.nanmax(lon)), float(np.nanmax(lat))]
+        west, east = _coord_edges(lon)
+        south, north = _coord_edges(lat)
+        return [west, south, east, north]
     return list(meta.get("extent") or meta.get("bbox") or [73, 15, 135, 55])
+
+
+def _coord_edges(values: np.ndarray) -> tuple[float, float]:
+    flat = np.array(values, dtype="float64").reshape(-1)
+    flat = flat[np.isfinite(flat)]
+    if flat.size == 0:
+        return 0.0, 0.0
+
+    unique = np.unique(flat)
+    if unique.size == 1:
+        center = float(unique[0])
+        return center - 0.5, center + 0.5
+
+    ordered = unique if unique[0] <= unique[-1] else unique[::-1]
+    deltas = np.diff(ordered)
+    step_start = float(deltas[0])
+    step_end = float(deltas[-1])
+    return float(ordered[0] - step_start / 2), float(ordered[-1] + step_end / 2)
+
+
+def _orient_nc_grid(dataset: h5py.File, data: np.ndarray) -> np.ndarray:
+    oriented = data
+    if "lat" in dataset:
+        lat = np.array(dataset["lat"][:], dtype="float64")
+        if lat.ndim == 1 and lat.size > 1 and lat[0] < lat[-1]:
+            oriented = np.flipud(oriented)
+    if "lon" in dataset:
+        lon = np.array(dataset["lon"][:], dtype="float64")
+        if lon.ndim == 1 and lon.size > 1 and lon[0] > lon[-1]:
+            oriented = np.fliplr(oriented)
+    return oriented
 
 
 def _decode_attr(value: Any) -> Any:
