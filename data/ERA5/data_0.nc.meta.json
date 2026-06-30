@@ -1,0 +1,1871 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "data_0_nc",
+  "data_type": "ERA5",
+  "file_format": "NC",
+  "source_file": "C:/study/project/era5/agent/backend_system/data/ERA5/data_0.nc",
+  "meta_file": "C:/study/project/era5/agent/backend_system/data/ERA5/data_0.nc.meta.json",
+  "png_files": [
+    "/data/ERA5/data_0_t2m.png",
+    "/data/ERA5/data_0_tp.png",
+    "/data/ERA5/data_0_sp.png",
+    "/data/ERA5/data_0_u10.png",
+    "/data/ERA5/data_0_v10.png",
+    "/data/ERA5/data_0_ssrd.png"
+  ],
+  "default_png": "/data/ERA5/data_0_t2m.png",
+  "default_variable": "t2m",
+  "times": [
+    "2025-04-03T00:00",
+    "2025-04-03T01:00",
+    "2025-04-03T02:00",
+    "2025-04-03T03:00",
+    "2025-04-03T04:00",
+    "2025-04-03T05:00",
+    "2025-04-03T06:00",
+    "2025-04-03T07:00",
+    "2025-04-03T08:00",
+    "2025-04-03T09:00",
+    "2025-04-03T10:00",
+    "2025-04-03T11:00",
+    "2025-04-03T12:00",
+    "2025-04-03T13:00",
+    "2025-04-03T14:00",
+    "2025-04-03T15:00",
+    "2025-04-03T16:00",
+    "2025-04-03T17:00",
+    "2025-04-03T18:00",
+    "2025-04-03T19:00",
+    "2025-04-03T20:00",
+    "2025-04-03T21:00",
+    "2025-04-03T22:00",
+    "2025-04-03T23:00"
+  ],
+  "levels": [
+    "surface"
+  ],
+  "bbox": [
+    73.0,
+    18.0,
+    135.0,
+    54.0
+  ],
+  "extent": [
+    73.0,
+    18.0,
+    135.0,
+    54.0
+  ],
+  "variables": [
+    {
+      "name": "t2m",
+      "long_name": "2 metre temperature",
+      "short_name": "t2m",
+      "raw_name": "t2m",
+      "name_cn": "2 metre temperature",
+      "unit": "K",
+      "display_unit": "K",
+      "shape": [
+        24,
+        361,
+        621
+      ],
+      "dims": [
+        "valid_time",
+        "latitude",
+        "longitude"
+      ],
+      "level": "surface",
+      "missing": -999999.0,
+      "stats": {
+        "min": 232.139481,
+        "max": 314.044739,
+        "mean": 281.27502,
+        "std": 11.537687
+      },
+      "category": "era5",
+      "description": "2 metre temperature",
+      "wavelength": null,
+      "float32": {
+        "path": "/data/ERA5/data_0.nc_t2m_step000.float32",
+        "paths": [
+          "/data/ERA5/data_0.nc_t2m_step000.float32",
+          "/data/ERA5/data_0.nc_t2m_step001.float32",
+          "/data/ERA5/data_0.nc_t2m_step002.float32",
+          "/data/ERA5/data_0.nc_t2m_step003.float32",
+          "/data/ERA5/data_0.nc_t2m_step004.float32",
+          "/data/ERA5/data_0.nc_t2m_step005.float32",
+          "/data/ERA5/data_0.nc_t2m_step006.float32",
+          "/data/ERA5/data_0.nc_t2m_step007.float32",
+          "/data/ERA5/data_0.nc_t2m_step008.float32",
+          "/data/ERA5/data_0.nc_t2m_step009.float32",
+          "/data/ERA5/data_0.nc_t2m_step010.float32",
+          "/data/ERA5/data_0.nc_t2m_step011.float32",
+          "/data/ERA5/data_0.nc_t2m_step012.float32",
+          "/data/ERA5/data_0.nc_t2m_step013.float32",
+          "/data/ERA5/data_0.nc_t2m_step014.float32",
+          "/data/ERA5/data_0.nc_t2m_step015.float32",
+          "/data/ERA5/data_0.nc_t2m_step016.float32",
+          "/data/ERA5/data_0.nc_t2m_step017.float32",
+          "/data/ERA5/data_0.nc_t2m_step018.float32",
+          "/data/ERA5/data_0.nc_t2m_step019.float32",
+          "/data/ERA5/data_0.nc_t2m_step020.float32",
+          "/data/ERA5/data_0.nc_t2m_step021.float32",
+          "/data/ERA5/data_0.nc_t2m_step022.float32",
+          "/data/ERA5/data_0.nc_t2m_step023.float32"
+        ],
+        "dtype": "float32",
+        "byte_order": "little",
+        "width": 621,
+        "height": 361,
+        "nodata": -999999.0
+      },
+      "netcdf": {
+        "variable": "t2m",
+        "time_coord": "valid_time",
+        "lat_coord": "latitude",
+        "lon_coord": "longitude"
+      },
+      "png": "/data/ERA5/data_0_t2m.png"
+    },
+    {
+      "name": "tp",
+      "long_name": "Total precipitation",
+      "short_name": "tp",
+      "raw_name": "tp",
+      "name_cn": "Total precipitation",
+      "unit": "m",
+      "display_unit": "m",
+      "shape": [
+        24,
+        361,
+        621
+      ],
+      "dims": [
+        "valid_time",
+        "latitude",
+        "longitude"
+      ],
+      "level": "surface",
+      "missing": -999999.0,
+      "stats": {
+        "min": 0.0,
+        "max": 0.073266,
+        "mean": 0.000255,
+        "std": 0.000994
+      },
+      "category": "era5",
+      "description": "Total precipitation",
+      "wavelength": null,
+      "float32": {
+        "path": "/data/ERA5/data_0.nc_tp_step000.float32",
+        "paths": [
+          "/data/ERA5/data_0.nc_tp_step000.float32",
+          "/data/ERA5/data_0.nc_tp_step001.float32",
+          "/data/ERA5/data_0.nc_tp_step002.float32",
+          "/data/ERA5/data_0.nc_tp_step003.float32",
+          "/data/ERA5/data_0.nc_tp_step004.float32",
+          "/data/ERA5/data_0.nc_tp_step005.float32",
+          "/data/ERA5/data_0.nc_tp_step006.float32",
+          "/data/ERA5/data_0.nc_tp_step007.float32",
+          "/data/ERA5/data_0.nc_tp_step008.float32",
+          "/data/ERA5/data_0.nc_tp_step009.float32",
+          "/data/ERA5/data_0.nc_tp_step010.float32",
+          "/data/ERA5/data_0.nc_tp_step011.float32",
+          "/data/ERA5/data_0.nc_tp_step012.float32",
+          "/data/ERA5/data_0.nc_tp_step013.float32",
+          "/data/ERA5/data_0.nc_tp_step014.float32",
+          "/data/ERA5/data_0.nc_tp_step015.float32",
+          "/data/ERA5/data_0.nc_tp_step016.float32",
+          "/data/ERA5/data_0.nc_tp_step017.float32",
+          "/data/ERA5/data_0.nc_tp_step018.float32",
+          "/data/ERA5/data_0.nc_tp_step019.float32",
+          "/data/ERA5/data_0.nc_tp_step020.float32",
+          "/data/ERA5/data_0.nc_tp_step021.float32",
+          "/data/ERA5/data_0.nc_tp_step022.float32",
+          "/data/ERA5/data_0.nc_tp_step023.float32"
+        ],
+        "dtype": "float32",
+        "byte_order": "little",
+        "width": 621,
+        "height": 361,
+        "nodata": -999999.0
+      },
+      "netcdf": {
+        "variable": "tp",
+        "time_coord": "valid_time",
+        "lat_coord": "latitude",
+        "lon_coord": "longitude"
+      },
+      "png": "/data/ERA5/data_0_tp.png"
+    },
+    {
+      "name": "sp",
+      "long_name": "Surface pressure",
+      "short_name": "sp",
+      "raw_name": "sp",
+      "name_cn": "Surface pressure",
+      "unit": "Pa",
+      "display_unit": "Pa",
+      "shape": [
+        24,
+        361,
+        621
+      ],
+      "dims": [
+        "valid_time",
+        "latitude",
+        "longitude"
+      ],
+      "level": "surface",
+      "missing": -999999.0,
+      "stats": {
+        "min": 46323.855469,
+        "max": 103080.6875,
+        "mean": 86992.177734,
+        "std": 13512.333333
+      },
+      "category": "era5",
+      "description": "Surface pressure",
+      "wavelength": null,
+      "float32": {
+        "path": "/data/ERA5/data_0.nc_sp_step000.float32",
+        "paths": [
+          "/data/ERA5/data_0.nc_sp_step000.float32",
+          "/data/ERA5/data_0.nc_sp_step001.float32",
+          "/data/ERA5/data_0.nc_sp_step002.float32",
+          "/data/ERA5/data_0.nc_sp_step003.float32",
+          "/data/ERA5/data_0.nc_sp_step004.float32",
+          "/data/ERA5/data_0.nc_sp_step005.float32",
+          "/data/ERA5/data_0.nc_sp_step006.float32",
+          "/data/ERA5/data_0.nc_sp_step007.float32",
+          "/data/ERA5/data_0.nc_sp_step008.float32",
+          "/data/ERA5/data_0.nc_sp_step009.float32",
+          "/data/ERA5/data_0.nc_sp_step010.float32",
+          "/data/ERA5/data_0.nc_sp_step011.float32",
+          "/data/ERA5/data_0.nc_sp_step012.float32",
+          "/data/ERA5/data_0.nc_sp_step013.float32",
+          "/data/ERA5/data_0.nc_sp_step014.float32",
+          "/data/ERA5/data_0.nc_sp_step015.float32",
+          "/data/ERA5/data_0.nc_sp_step016.float32",
+          "/data/ERA5/data_0.nc_sp_step017.float32",
+          "/data/ERA5/data_0.nc_sp_step018.float32",
+          "/data/ERA5/data_0.nc_sp_step019.float32",
+          "/data/ERA5/data_0.nc_sp_step020.float32",
+          "/data/ERA5/data_0.nc_sp_step021.float32",
+          "/data/ERA5/data_0.nc_sp_step022.float32",
+          "/data/ERA5/data_0.nc_sp_step023.float32"
+        ],
+        "dtype": "float32",
+        "byte_order": "little",
+        "width": 621,
+        "height": 361,
+        "nodata": -999999.0
+      },
+      "netcdf": {
+        "variable": "sp",
+        "time_coord": "valid_time",
+        "lat_coord": "latitude",
+        "lon_coord": "longitude"
+      },
+      "png": "/data/ERA5/data_0_sp.png"
+    },
+    {
+      "name": "u10",
+      "long_name": "10 metre U wind component",
+      "short_name": "u10",
+      "raw_name": "u10",
+      "name_cn": "10 metre U wind component",
+      "unit": "m s**-1",
+      "display_unit": "m s**-1",
+      "shape": [
+        24,
+        361,
+        621
+      ],
+      "dims": [
+        "valid_time",
+        "latitude",
+        "longitude"
+      ],
+      "level": "surface",
+      "missing": -999999.0,
+      "stats": {
+        "min": -11.284164,
+        "max": 13.242493,
+        "mean": 0.649488,
+        "std": 2.265884
+      },
+      "category": "era5",
+      "description": "10 metre U wind component",
+      "wavelength": null,
+      "float32": {
+        "path": "/data/ERA5/data_0.nc_u10_step000.float32",
+        "paths": [
+          "/data/ERA5/data_0.nc_u10_step000.float32",
+          "/data/ERA5/data_0.nc_u10_step001.float32",
+          "/data/ERA5/data_0.nc_u10_step002.float32",
+          "/data/ERA5/data_0.nc_u10_step003.float32",
+          "/data/ERA5/data_0.nc_u10_step004.float32",
+          "/data/ERA5/data_0.nc_u10_step005.float32",
+          "/data/ERA5/data_0.nc_u10_step006.float32",
+          "/data/ERA5/data_0.nc_u10_step007.float32",
+          "/data/ERA5/data_0.nc_u10_step008.float32",
+          "/data/ERA5/data_0.nc_u10_step009.float32",
+          "/data/ERA5/data_0.nc_u10_step010.float32",
+          "/data/ERA5/data_0.nc_u10_step011.float32",
+          "/data/ERA5/data_0.nc_u10_step012.float32",
+          "/data/ERA5/data_0.nc_u10_step013.float32",
+          "/data/ERA5/data_0.nc_u10_step014.float32",
+          "/data/ERA5/data_0.nc_u10_step015.float32",
+          "/data/ERA5/data_0.nc_u10_step016.float32",
+          "/data/ERA5/data_0.nc_u10_step017.float32",
+          "/data/ERA5/data_0.nc_u10_step018.float32",
+          "/data/ERA5/data_0.nc_u10_step019.float32",
+          "/data/ERA5/data_0.nc_u10_step020.float32",
+          "/data/ERA5/data_0.nc_u10_step021.float32",
+          "/data/ERA5/data_0.nc_u10_step022.float32",
+          "/data/ERA5/data_0.nc_u10_step023.float32"
+        ],
+        "dtype": "float32",
+        "byte_order": "little",
+        "width": 621,
+        "height": 361,
+        "nodata": -999999.0
+      },
+      "netcdf": {
+        "variable": "u10",
+        "time_coord": "valid_time",
+        "lat_coord": "latitude",
+        "lon_coord": "longitude"
+      },
+      "png": "/data/ERA5/data_0_u10.png"
+    },
+    {
+      "name": "v10",
+      "long_name": "10 metre V wind component",
+      "short_name": "v10",
+      "raw_name": "v10",
+      "name_cn": "10 metre V wind component",
+      "unit": "m s**-1",
+      "display_unit": "m s**-1",
+      "shape": [
+        24,
+        361,
+        621
+      ],
+      "dims": [
+        "valid_time",
+        "latitude",
+        "longitude"
+      ],
+      "level": "surface",
+      "missing": -999999.0,
+      "stats": {
+        "min": -11.316269,
+        "max": 9.79715,
+        "mean": 0.358315,
+        "std": 2.426279
+      },
+      "category": "era5",
+      "description": "10 metre V wind component",
+      "wavelength": null,
+      "float32": {
+        "path": "/data/ERA5/data_0.nc_v10_step000.float32",
+        "paths": [
+          "/data/ERA5/data_0.nc_v10_step000.float32",
+          "/data/ERA5/data_0.nc_v10_step001.float32",
+          "/data/ERA5/data_0.nc_v10_step002.float32",
+          "/data/ERA5/data_0.nc_v10_step003.float32",
+          "/data/ERA5/data_0.nc_v10_step004.float32",
+          "/data/ERA5/data_0.nc_v10_step005.float32",
+          "/data/ERA5/data_0.nc_v10_step006.float32",
+          "/data/ERA5/data_0.nc_v10_step007.float32",
+          "/data/ERA5/data_0.nc_v10_step008.float32",
+          "/data/ERA5/data_0.nc_v10_step009.float32",
+          "/data/ERA5/data_0.nc_v10_step010.float32",
+          "/data/ERA5/data_0.nc_v10_step011.float32",
+          "/data/ERA5/data_0.nc_v10_step012.float32",
+          "/data/ERA5/data_0.nc_v10_step013.float32",
+          "/data/ERA5/data_0.nc_v10_step014.float32",
+          "/data/ERA5/data_0.nc_v10_step015.float32",
+          "/data/ERA5/data_0.nc_v10_step016.float32",
+          "/data/ERA5/data_0.nc_v10_step017.float32",
+          "/data/ERA5/data_0.nc_v10_step018.float32",
+          "/data/ERA5/data_0.nc_v10_step019.float32",
+          "/data/ERA5/data_0.nc_v10_step020.float32",
+          "/data/ERA5/data_0.nc_v10_step021.float32",
+          "/data/ERA5/data_0.nc_v10_step022.float32",
+          "/data/ERA5/data_0.nc_v10_step023.float32"
+        ],
+        "dtype": "float32",
+        "byte_order": "little",
+        "width": 621,
+        "height": 361,
+        "nodata": -999999.0
+      },
+      "netcdf": {
+        "variable": "v10",
+        "time_coord": "valid_time",
+        "lat_coord": "latitude",
+        "lon_coord": "longitude"
+      },
+      "png": "/data/ERA5/data_0_v10.png"
+    },
+    {
+      "name": "ssrd",
+      "long_name": "Surface short-wave (solar) radiation downwards",
+      "short_name": "ssrd",
+      "raw_name": "ssrd",
+      "name_cn": "Surface short-wave (solar) radiation downwards",
+      "unit": "J m**-2",
+      "display_unit": "J m**-2",
+      "shape": [
+        24,
+        361,
+        621
+      ],
+      "dims": [
+        "valid_time",
+        "latitude",
+        "longitude"
+      ],
+      "level": "surface",
+      "missing": -999999.0,
+      "stats": {
+        "min": 0.0,
+        "max": 29857652.0,
+        "mean": 16730794.414062,
+        "std": 3347374.346354
+      },
+      "category": "era5",
+      "description": "Surface short-wave (solar) radiation downwards",
+      "wavelength": null,
+      "float32": {
+        "path": "/data/ERA5/data_0.nc_ssrd_step000.float32",
+        "paths": [
+          "/data/ERA5/data_0.nc_ssrd_step000.float32",
+          "/data/ERA5/data_0.nc_ssrd_step001.float32",
+          "/data/ERA5/data_0.nc_ssrd_step002.float32",
+          "/data/ERA5/data_0.nc_ssrd_step003.float32",
+          "/data/ERA5/data_0.nc_ssrd_step004.float32",
+          "/data/ERA5/data_0.nc_ssrd_step005.float32",
+          "/data/ERA5/data_0.nc_ssrd_step006.float32",
+          "/data/ERA5/data_0.nc_ssrd_step007.float32",
+          "/data/ERA5/data_0.nc_ssrd_step008.float32",
+          "/data/ERA5/data_0.nc_ssrd_step009.float32",
+          "/data/ERA5/data_0.nc_ssrd_step010.float32",
+          "/data/ERA5/data_0.nc_ssrd_step011.float32",
+          "/data/ERA5/data_0.nc_ssrd_step012.float32",
+          "/data/ERA5/data_0.nc_ssrd_step013.float32",
+          "/data/ERA5/data_0.nc_ssrd_step014.float32",
+          "/data/ERA5/data_0.nc_ssrd_step015.float32",
+          "/data/ERA5/data_0.nc_ssrd_step016.float32",
+          "/data/ERA5/data_0.nc_ssrd_step017.float32",
+          "/data/ERA5/data_0.nc_ssrd_step018.float32",
+          "/data/ERA5/data_0.nc_ssrd_step019.float32",
+          "/data/ERA5/data_0.nc_ssrd_step020.float32",
+          "/data/ERA5/data_0.nc_ssrd_step021.float32",
+          "/data/ERA5/data_0.nc_ssrd_step022.float32",
+          "/data/ERA5/data_0.nc_ssrd_step023.float32"
+        ],
+        "dtype": "float32",
+        "byte_order": "little",
+        "width": 621,
+        "height": 361,
+        "nodata": -999999.0
+      },
+      "netcdf": {
+        "variable": "ssrd",
+        "time_coord": "valid_time",
+        "lat_coord": "latitude",
+        "lon_coord": "longitude"
+      },
+      "png": "/data/ERA5/data_0_ssrd.png"
+    }
+  ],
+  "variable_options": [
+    {
+      "name": "t2m",
+      "label": "2 metre temperature",
+      "unit": "K"
+    },
+    {
+      "name": "tp",
+      "label": "Total precipitation",
+      "unit": "m"
+    },
+    {
+      "name": "sp",
+      "label": "Surface pressure",
+      "unit": "Pa"
+    },
+    {
+      "name": "u10",
+      "label": "10 metre U wind component",
+      "unit": "m s**-1"
+    },
+    {
+      "name": "v10",
+      "label": "10 metre V wind component",
+      "unit": "m s**-1"
+    },
+    {
+      "name": "ssrd",
+      "label": "Surface short-wave (solar) radiation downwards",
+      "unit": "J m**-2"
+    }
+  ],
+  "variable_layers": {
+    "t2m": {
+      "name": "t2m",
+      "label": "2 metre temperature",
+      "unit": "K",
+      "width": 621,
+      "height": 361,
+      "extent": [
+        73.0,
+        18.0,
+        135.0,
+        54.0
+      ],
+      "grid_urls": [
+        "/data/ERA5/data_0.nc_t2m_step000.float32",
+        "/data/ERA5/data_0.nc_t2m_step001.float32",
+        "/data/ERA5/data_0.nc_t2m_step002.float32",
+        "/data/ERA5/data_0.nc_t2m_step003.float32",
+        "/data/ERA5/data_0.nc_t2m_step004.float32",
+        "/data/ERA5/data_0.nc_t2m_step005.float32",
+        "/data/ERA5/data_0.nc_t2m_step006.float32",
+        "/data/ERA5/data_0.nc_t2m_step007.float32",
+        "/data/ERA5/data_0.nc_t2m_step008.float32",
+        "/data/ERA5/data_0.nc_t2m_step009.float32",
+        "/data/ERA5/data_0.nc_t2m_step010.float32",
+        "/data/ERA5/data_0.nc_t2m_step011.float32",
+        "/data/ERA5/data_0.nc_t2m_step012.float32",
+        "/data/ERA5/data_0.nc_t2m_step013.float32",
+        "/data/ERA5/data_0.nc_t2m_step014.float32",
+        "/data/ERA5/data_0.nc_t2m_step015.float32",
+        "/data/ERA5/data_0.nc_t2m_step016.float32",
+        "/data/ERA5/data_0.nc_t2m_step017.float32",
+        "/data/ERA5/data_0.nc_t2m_step018.float32",
+        "/data/ERA5/data_0.nc_t2m_step019.float32",
+        "/data/ERA5/data_0.nc_t2m_step020.float32",
+        "/data/ERA5/data_0.nc_t2m_step021.float32",
+        "/data/ERA5/data_0.nc_t2m_step022.float32",
+        "/data/ERA5/data_0.nc_t2m_step023.float32"
+      ],
+      "png_urls": [
+        "/data/ERA5/data_0_t2m.png"
+      ],
+      "times": [
+        "2025-04-03T00:00",
+        "2025-04-03T01:00",
+        "2025-04-03T02:00",
+        "2025-04-03T03:00",
+        "2025-04-03T04:00",
+        "2025-04-03T05:00",
+        "2025-04-03T06:00",
+        "2025-04-03T07:00",
+        "2025-04-03T08:00",
+        "2025-04-03T09:00",
+        "2025-04-03T10:00",
+        "2025-04-03T11:00",
+        "2025-04-03T12:00",
+        "2025-04-03T13:00",
+        "2025-04-03T14:00",
+        "2025-04-03T15:00",
+        "2025-04-03T16:00",
+        "2025-04-03T17:00",
+        "2025-04-03T18:00",
+        "2025-04-03T19:00",
+        "2025-04-03T20:00",
+        "2025-04-03T21:00",
+        "2025-04-03T22:00",
+        "2025-04-03T23:00"
+      ],
+      "stats": [
+        {
+          "min": 233.662155,
+          "max": 301.466858,
+          "mean": 276.544739,
+          "std": 10.981646
+        },
+        {
+          "min": 232.139481,
+          "max": 302.645325,
+          "mean": 278.222137,
+          "std": 11.25299
+        },
+        {
+          "min": 235.33847,
+          "max": 306.055267,
+          "mean": 280.441467,
+          "std": 11.398273
+        },
+        {
+          "min": 240.821472,
+          "max": 308.739441,
+          "mean": 282.595367,
+          "std": 11.5937
+        },
+        {
+          "min": 243.9086,
+          "max": 310.412506,
+          "mean": 284.273407,
+          "std": 11.735319
+        },
+        {
+          "min": 247.218796,
+          "max": 311.625061,
+          "mean": 285.544647,
+          "std": 11.847384
+        },
+        {
+          "min": 249.526062,
+          "max": 312.809265,
+          "mean": 286.44223,
+          "std": 11.926937
+        },
+        {
+          "min": 249.574463,
+          "max": 313.5979,
+          "mean": 286.770477,
+          "std": 11.838458
+        },
+        {
+          "min": 250.79866,
+          "max": 314.044739,
+          "mean": 286.896606,
+          "std": 11.866424
+        },
+        {
+          "min": 251.157578,
+          "max": 314.005249,
+          "mean": 286.617157,
+          "std": 11.897287
+        },
+        {
+          "min": 251.37796,
+          "max": 313.676788,
+          "mean": 285.845154,
+          "std": 11.898172
+        },
+        {
+          "min": 251.485703,
+          "max": 312.870483,
+          "mean": 284.686676,
+          "std": 11.850506
+        },
+        {
+          "min": 251.096359,
+          "max": 311.154968,
+          "mean": 283.40152,
+          "std": 11.77925
+        },
+        {
+          "min": 250.295441,
+          "max": 309.891144,
+          "mean": 282.106262,
+          "std": 11.656366
+        },
+        {
+          "min": 249.648315,
+          "max": 307.648315,
+          "mean": 280.953094,
+          "std": 11.52013
+        },
+        {
+          "min": 248.869095,
+          "max": 306.65033,
+          "mean": 279.998413,
+          "std": 11.430305
+        },
+        {
+          "min": 246.809814,
+          "max": 305.731689,
+          "mean": 279.18985,
+          "std": 11.383798
+        },
+        {
+          "min": 244.804611,
+          "max": 305.031189,
+          "mean": 278.49649,
+          "std": 11.35071
+        },
+        {
+          "min": 243.276077,
+          "max": 304.207703,
+          "mean": 277.884796,
+          "std": 11.317673
+        },
+        {
+          "min": 243.44191,
+          "max": 303.436035,
+          "mean": 277.471222,
+          "std": 11.291052
+        },
+        {
+          "min": 242.615952,
+          "max": 302.614014,
+          "mean": 276.991669,
+          "std": 11.296581
+        },
+        {
+          "min": 240.953796,
+          "max": 302.58075,
+          "mean": 276.557831,
+          "std": 11.306894
+        },
+        {
+          "min": 237.50415,
+          "max": 301.873291,
+          "mean": 276.273926,
+          "std": 11.27041
+        },
+        {
+          "min": 235.750092,
+          "max": 301.734467,
+          "mean": 276.395355,
+          "std": 11.214234
+        }
+      ],
+      "nodata": -999999.0
+    },
+    "tp": {
+      "name": "tp",
+      "label": "Total precipitation",
+      "unit": "m",
+      "width": 621,
+      "height": 361,
+      "extent": [
+        73.0,
+        18.0,
+        135.0,
+        54.0
+      ],
+      "grid_urls": [
+        "/data/ERA5/data_0.nc_tp_step000.float32",
+        "/data/ERA5/data_0.nc_tp_step001.float32",
+        "/data/ERA5/data_0.nc_tp_step002.float32",
+        "/data/ERA5/data_0.nc_tp_step003.float32",
+        "/data/ERA5/data_0.nc_tp_step004.float32",
+        "/data/ERA5/data_0.nc_tp_step005.float32",
+        "/data/ERA5/data_0.nc_tp_step006.float32",
+        "/data/ERA5/data_0.nc_tp_step007.float32",
+        "/data/ERA5/data_0.nc_tp_step008.float32",
+        "/data/ERA5/data_0.nc_tp_step009.float32",
+        "/data/ERA5/data_0.nc_tp_step010.float32",
+        "/data/ERA5/data_0.nc_tp_step011.float32",
+        "/data/ERA5/data_0.nc_tp_step012.float32",
+        "/data/ERA5/data_0.nc_tp_step013.float32",
+        "/data/ERA5/data_0.nc_tp_step014.float32",
+        "/data/ERA5/data_0.nc_tp_step015.float32",
+        "/data/ERA5/data_0.nc_tp_step016.float32",
+        "/data/ERA5/data_0.nc_tp_step017.float32",
+        "/data/ERA5/data_0.nc_tp_step018.float32",
+        "/data/ERA5/data_0.nc_tp_step019.float32",
+        "/data/ERA5/data_0.nc_tp_step020.float32",
+        "/data/ERA5/data_0.nc_tp_step021.float32",
+        "/data/ERA5/data_0.nc_tp_step022.float32",
+        "/data/ERA5/data_0.nc_tp_step023.float32"
+      ],
+      "png_urls": [
+        "/data/ERA5/data_0_tp.png"
+      ],
+      "times": [
+        "2025-04-03T00:00",
+        "2025-04-03T01:00",
+        "2025-04-03T02:00",
+        "2025-04-03T03:00",
+        "2025-04-03T04:00",
+        "2025-04-03T05:00",
+        "2025-04-03T06:00",
+        "2025-04-03T07:00",
+        "2025-04-03T08:00",
+        "2025-04-03T09:00",
+        "2025-04-03T10:00",
+        "2025-04-03T11:00",
+        "2025-04-03T12:00",
+        "2025-04-03T13:00",
+        "2025-04-03T14:00",
+        "2025-04-03T15:00",
+        "2025-04-03T16:00",
+        "2025-04-03T17:00",
+        "2025-04-03T18:00",
+        "2025-04-03T19:00",
+        "2025-04-03T20:00",
+        "2025-04-03T21:00",
+        "2025-04-03T22:00",
+        "2025-04-03T23:00"
+      ],
+      "stats": [
+        {
+          "min": 0.0,
+          "max": 0.065101,
+          "mean": 0.000496,
+          "std": 0.001664
+        },
+        {
+          "min": 0.0,
+          "max": 0.004073,
+          "mean": 1.6e-05,
+          "std": 9.4e-05
+        },
+        {
+          "min": 0.0,
+          "max": 0.00825,
+          "mean": 3.2e-05,
+          "std": 0.000186
+        },
+        {
+          "min": 0.0,
+          "max": 0.012306,
+          "mean": 4.9e-05,
+          "std": 0.000277
+        },
+        {
+          "min": 0.0,
+          "max": 0.015203,
+          "mean": 6.7e-05,
+          "std": 0.000365
+        },
+        {
+          "min": 0.0,
+          "max": 0.017939,
+          "mean": 8.5e-05,
+          "std": 0.000449
+        },
+        {
+          "min": 0.0,
+          "max": 0.019889,
+          "mean": 0.000104,
+          "std": 0.000533
+        },
+        {
+          "min": 0.0,
+          "max": 0.020602,
+          "mean": 0.000127,
+          "std": 0.000593
+        },
+        {
+          "min": 0.0,
+          "max": 0.021238,
+          "mean": 0.000149,
+          "std": 0.00066
+        },
+        {
+          "min": 0.0,
+          "max": 0.023338,
+          "mean": 0.000174,
+          "std": 0.000735
+        },
+        {
+          "min": 0.0,
+          "max": 0.026597,
+          "mean": 0.000205,
+          "std": 0.000824
+        },
+        {
+          "min": 0.0,
+          "max": 0.029718,
+          "mean": 0.000235,
+          "std": 0.000906
+        },
+        {
+          "min": 0.0,
+          "max": 0.033491,
+          "mean": 0.000258,
+          "std": 0.000981
+        },
+        {
+          "min": 0.0,
+          "max": 0.036866,
+          "mean": 0.000278,
+          "std": 0.001054
+        },
+        {
+          "min": 0.0,
+          "max": 0.040717,
+          "mean": 0.000295,
+          "std": 0.001119
+        },
+        {
+          "min": 0.0,
+          "max": 0.045347,
+          "mean": 0.000312,
+          "std": 0.001183
+        },
+        {
+          "min": 0.0,
+          "max": 0.050247,
+          "mean": 0.000331,
+          "std": 0.001256
+        },
+        {
+          "min": 0.0,
+          "max": 0.055152,
+          "mean": 0.000352,
+          "std": 0.001338
+        },
+        {
+          "min": 0.0,
+          "max": 0.059893,
+          "mean": 0.000374,
+          "std": 0.001418
+        },
+        {
+          "min": 0.0,
+          "max": 0.062375,
+          "mean": 0.000396,
+          "std": 0.001494
+        },
+        {
+          "min": 0.0,
+          "max": 0.064401,
+          "mean": 0.000417,
+          "std": 0.00157
+        },
+        {
+          "min": 0.0,
+          "max": 0.066154,
+          "mean": 0.000438,
+          "std": 0.001646
+        },
+        {
+          "min": 0.0,
+          "max": 0.068053,
+          "mean": 0.00046,
+          "std": 0.001721
+        },
+        {
+          "min": 1e-06,
+          "max": 0.073266,
+          "mean": 0.000479,
+          "std": 0.001794
+        }
+      ],
+      "nodata": -999999.0
+    },
+    "sp": {
+      "name": "sp",
+      "label": "Surface pressure",
+      "unit": "Pa",
+      "width": 621,
+      "height": 361,
+      "extent": [
+        73.0,
+        18.0,
+        135.0,
+        54.0
+      ],
+      "grid_urls": [
+        "/data/ERA5/data_0.nc_sp_step000.float32",
+        "/data/ERA5/data_0.nc_sp_step001.float32",
+        "/data/ERA5/data_0.nc_sp_step002.float32",
+        "/data/ERA5/data_0.nc_sp_step003.float32",
+        "/data/ERA5/data_0.nc_sp_step004.float32",
+        "/data/ERA5/data_0.nc_sp_step005.float32",
+        "/data/ERA5/data_0.nc_sp_step006.float32",
+        "/data/ERA5/data_0.nc_sp_step007.float32",
+        "/data/ERA5/data_0.nc_sp_step008.float32",
+        "/data/ERA5/data_0.nc_sp_step009.float32",
+        "/data/ERA5/data_0.nc_sp_step010.float32",
+        "/data/ERA5/data_0.nc_sp_step011.float32",
+        "/data/ERA5/data_0.nc_sp_step012.float32",
+        "/data/ERA5/data_0.nc_sp_step013.float32",
+        "/data/ERA5/data_0.nc_sp_step014.float32",
+        "/data/ERA5/data_0.nc_sp_step015.float32",
+        "/data/ERA5/data_0.nc_sp_step016.float32",
+        "/data/ERA5/data_0.nc_sp_step017.float32",
+        "/data/ERA5/data_0.nc_sp_step018.float32",
+        "/data/ERA5/data_0.nc_sp_step019.float32",
+        "/data/ERA5/data_0.nc_sp_step020.float32",
+        "/data/ERA5/data_0.nc_sp_step021.float32",
+        "/data/ERA5/data_0.nc_sp_step022.float32",
+        "/data/ERA5/data_0.nc_sp_step023.float32"
+      ],
+      "png_urls": [
+        "/data/ERA5/data_0_sp.png"
+      ],
+      "times": [
+        "2025-04-03T00:00",
+        "2025-04-03T01:00",
+        "2025-04-03T02:00",
+        "2025-04-03T03:00",
+        "2025-04-03T04:00",
+        "2025-04-03T05:00",
+        "2025-04-03T06:00",
+        "2025-04-03T07:00",
+        "2025-04-03T08:00",
+        "2025-04-03T09:00",
+        "2025-04-03T10:00",
+        "2025-04-03T11:00",
+        "2025-04-03T12:00",
+        "2025-04-03T13:00",
+        "2025-04-03T14:00",
+        "2025-04-03T15:00",
+        "2025-04-03T16:00",
+        "2025-04-03T17:00",
+        "2025-04-03T18:00",
+        "2025-04-03T19:00",
+        "2025-04-03T20:00",
+        "2025-04-03T21:00",
+        "2025-04-03T22:00",
+        "2025-04-03T23:00"
+      ],
+      "stats": [
+        {
+          "min": 46323.855469,
+          "max": 102908.859375,
+          "mean": 87087.125,
+          "std": 13608.50293
+        },
+        {
+          "min": 46324.003906,
+          "max": 103020.0,
+          "mean": 87119.273438,
+          "std": 13603.765625
+        },
+        {
+          "min": 46369.816406,
+          "max": 103046.8125,
+          "mean": 87136.789062,
+          "std": 13590.311523
+        },
+        {
+          "min": 46399.683594,
+          "max": 103080.6875,
+          "mean": 87133.523438,
+          "std": 13583.601562
+        },
+        {
+          "min": 46488.804688,
+          "max": 103059.804688,
+          "mean": 87108.195312,
+          "std": 13566.189453
+        },
+        {
+          "min": 46543.8125,
+          "max": 103035.8125,
+          "mean": 87066.125,
+          "std": 13547.920898
+        },
+        {
+          "min": 46576.382812,
+          "max": 102964.382812,
+          "mean": 87014.101562,
+          "std": 13531.412109
+        },
+        {
+          "min": 46559.546875,
+          "max": 102890.546875,
+          "mean": 86956.453125,
+          "std": 13525.59375
+        },
+        {
+          "min": 46553.875,
+          "max": 102818.875,
+          "mean": 86908.328125,
+          "std": 13514.945312
+        },
+        {
+          "min": 46553.382812,
+          "max": 102790.382812,
+          "mean": 86878.382812,
+          "std": 13509.695312
+        },
+        {
+          "min": 46533.351562,
+          "max": 102751.351562,
+          "mean": 86865.742188,
+          "std": 13501.568359
+        },
+        {
+          "min": 46532.828125,
+          "max": 102749.828125,
+          "mean": 86875.859375,
+          "std": 13498.908203
+        },
+        {
+          "min": 46541.226562,
+          "max": 102780.226562,
+          "mean": 86906.164062,
+          "std": 13496.722656
+        },
+        {
+          "min": 46537.488281,
+          "max": 102829.484375,
+          "mean": 86948.390625,
+          "std": 13492.998047
+        },
+        {
+          "min": 46557.066406,
+          "max": 102906.0625,
+          "mean": 86992.054688,
+          "std": 13488.02832
+        },
+        {
+          "min": 46561.78125,
+          "max": 102945.78125,
+          "mean": 87020.679688,
+          "std": 13478.485352
+        },
+        {
+          "min": 46545.707031,
+          "max": 102963.703125,
+          "mean": 87027.914062,
+          "std": 13480.569336
+        },
+        {
+          "min": 46509.550781,
+          "max": 102939.546875,
+          "mean": 87020.476562,
+          "std": 13478.214844
+        },
+        {
+          "min": 46471.527344,
+          "max": 102954.53125,
+          "mean": 86998.195312,
+          "std": 13469.729492
+        },
+        {
+          "min": 46442.386719,
+          "max": 102973.390625,
+          "mean": 86973.78125,
+          "std": 13467.496094
+        },
+        {
+          "min": 46416.222656,
+          "max": 102979.21875,
+          "mean": 86953.117188,
+          "std": 13463.839844
+        },
+        {
+          "min": 46381.503906,
+          "max": 102988.5,
+          "mean": 86939.164062,
+          "std": 13464.105469
+        },
+        {
+          "min": 46347.992188,
+          "max": 102984.992188,
+          "mean": 86935.945312,
+          "std": 13465.254883
+        },
+        {
+          "min": 46324.445312,
+          "max": 102992.445312,
+          "mean": 86946.484375,
+          "std": 13468.140625
+        }
+      ],
+      "nodata": -999999.0
+    },
+    "u10": {
+      "name": "u10",
+      "label": "10 metre U wind component",
+      "unit": "m s**-1",
+      "width": 621,
+      "height": 361,
+      "extent": [
+        73.0,
+        18.0,
+        135.0,
+        54.0
+      ],
+      "grid_urls": [
+        "/data/ERA5/data_0.nc_u10_step000.float32",
+        "/data/ERA5/data_0.nc_u10_step001.float32",
+        "/data/ERA5/data_0.nc_u10_step002.float32",
+        "/data/ERA5/data_0.nc_u10_step003.float32",
+        "/data/ERA5/data_0.nc_u10_step004.float32",
+        "/data/ERA5/data_0.nc_u10_step005.float32",
+        "/data/ERA5/data_0.nc_u10_step006.float32",
+        "/data/ERA5/data_0.nc_u10_step007.float32",
+        "/data/ERA5/data_0.nc_u10_step008.float32",
+        "/data/ERA5/data_0.nc_u10_step009.float32",
+        "/data/ERA5/data_0.nc_u10_step010.float32",
+        "/data/ERA5/data_0.nc_u10_step011.float32",
+        "/data/ERA5/data_0.nc_u10_step012.float32",
+        "/data/ERA5/data_0.nc_u10_step013.float32",
+        "/data/ERA5/data_0.nc_u10_step014.float32",
+        "/data/ERA5/data_0.nc_u10_step015.float32",
+        "/data/ERA5/data_0.nc_u10_step016.float32",
+        "/data/ERA5/data_0.nc_u10_step017.float32",
+        "/data/ERA5/data_0.nc_u10_step018.float32",
+        "/data/ERA5/data_0.nc_u10_step019.float32",
+        "/data/ERA5/data_0.nc_u10_step020.float32",
+        "/data/ERA5/data_0.nc_u10_step021.float32",
+        "/data/ERA5/data_0.nc_u10_step022.float32",
+        "/data/ERA5/data_0.nc_u10_step023.float32"
+      ],
+      "png_urls": [
+        "/data/ERA5/data_0_u10.png"
+      ],
+      "times": [
+        "2025-04-03T00:00",
+        "2025-04-03T01:00",
+        "2025-04-03T02:00",
+        "2025-04-03T03:00",
+        "2025-04-03T04:00",
+        "2025-04-03T05:00",
+        "2025-04-03T06:00",
+        "2025-04-03T07:00",
+        "2025-04-03T08:00",
+        "2025-04-03T09:00",
+        "2025-04-03T10:00",
+        "2025-04-03T11:00",
+        "2025-04-03T12:00",
+        "2025-04-03T13:00",
+        "2025-04-03T14:00",
+        "2025-04-03T15:00",
+        "2025-04-03T16:00",
+        "2025-04-03T17:00",
+        "2025-04-03T18:00",
+        "2025-04-03T19:00",
+        "2025-04-03T20:00",
+        "2025-04-03T21:00",
+        "2025-04-03T22:00",
+        "2025-04-03T23:00"
+      ],
+      "stats": [
+        {
+          "min": -9.261292,
+          "max": 8.831482,
+          "mean": 0.303499,
+          "std": 1.790075
+        },
+        {
+          "min": -9.345322,
+          "max": 9.3871,
+          "mean": 0.367908,
+          "std": 1.859962
+        },
+        {
+          "min": -9.26973,
+          "max": 10.371872,
+          "mean": 0.575288,
+          "std": 2.106443
+        },
+        {
+          "min": -9.048126,
+          "max": 11.70871,
+          "mean": 0.798856,
+          "std": 2.375289
+        },
+        {
+          "min": -8.839935,
+          "max": 12.807526,
+          "mean": 1.035153,
+          "std": 2.602222
+        },
+        {
+          "min": -8.681335,
+          "max": 13.242493,
+          "mean": 1.291936,
+          "std": 2.814135
+        },
+        {
+          "min": -8.533356,
+          "max": 13.13266,
+          "mean": 1.529213,
+          "std": 2.967688
+        },
+        {
+          "min": -8.652405,
+          "max": 12.826111,
+          "mean": 1.69774,
+          "std": 3.089497
+        },
+        {
+          "min": -8.948502,
+          "max": 12.853256,
+          "mean": 1.720415,
+          "std": 3.111132
+        },
+        {
+          "min": -9.326584,
+          "max": 12.66658,
+          "mean": 1.551763,
+          "std": 3.069213
+        },
+        {
+          "min": -9.547318,
+          "max": 11.862839,
+          "mean": 1.254261,
+          "std": 2.914949
+        },
+        {
+          "min": -9.683304,
+          "max": 10.393845,
+          "mean": 0.855574,
+          "std": 2.634864
+        },
+        {
+          "min": -9.720642,
+          "max": 8.82135,
+          "mean": 0.489676,
+          "std": 2.266063
+        },
+        {
+          "min": -9.912582,
+          "max": 8.308121,
+          "mean": 0.276494,
+          "std": 2.014799
+        },
+        {
+          "min": -10.234924,
+          "max": 8.272888,
+          "mean": 0.179118,
+          "std": 1.940261
+        },
+        {
+          "min": -10.634277,
+          "max": 7.992676,
+          "mean": 0.147245,
+          "std": 1.923972
+        },
+        {
+          "min": -10.754486,
+          "max": 7.757233,
+          "mean": 0.140047,
+          "std": 1.926495
+        },
+        {
+          "min": -10.605011,
+          "max": 7.531708,
+          "mean": 0.148004,
+          "std": 1.917182
+        },
+        {
+          "min": -10.556381,
+          "max": 7.77272,
+          "mean": 0.164035,
+          "std": 1.90786
+        },
+        {
+          "min": -10.665314,
+          "max": 7.810272,
+          "mean": 0.173811,
+          "std": 1.862437
+        },
+        {
+          "min": -10.640472,
+          "max": 7.772614,
+          "mean": 0.195528,
+          "std": 1.842227
+        },
+        {
+          "min": -10.796371,
+          "max": 7.703629,
+          "mean": 0.215115,
+          "std": 1.832506
+        },
+        {
+          "min": -11.284164,
+          "max": 7.73439,
+          "mean": 0.228016,
+          "std": 1.814732
+        },
+        {
+          "min": -11.269928,
+          "max": 7.748627,
+          "mean": 0.249018,
+          "std": 1.797222
+        }
+      ],
+      "nodata": -999999.0
+    },
+    "v10": {
+      "name": "v10",
+      "label": "10 metre V wind component",
+      "unit": "m s**-1",
+      "width": 621,
+      "height": 361,
+      "extent": [
+        73.0,
+        18.0,
+        135.0,
+        54.0
+      ],
+      "grid_urls": [
+        "/data/ERA5/data_0.nc_v10_step000.float32",
+        "/data/ERA5/data_0.nc_v10_step001.float32",
+        "/data/ERA5/data_0.nc_v10_step002.float32",
+        "/data/ERA5/data_0.nc_v10_step003.float32",
+        "/data/ERA5/data_0.nc_v10_step004.float32",
+        "/data/ERA5/data_0.nc_v10_step005.float32",
+        "/data/ERA5/data_0.nc_v10_step006.float32",
+        "/data/ERA5/data_0.nc_v10_step007.float32",
+        "/data/ERA5/data_0.nc_v10_step008.float32",
+        "/data/ERA5/data_0.nc_v10_step009.float32",
+        "/data/ERA5/data_0.nc_v10_step010.float32",
+        "/data/ERA5/data_0.nc_v10_step011.float32",
+        "/data/ERA5/data_0.nc_v10_step012.float32",
+        "/data/ERA5/data_0.nc_v10_step013.float32",
+        "/data/ERA5/data_0.nc_v10_step014.float32",
+        "/data/ERA5/data_0.nc_v10_step015.float32",
+        "/data/ERA5/data_0.nc_v10_step016.float32",
+        "/data/ERA5/data_0.nc_v10_step017.float32",
+        "/data/ERA5/data_0.nc_v10_step018.float32",
+        "/data/ERA5/data_0.nc_v10_step019.float32",
+        "/data/ERA5/data_0.nc_v10_step020.float32",
+        "/data/ERA5/data_0.nc_v10_step021.float32",
+        "/data/ERA5/data_0.nc_v10_step022.float32",
+        "/data/ERA5/data_0.nc_v10_step023.float32"
+      ],
+      "png_urls": [
+        "/data/ERA5/data_0_v10.png"
+      ],
+      "times": [
+        "2025-04-03T00:00",
+        "2025-04-03T01:00",
+        "2025-04-03T02:00",
+        "2025-04-03T03:00",
+        "2025-04-03T04:00",
+        "2025-04-03T05:00",
+        "2025-04-03T06:00",
+        "2025-04-03T07:00",
+        "2025-04-03T08:00",
+        "2025-04-03T09:00",
+        "2025-04-03T10:00",
+        "2025-04-03T11:00",
+        "2025-04-03T12:00",
+        "2025-04-03T13:00",
+        "2025-04-03T14:00",
+        "2025-04-03T15:00",
+        "2025-04-03T16:00",
+        "2025-04-03T17:00",
+        "2025-04-03T18:00",
+        "2025-04-03T19:00",
+        "2025-04-03T20:00",
+        "2025-04-03T21:00",
+        "2025-04-03T22:00",
+        "2025-04-03T23:00"
+      ],
+      "stats": [
+        {
+          "min": -9.370804,
+          "max": 6.884079,
+          "mean": 0.439285,
+          "std": 1.876968
+        },
+        {
+          "min": -9.081863,
+          "max": 7.802902,
+          "mean": 0.530038,
+          "std": 2.073596
+        },
+        {
+          "min": -10.113033,
+          "max": 8.190678,
+          "mean": 0.571911,
+          "std": 2.258276
+        },
+        {
+          "min": -10.122955,
+          "max": 8.468842,
+          "mean": 0.602752,
+          "std": 2.405707
+        },
+        {
+          "min": -10.006729,
+          "max": 8.529404,
+          "mean": 0.633246,
+          "std": 2.521911
+        },
+        {
+          "min": -10.484787,
+          "max": 8.649002,
+          "mean": 0.629113,
+          "std": 2.611537
+        },
+        {
+          "min": -10.893539,
+          "max": 8.49025,
+          "mean": 0.568693,
+          "std": 2.695378
+        },
+        {
+          "min": -10.113022,
+          "max": 8.474869,
+          "mean": 0.496034,
+          "std": 2.716085
+        },
+        {
+          "min": -10.401245,
+          "max": 7.734497,
+          "mean": 0.358038,
+          "std": 2.726851
+        },
+        {
+          "min": -10.516373,
+          "max": 7.39476,
+          "mean": 0.195505,
+          "std": 2.685079
+        },
+        {
+          "min": -10.645325,
+          "max": 7.46698,
+          "mean": 0.052692,
+          "std": 2.648102
+        },
+        {
+          "min": -9.969849,
+          "max": 7.142456,
+          "mean": 0.027572,
+          "std": 2.568277
+        },
+        {
+          "min": -10.222931,
+          "max": 7.590546,
+          "mean": 0.05903,
+          "std": 2.490687
+        },
+        {
+          "min": -10.555054,
+          "max": 9.785767,
+          "mean": 0.109992,
+          "std": 2.474259
+        },
+        {
+          "min": -10.377304,
+          "max": 9.652969,
+          "mean": 0.177989,
+          "std": 2.476367
+        },
+        {
+          "min": -10.138016,
+          "max": 9.736984,
+          "mean": 0.241579,
+          "std": 2.459394
+        },
+        {
+          "min": -10.077972,
+          "max": 9.753082,
+          "mean": 0.300732,
+          "std": 2.427731
+        },
+        {
+          "min": -10.086823,
+          "max": 9.684662,
+          "mean": 0.339176,
+          "std": 2.390898
+        },
+        {
+          "min": -10.194061,
+          "max": 9.79715,
+          "mean": 0.368096,
+          "std": 2.349411
+        },
+        {
+          "min": -10.702225,
+          "max": 9.298752,
+          "mean": 0.387283,
+          "std": 2.310128
+        },
+        {
+          "min": -10.797836,
+          "max": 9.180679,
+          "mean": 0.38665,
+          "std": 2.294702
+        },
+        {
+          "min": -11.026443,
+          "max": 9.231369,
+          "mean": 0.380517,
+          "std": 2.281183
+        },
+        {
+          "min": -11.151917,
+          "max": 9.315857,
+          "mean": 0.374735,
+          "std": 2.260227
+        },
+        {
+          "min": -11.316269,
+          "max": 9.311661,
+          "mean": 0.368902,
+          "std": 2.227947
+        }
+      ],
+      "nodata": -999999.0
+    },
+    "ssrd": {
+      "name": "ssrd",
+      "label": "Surface short-wave (solar) radiation downwards",
+      "unit": "J m**-2",
+      "width": 621,
+      "height": 361,
+      "extent": [
+        73.0,
+        18.0,
+        135.0,
+        54.0
+      ],
+      "grid_urls": [
+        "/data/ERA5/data_0.nc_ssrd_step000.float32",
+        "/data/ERA5/data_0.nc_ssrd_step001.float32",
+        "/data/ERA5/data_0.nc_ssrd_step002.float32",
+        "/data/ERA5/data_0.nc_ssrd_step003.float32",
+        "/data/ERA5/data_0.nc_ssrd_step004.float32",
+        "/data/ERA5/data_0.nc_ssrd_step005.float32",
+        "/data/ERA5/data_0.nc_ssrd_step006.float32",
+        "/data/ERA5/data_0.nc_ssrd_step007.float32",
+        "/data/ERA5/data_0.nc_ssrd_step008.float32",
+        "/data/ERA5/data_0.nc_ssrd_step009.float32",
+        "/data/ERA5/data_0.nc_ssrd_step010.float32",
+        "/data/ERA5/data_0.nc_ssrd_step011.float32",
+        "/data/ERA5/data_0.nc_ssrd_step012.float32",
+        "/data/ERA5/data_0.nc_ssrd_step013.float32",
+        "/data/ERA5/data_0.nc_ssrd_step014.float32",
+        "/data/ERA5/data_0.nc_ssrd_step015.float32",
+        "/data/ERA5/data_0.nc_ssrd_step016.float32",
+        "/data/ERA5/data_0.nc_ssrd_step017.float32",
+        "/data/ERA5/data_0.nc_ssrd_step018.float32",
+        "/data/ERA5/data_0.nc_ssrd_step019.float32",
+        "/data/ERA5/data_0.nc_ssrd_step020.float32",
+        "/data/ERA5/data_0.nc_ssrd_step021.float32",
+        "/data/ERA5/data_0.nc_ssrd_step022.float32",
+        "/data/ERA5/data_0.nc_ssrd_step023.float32"
+      ],
+      "png_urls": [
+        "/data/ERA5/data_0_ssrd.png"
+      ],
+      "times": [
+        "2025-04-03T00:00",
+        "2025-04-03T01:00",
+        "2025-04-03T02:00",
+        "2025-04-03T03:00",
+        "2025-04-03T04:00",
+        "2025-04-03T05:00",
+        "2025-04-03T06:00",
+        "2025-04-03T07:00",
+        "2025-04-03T08:00",
+        "2025-04-03T09:00",
+        "2025-04-03T10:00",
+        "2025-04-03T11:00",
+        "2025-04-03T12:00",
+        "2025-04-03T13:00",
+        "2025-04-03T14:00",
+        "2025-04-03T15:00",
+        "2025-04-03T16:00",
+        "2025-04-03T17:00",
+        "2025-04-03T18:00",
+        "2025-04-03T19:00",
+        "2025-04-03T20:00",
+        "2025-04-03T21:00",
+        "2025-04-03T22:00",
+        "2025-04-03T23:00"
+      ],
+      "stats": [
+        {
+          "min": 3624224.0,
+          "max": 29846398.0,
+          "mean": 20810042.0,
+          "std": 4756144.5
+        },
+        {
+          "min": 0.0,
+          "max": 2517975.0,
+          "mean": 752579.9375,
+          "std": 605317.9375
+        },
+        {
+          "min": 109621.5,
+          "max": 5526895.5,
+          "mean": 2102141.0,
+          "std": 1247355.25
+        },
+        {
+          "min": 223894.0,
+          "max": 8903250.0,
+          "mean": 4057670.0,
+          "std": 1810411.625
+        },
+        {
+          "min": 415275.0,
+          "max": 12299400.0,
+          "mean": 6501586.0,
+          "std": 2246112.0
+        },
+        {
+          "min": 884362.0,
+          "max": 15396155.0,
+          "mean": 9242438.0,
+          "std": 2554778.75
+        },
+        {
+          "min": 1346966.0,
+          "max": 18355002.0,
+          "mean": 12066646.0,
+          "std": 2759473.25
+        },
+        {
+          "min": 1859048.0,
+          "max": 21218226.0,
+          "mean": 14730675.0,
+          "std": 2911599.5
+        },
+        {
+          "min": 2186016.0,
+          "max": 23386040.0,
+          "mean": 17044774.0,
+          "std": 3093779.75
+        },
+        {
+          "min": 2363512.0,
+          "max": 25348292.0,
+          "mean": 18870650.0,
+          "std": 3319241.0
+        },
+        {
+          "min": 2489218.0,
+          "max": 27316980.0,
+          "mean": 20123296.0,
+          "std": 3584029.0
+        },
+        {
+          "min": 2597560.0,
+          "max": 29031032.0,
+          "mean": 20832146.0,
+          "std": 3816604.25
+        },
+        {
+          "min": 2623032.0,
+          "max": 29783700.0,
+          "mean": 21127470.0,
+          "std": 3951562.25
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21193010.0,
+          "std": 3982399.0
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21194866.0,
+          "std": 3982847.75
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21194866.0,
+          "std": 3982847.75
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21194866.0,
+          "std": 3982847.75
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21194866.0,
+          "std": 3982847.75
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21194866.0,
+          "std": 3982847.75
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21194866.0,
+          "std": 3982847.75
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21194866.0,
+          "std": 3982847.75
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21195106.0,
+          "std": 3982518.75
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21212096.0,
+          "std": 3961247.25
+        },
+        {
+          "min": 2623032.0,
+          "max": 29857652.0,
+          "mean": 21312678.0,
+          "std": 3874476.0
+        }
+      ],
+      "nodata": -999999.0
+    }
+  },
+  "composites": [],
+  "weather_info": {
+    "source": "ERA5",
+    "product": "ERA5 reanalysis",
+    "element": "2 metre temperature (t2m)",
+    "time": "2025-04-03T00:00 ~ 2025-04-03T23:00",
+    "level": "surface",
+    "range": "73.0E-135.0E, 18.0N-54.0N",
+    "resolution": "0.100 x 0.100 deg",
+    "grid": "621 x 361",
+    "validGrid": "224181",
+    "coverage": "latitude/longitude grid",
+    "missing": "-999999.0",
+    "unit": "K",
+    "variables": "t2m, tp, sp, u10, v10, ssrd",
+    "steps": "24",
+    "step_count": 24,
+    "status": "parsed",
+    "quality": "good",
+    "max": "301.4669",
+    "min": "233.6622",
+    "mean": "276.5447",
+    "alert": "",
+    "update": "2026-06-30 16:34",
+    "bars": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "trend": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "extra": {
+    "status": "parsed",
+    "generated_at": "2026-06-30T08:34:11.357007+00:00",
+    "era5": {
+      "default_variable": "t2m",
+      "lat_coord": "latitude",
+      "lon_coord": "longitude",
+      "time_coord": "valid_time",
+      "preferred_variables": [
+        "t2m",
+        "tp",
+        "sp",
+        "u10",
+        "v10",
+        "ssrd"
+      ]
+    }
+  }
+}
