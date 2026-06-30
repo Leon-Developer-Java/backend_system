@@ -156,6 +156,12 @@ def _render_overlay(data: np.ndarray, image_cls: Any, colormaps: Any, cmap_name:
     return image_cls.fromarray(np.flipud(rgba), mode="RGBA")
 
 
+def _write_binary_grid(data: np.ndarray, bin_path: Path) -> None:
+    arr = np.asarray(data, dtype="<f4")
+    arr = np.where(np.isfinite(arr), arr, np.float32(np.nan)).astype("<f4", copy=False)
+    arr.tofile(bin_path)
+
+
 def _domain_from_file(source_file: Path, ds: Any) -> str:
     name = source_file.name.lower()
     if "wrfout_d01" in name:
@@ -213,6 +219,7 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
 
         variables: list[dict[str, Any]] = []
         png_files: list[str] = []
+        bin_files: list[dict[str, Any]] = []
         primary_stats = {"min": None, "max": None, "mean": None}
         primary_unit = ""
         primary_element = "WRF 变量"
@@ -236,6 +243,24 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
             png_path = png_dir / f"{time_label.replace(':', '_')}_{var_id}.png"
             image.save(png_path)
             png_files.append(png_path.as_posix())
+            bin_path = png_dir / f"{time_label.replace(':', '_')}_{var_id}.f32"
+            _write_binary_grid(data, bin_path)
+            lo, hi = _robust_range(data)
+            bin_files.append(
+                {
+                    "path": bin_path.as_posix(),
+                    "variable": var_id,
+                    "time": time_label,
+                    "domain": domain,
+                    "dtype": "float32",
+                    "endian": "little",
+                    "width": int(data.shape[1]),
+                    "height": int(data.shape[0]),
+                    "min": lo,
+                    "max": hi,
+                    "missing": "NaN",
+                }
+            )
 
             if name == display_variables[0]:
                 primary_stats = stat
@@ -278,6 +303,7 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
             "source_file": source_file.as_posix(),
             "meta_file": meta_file.as_posix(),
             "png_files": png_files,
+            "bin_files": bin_files,
             "variables": variables,
             "times": [time_label],
             "levels": ["surface_or_level_0"],
@@ -309,6 +335,7 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
     first = metas[0]
     all_times: list[str] = []
     all_png_files: list[str] = []
+    all_bin_files: list[dict[str, Any]] = []
     source_files: list[str] = []
     bboxes = []
 
@@ -316,6 +343,7 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
         source_files.append(meta.get("source_file", ""))
         all_times.extend(str(item) for item in meta.get("times", []))
         all_png_files.extend(str(item) for item in meta.get("png_files", []))
+        all_bin_files.extend(item for item in meta.get("bin_files", []) if isinstance(item, dict))
         if isinstance(meta.get("bbox"), dict):
             bboxes.append(meta["bbox"])
 
@@ -328,8 +356,7 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
             "north": max(float(item["north"]) for item in bboxes),
         }
 
-    time_pairs = sorted(zip(all_times, metas), key=lambda item: item[0])
-    all_times = [item[0] for item in time_pairs]
+    all_times = sorted(set(all_times))
     weather_info = dict(first.get("weather_info", {}))
     weather_info.update(
         {
@@ -350,6 +377,7 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
         "source_files": source_files,
         "meta_file": meta_file.as_posix(),
         "png_files": all_png_files,
+        "bin_files": all_bin_files,
         "variables": first.get("variables", []),
         "times": all_times,
         "levels": first.get("levels", ["surface_or_level_0"]),
