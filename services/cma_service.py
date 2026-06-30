@@ -12,10 +12,7 @@ from adapters import cma_adapter
 
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "CMA"
-PROJECT_DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 CMA_SOURCE_DIRS = (
-    PROJECT_DATA_DIR / "NC",
-    PROJECT_DATA_DIR / "GRIB",
     DATA_DIR,
 )
 NODATA = -999999.0
@@ -41,8 +38,7 @@ def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[
 
     meta_json = None
     if meta_files:
-        with meta_files[0].open("r", encoding="utf-8") as file:
-            meta_json = json.load(file)
+        meta_json = _load_meta_file(meta_files[0])
 
     variables = _display_variables(meta_json)
     grid = None
@@ -116,8 +112,7 @@ def _latest_meta() -> dict[str, Any]:
     meta_files = _meta_files()
     if not meta_files:
         raise ValueError("No CMA meta.json found. Parse a CMA file first.")
-    with meta_files[0].open("r", encoding="utf-8") as file:
-        return json.load(file)
+    return _load_meta_file(meta_files[0])
 
 
 def _source_file(meta: dict[str, Any]) -> Path:
@@ -161,7 +156,19 @@ def _meta_files() -> list[Path]:
     fallback = DATA_DIR / "meta.json"
     if fallback.exists() and fallback not in files:
         files.append(fallback)
-    return files
+    return [path for path in files if _is_renderable_meta_file(path)]
+
+
+def _load_meta_file(path: Path) -> dict[str, Any]:
+    with path.open("r", encoding="utf-8-sig") as file:
+        return json.load(file)
+
+
+def _is_renderable_meta_file(path: Path) -> bool:
+    try:
+        return bool(_primary_variable(_load_meta_file(path)))
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        return False
 
 
 def _source_files() -> list[Path]:
@@ -262,7 +269,11 @@ def _ensure_latest_meta() -> None:
 
     latest_source = sources[0]
     expected_meta = latest_source.with_name(f"{latest_source.name}.meta.json")
-    if expected_meta.exists() and expected_meta.stat().st_mtime >= latest_source.stat().st_mtime:
+    if (
+        expected_meta.exists()
+        and expected_meta.stat().st_mtime >= latest_source.stat().st_mtime
+        and _is_renderable_meta_file(expected_meta)
+    ):
         return
 
     cma_adapter.process_file(str(latest_source), data_type="CMA")
@@ -294,6 +305,7 @@ def _display_variables(meta: dict[str, Any] | None) -> list[dict[str, Any]]:
                 "unit": item.get("display_unit") or item.get("unit", ""),
                 "dims": item.get("dims", []),
                 "shape": item.get("shape", []),
+                "stats": item.get("stats"),
             }
             for item in top_variables
             if _is_grid_variable(item)
@@ -316,6 +328,7 @@ def _display_variables(meta: dict[str, Any] | None) -> list[dict[str, Any]]:
                     "unit": item.get("unit", ""),
                     "dims": item.get("dims", []),
                     "shape": item.get("shape", []),
+                    "stats": item.get("stats"),
                 }
                 for item in variables
                 if _is_grid_variable(item)
