@@ -15,17 +15,43 @@ TIME_RE = re.compile(r"_(\d{10})_")
 RESOLUTION_RE = re.compile(r"(?P<resolution>\d+(?:KM|km)|\d+P\d+|\d+\.\d+)")
 DEFAULT_NC_VARIABLES = ("Tair_f_inst", "Rainf_tavg", "AvgSurfT_inst", "Wind_f_inst")
 DEFAULT_GRIB_VARIABLES = ("TMP", "SPFH", "UGRD", "VGRD")
+COMMON_NC_DISPLAY_VARIABLES = (
+    "Tair_f_inst",
+    "Rainf_tavg",
+    "TotalPrecip_tavg",
+    "Wind_f_inst",
+    "Qair_f_inst",
+    "Psurf_f_inst",
+    "AvgSurfT_inst",
+    "SoilMoist_inst",
+    "SoilTemp_inst",
+    "SWdown_f_tavg",
+)
 
 
 def process_file(file_path: str, data_type: str = "CMA") -> dict[str, Any]:
-    source_file = Path(file_path).resolve()
+    return _process_files([Path(file_path).resolve()], data_type=data_type)
+
+
+def process_files(file_paths: list[str], data_type: str = "CMA") -> dict[str, Any]:
+    paths = [Path(path).resolve() for path in file_paths]
+    if not paths:
+        raise ValueError("CMA adapter requires at least one file.")
+    return _process_files(paths, data_type=data_type)
+
+
+def _process_files(paths: list[Path], data_type: str = "CMA") -> dict[str, Any]:
+    paths = sorted(paths, key=lambda item: _parse_time_from_name(item) or item.name)
+    source_file = paths[0]
     suffix = source_file.suffix.lower()
+    if any(path.suffix.lower() != suffix for path in paths):
+        raise ValueError("CMA multi-file parsing requires files with the same extension.")
 
     if suffix == ".nc":
-        product = _inspect_nc_product(source_file)
+        product = _inspect_nc_product(source_file, paths)
         file_format = "NC"
     elif suffix in {".grib", ".grib2"}:
-        product = _inspect_grib_product(source_file)
+        product = _inspect_grib_product(source_file, paths)
         file_format = "GRIB"
     else:
         raise ValueError(f"CMA adapter only supports .nc, .grib and .grib2 files: {source_file.name}")
@@ -33,20 +59,33 @@ def process_file(file_path: str, data_type: str = "CMA") -> dict[str, Any]:
     frontend_meta = _build_frontend_meta(source_file, product)
     weather_info = _build_weather_info(frontend_meta, product)
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
+    source_files: str | list[str] = (
+        [path.as_posix() for path in paths]
+        if len(paths) > 1
+        else source_file.as_posix()
+    )
 
     meta = {
+        "schema_version": "1.0",
         **frontend_meta,
         "dataset_id": build_dataset_id(source_file),
         "data_type": data_type,
         "file_format": file_format,
-        "source_file": source_file.as_posix(),
+        "source_file": source_files,
         "meta_file": meta_file.as_posix(),
         "png_files": [],
-        "variables": product["variable_names"],
-        "times": product["times"],
+        "default_png": None,
+        "default_variable": product["primary_variable"],
+        "variables": _schema_variables(product),
+        "composites": [],
+        "times": [_iso_time(value) for value in product["times"]],
+        "frames": product["frames"],
         "levels": product["levels"],
         "bbox": product["extent"],
         "weather_info": weather_info,
+        "file_detail": _file_detail(source_file, meta_file, file_format, len(paths)),
+        "time_detail": _time_detail(product),
+        "spatial": _spatial_detail(product),
         "extra": {
             "status": "parsed",
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -54,13 +93,14 @@ def process_file(file_path: str, data_type: str = "CMA") -> dict[str, Any]:
             "cma": {
                 "product_type": product["product_type"],
                 "product_name": product["product_name"],
-                "region": product["region"],
-                "resolution_label": product["resolution_label"],
-                "directory": str(source_file.parent).replace("\\", "/"),
-                "file_count": product["file_count"],
                 "primary_variable": product["primary_variable"],
-                "products": {product["product_type"]: product},
+                "primary_unit": _clean_unit(product["primary_unit"]),
             },
+            "era5": {},
+            "gfs": {},
+            "himawari": {},
+            "radar": {},
+            "wrf": {},
         },
     }
 
@@ -68,8 +108,8 @@ def process_file(file_path: str, data_type: str = "CMA") -> dict[str, Any]:
     return meta
 
 
-def _inspect_nc_product(source_file: Path) -> dict[str, Any]:
-    files = _series_files(source_file, "*.nc")
+def _inspect_nc_product(source_file: Path, files: list[Path] | None = None) -> dict[str, Any]:
+    files = files or _series_files(source_file, "*.nc")
     sample = files[0]
     scope = _infer_scope(source_file)
     variables: list[dict[str, Any]] = []
@@ -104,7 +144,11 @@ def _inspect_nc_product(source_file: Path) -> dict[str, Any]:
             )
 
     primary = _pick_variable([item["name"] for item in variables], DEFAULT_NC_VARIABLES)
-    stats = _nc_stats(files, primary)
+    stat_names = [item["name"] for item in variables if item["name"] in COMMON_NC_DISPLAY_VARIABLES]
+    if primary not in stat_names:
+        stat_names.append(primary)
+    variable_stats = {name: _nc_stats(files, name) for name in stat_names}
+    stats = variable_stats.get(primary) or _nc_stats(files, primary)
     trend = _nc_trend(files, primary)
 
     times = [_parse_time_from_name(path) for path in files]
@@ -118,6 +162,7 @@ def _inspect_nc_product(source_file: Path) -> dict[str, Any]:
         "resolution_label": scope["resolution_label"],
         "coverage": scope["coverage"],
         "files": [path.name for path in files],
+        "frames": _build_frames(files, [lon_min, lat_min, lon_max, lat_max]),
         "file_count": len(files),
         "times": times,
         "time_start": _format_time(times[0]) if times else "",
@@ -136,12 +181,13 @@ def _inspect_nc_product(source_file: Path) -> dict[str, Any]:
         "primary_long_name": _variable_field(variables, primary, "long_name"),
         "missing": _variable_field(variables, primary, "missing") or "-9999",
         "stats": stats,
+        "variable_stats": variable_stats,
         "trend": trend,
     }
 
 
-def _inspect_grib_product(source_file: Path) -> dict[str, Any]:
-    files = _series_files(source_file, "*.grib*")
+def _inspect_grib_product(source_file: Path, files: list[Path] | None = None) -> dict[str, Any]:
+    files = files or _series_files(source_file, "*.grib*")
     sample = files[0]
     scope = _infer_scope(source_file)
     variables: list[dict[str, Any]] = []
@@ -164,7 +210,9 @@ def _inspect_grib_product(source_file: Path) -> dict[str, Any]:
             )
 
     primary = _pick_variable([item["name"] for item in variables], DEFAULT_GRIB_VARIABLES)
-    stats = _grib_stats(files, primary)
+    variable_names = sorted({item["name"] for item in variables})
+    variable_stats = {name: _grib_stats(files, name) for name in variable_names}
+    stats = variable_stats.get(primary) or _grib_stats(files, primary)
     trend = _grib_trend(files, primary)
     times = [_parse_time_from_name(path) for path in files]
     times = [item for item in times if item]
@@ -177,6 +225,7 @@ def _inspect_grib_product(source_file: Path) -> dict[str, Any]:
         "resolution_label": scope["resolution_label"],
         "coverage": scope["coverage"],
         "files": [path.name for path in files],
+        "frames": _build_frames(files, [left, bottom, right, top]),
         "file_count": len(files),
         "times": times,
         "time_start": _format_time(times[0]) if times else "",
@@ -189,12 +238,13 @@ def _inspect_grib_product(source_file: Path) -> dict[str, Any]:
         "resolution": resolution,
         "levels": sorted({item["level"] for item in variables if item["level"]}) or ["surface"],
         "variables": variables,
-        "variable_names": sorted({item["name"] for item in variables}),
+        "variable_names": variable_names,
         "primary_variable": primary,
         "primary_unit": _variable_field(variables, primary, "unit"),
         "primary_long_name": _variable_field(variables, primary, "long_name"),
         "missing": "NaN",
         "stats": stats,
+        "variable_stats": variable_stats,
         "trend": trend,
     }
 
@@ -210,7 +260,7 @@ def _build_frontend_meta(source_file: Path, product: dict[str, Any]) -> dict[str
         "range": product["range"],
         "grid": product["grid"],
         "missing": str(product["missing"]),
-        "unit": str(product["primary_unit"]),
+        "unit": _clean_unit(product["primary_unit"]),
         "vars": str(len(product["variable_names"])),
         "steps": str(len(product["times"]) or product["file_count"]),
         "extent": product["extent"],
@@ -228,10 +278,14 @@ def _build_weather_info(frontend_meta: dict[str, Any], product: dict[str, Any]) 
         "range": frontend_meta["range"],
         "resolution": _format_resolution(product["resolution"]),
         "grid": frontend_meta["grid"],
+        "valid_grid": frontend_meta["grid"],
         "validGrid": frontend_meta["grid"],
         "coverage": product["coverage"],
         "missing": frontend_meta["missing"],
         "unit": frontend_meta["unit"],
+        "variable_count": len(product["variable_names"]),
+        "step_count": len(product["times"]) or product["file_count"],
+        "vars": frontend_meta["vars"],
         "variables": frontend_meta["vars"],
         "steps": frontend_meta["steps"],
         "status": "已解析",
@@ -240,10 +294,108 @@ def _build_weather_info(frontend_meta: dict[str, Any], product: dict[str, Any]) 
         "min": _format_number(stats.get("min")),
         "mean": _format_number(stats.get("mean")),
         "alert": "无",
-        "update": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
         "bars": _bars(stats),
+        "bars_labels": [],
         "trend": product["trend"],
+        "trend_times": [_iso_time(value) for value in product["times"][: len(product["trend"])]],
     }
+
+
+def _schema_variables(product: dict[str, Any]) -> list[dict[str, Any]]:
+    stats_by_name = product.get("variable_stats") or {}
+    variables = []
+    for item in product["variables"]:
+        name = item.get("name", "")
+        variables.append(
+            {
+                "name": name,
+                "long_name": item.get("long_name") or name,
+                "short_name": item.get("short_name"),
+                "raw_name": None,
+                "name_cn": None,
+                "unit": _clean_unit(item.get("unit")) or None,
+                "display_unit": None,
+                "shape": item.get("shape", []),
+                "dims": item.get("dims", []),
+                "level": item.get("level"),
+                "missing": item.get("missing"),
+                "stats": _schema_stats(stats_by_name.get(name)),
+                "category": None,
+                "description": None,
+                "wavelength": None,
+                "float32": _grid_url(product["files"][0], name),
+                "netcdf": None,
+                "png": None,
+            }
+        )
+    return variables
+
+
+def _schema_stats(stats: dict[str, Any] | None) -> dict[str, Any]:
+    return {
+        "min": stats.get("min") if isinstance(stats, dict) else None,
+        "max": stats.get("max") if isinstance(stats, dict) else None,
+        "mean": stats.get("mean") if isinstance(stats, dict) else None,
+        "std": stats.get("std") if isinstance(stats, dict) else None,
+    }
+
+
+def _file_detail(source_file: Path, meta_file: Path, file_format: str, file_count: int) -> dict[str, Any]:
+    return {
+        "name": source_file.name,
+        "path": source_file.as_posix(),
+        "format": file_format,
+        "parsed_at": datetime.now(timezone.utc).isoformat(),
+        "parse_status": "success",
+        "file_count": file_count,
+    }
+
+
+def _time_detail(product: dict[str, Any]) -> dict[str, Any]:
+    times = [_iso_time(value) for value in product["times"]]
+    step_hours = product.get("time_resolution_hours")
+    return {
+        "start": times[0] if times else None,
+        "end": times[-1] if times else None,
+        "count": len(times) or product["file_count"],
+        "step_seconds": int(step_hours * 3600) if step_hours else None,
+        "reference_time": None,
+    }
+
+
+def _spatial_detail(product: dict[str, Any]) -> dict[str, Any]:
+    west, south, east, north = product["extent"]
+    grid_shape = product["grid_shape"]
+    resolution = product["resolution"]
+    return {
+        "lon_min": west,
+        "lon_max": east,
+        "lat_min": south,
+        "lat_max": north,
+        "resolution_lon": resolution.get("lon"),
+        "resolution_lat": resolution.get("lat"),
+        "nx": int(grid_shape[1]),
+        "ny": int(grid_shape[0]),
+    }
+
+
+def _build_frames(files: list[Path], extent: list[float]) -> list[dict[str, Any]]:
+    frames = []
+    for index, path in enumerate(files):
+        time_value = _parse_time_from_name(path)
+        frames.append(
+            {
+                "index": index,
+                "file": path.name,
+                "source_file": path.as_posix(),
+                "time": _iso_time(time_value),
+                "raw_time": time_value,
+                "time_label": _format_time(time_value),
+                "extent": extent,
+            }
+        )
+    return frames
 
 
 def _series_files(source_file: Path, pattern: str) -> list[Path]:
@@ -278,7 +430,11 @@ def _infer_scope(source_file: Path) -> dict[str, str]:
 
     if not region:
         for part in reversed(parts):
-            if part in {source_file.name, "NC", "GRIB", "data"}:
+            if part.lower() in {"backend_system", "weather_agent", "desktop"}:
+                continue
+            if ":" in part:
+                continue
+            if part in {source_file.name, "NC", "GRIB", "CMA", "data"}:
                 continue
             if "CMA" in part.upper() or "CRA40" in part.upper():
                 continue
@@ -287,6 +443,8 @@ def _infer_scope(source_file: Path) -> dict[str, str]:
             region = part
             break
 
+    if region == "unknown":
+        region = ""
     coverage = " ".join(item for item in [region, resolution_label] if item) or "区域数据"
     return {
         "region": region or "unknown",
@@ -337,6 +495,12 @@ def _format_time(value: str) -> str:
     return f"{value[:4]}-{value[4:6]}-{value[6:8]} {value[8:10]}:00"
 
 
+def _iso_time(value: str) -> str:
+    if len(value) != 10:
+        return value
+    return f"{value[:4]}-{value[4:6]}-{value[6:8]}T{value[8:10]}:00:00Z"
+
+
 def _time_span(product: dict[str, Any]) -> str:
     start = product.get("time_start") or ""
     end = product.get("time_end") or ""
@@ -373,6 +537,19 @@ def _format_resolution(resolution: dict[str, float | None]) -> str:
     if lon and lat:
         return f"{lon}° x {lat}°"
     return "待解析"
+
+
+def _clean_unit(value: Any) -> str:
+    text = str(value or "").strip()
+    if len(text) >= 2 and text.startswith("[") and text.endswith("]"):
+        return text[1:-1].strip()
+    return text
+
+
+def _grid_url(file_name: str, variable: str) -> str:
+    from urllib.parse import urlencode
+
+    return f"/api/cma/grid?{urlencode({'file': file_name, 'variable': variable, 'level_index': 0})}"
 
 
 def _nc_dims(shape: tuple[int, ...], grid_shape: list[int]) -> list[str]:

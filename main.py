@@ -87,6 +87,18 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=[
+        "X-CMA-Nx",
+        "X-CMA-Ny",
+        "X-CMA-Extent",
+        "X-CMA-Missing",
+        "X-CMA-Dtype",
+        "X-CMA-Min",
+        "X-CMA-Max",
+        "X-CMA-Mean",
+        "X-CMA-Variable",
+        "X-CMA-Unit",
+    ],
 )
 
 # 关键：让前端可以访问后端生成的 PNG：
@@ -211,7 +223,12 @@ def parse_file(
             upload_files = adapter.select_upload_files(upload_files)
         saved_paths = save_upload_files(upload_files, BUSINESS_DIRS[business_type], business_type)
         saved_path = saved_paths[0]
-        meta = ADAPTERS[business_type].process_file(str(saved_path), data_type=business_type)
+        if business_type == "Radar" and len(saved_paths) > 1:
+            meta = radar_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
+        elif business_type == "CMA" and len(saved_paths) > 1:
+            meta = cma_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
+        else:
+            meta = ADAPTERS[business_type].process_file(str(saved_path), data_type=business_type)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -267,7 +284,33 @@ def radar_grid(
     return Response(content=grid["bytes"], media_type="application/octet-stream", headers=headers)
 
 
+@app.get("/api/cma/grid")
+def cma_grid(
+    file: str | None = Query(default=None),
+    variable: str | None = Query(default=None),
+    level_index: int = Query(default=0, ge=0),
+) -> Response:
+    try:
+        grid = cma_service.get_binary_grid_data(file, variable, level_index)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    headers = {
+        "X-CMA-Nx": str(grid["width"]),
+        "X-CMA-Ny": str(grid["height"]),
+        "X-CMA-Extent": ",".join(str(item) for item in grid["extent"]),
+        "X-CMA-Missing": str(grid["nodata"]),
+        "X-CMA-Dtype": grid["dtype"],
+        "X-CMA-Min": str(grid["min"]),
+        "X-CMA-Max": str(grid["max"]),
+        "X-CMA-Mean": str(grid["mean"]),
+        "X-CMA-Variable": str(grid["variable"]),
+        "X-CMA-Unit": str(grid["unit"]),
+    }
+    return Response(content=grid["bytes"], media_type="application/octet-stream", headers=headers)
+
+
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host="0.0.0.0", port=8002, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8002, reload=True)
