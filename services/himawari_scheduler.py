@@ -9,6 +9,7 @@ from adapters import himawari_adapter
 
 
 FALSE_VALUES = {"0", "false", "no", "off"}
+DEFAULT_DOWNLOAD_MAX_JOBS_PER_RUN = 12
 DOWNLOAD_STAGES = {"connecting", "listing", "downloading"}
 PARSE_STAGES = {"parsing", "processing_band", "compositing", "writing_meta", "cleanup_raw"}
 CLEAR_SCENE_STAGES = {"downloaded", "parsed", "failed", "error"}
@@ -118,9 +119,10 @@ def get_himawari_auto_status(environ: dict[str, str] | None = None) -> dict[str,
         "active_parses": _active_items("active_parses"),
         "workers": _STATE["workers"],
         "config": {
-            "backfill_hours": _int_env(env, "HIMAWARI_BACKFILL_HOURS", 3),
-            "retention_hours": _int_env(env, "HIMAWARI_RETENTION_HOURS", 24),
-            "latest_delay_minutes": _int_env(env, "HIMAWARI_LATEST_DELAY_MINUTES", 30),
+            "window_hours": _window_hours_env(env),
+            "backfill_hours": _window_hours_env(env),
+            "retention_hours": _retention_hours_env(env),
+            "latest_delay_minutes": _latest_delay_minutes_env(env),
             "download_interval_minutes": _int_env(env, "HIMAWARI_DOWNLOAD_INTERVAL_MINUTES", 10),
             "download_interval_seconds": _worker_interval_seconds(env, "download"),
             "download_max_jobs_per_run": _worker_max_jobs(env, "download"),
@@ -196,6 +198,20 @@ def _int_env(env: dict[str, str], key: str, default: int) -> int:
         return default
 
 
+def _window_hours_env(env: dict[str, str]) -> int:
+    if "HIMAWARI_WINDOW_HOURS" in env:
+        return max(1, _int_env(env, "HIMAWARI_WINDOW_HOURS", himawari_adapter.DEFAULT_WINDOW_HOURS))
+    return max(1, _int_env(env, "HIMAWARI_BACKFILL_HOURS", himawari_adapter.DEFAULT_WINDOW_HOURS))
+
+
+def _retention_hours_env(env: dict[str, str]) -> int:
+    return max(1, _int_env(env, "HIMAWARI_RETENTION_HOURS", _window_hours_env(env)))
+
+
+def _latest_delay_minutes_env(env: dict[str, str]) -> int:
+    return max(0, _int_env(env, "HIMAWARI_LATEST_DELAY_MINUTES", himawari_adapter.DEFAULT_LATEST_DELAY_MINUTES))
+
+
 def _worker_interval_seconds(env: dict[str, str], queue: str) -> int:
     key = f"HIMAWARI_{queue.upper()}_INTERVAL_SECONDS"
     fallback = max(1, _int_env(env, "HIMAWARI_DOWNLOAD_INTERVAL_MINUTES", 10)) * 60
@@ -211,6 +227,8 @@ def _worker_max_jobs(env: dict[str, str], queue: str) -> int:
         return max(0, _int_env(env, "HIMAWARI_MAX_JOBS_PER_RUN", 0))
     if "HIMAWARI_MAX_SCENES_PER_RUN" in env:
         return max(0, _int_env(env, "HIMAWARI_MAX_SCENES_PER_RUN", 0))
+    if queue.lower() == "download":
+        return DEFAULT_DOWNLOAD_MAX_JOBS_PER_RUN
     return 0
 
 
@@ -243,9 +261,9 @@ def _credentials_ready(env: dict[str, str]) -> bool:
 def _config(env: dict[str, str], queue: str) -> dict[str, Any]:
     return {
         "output_root": Path(env.get("HIMAWARI_OUTPUT_ROOT", himawari_adapter.DATA_DIR.as_posix())),
-        "hours": _int_env(env, "HIMAWARI_BACKFILL_HOURS", 3),
-        "retention_hours": _int_env(env, "HIMAWARI_RETENTION_HOURS", 24),
-        "delay_minutes": _int_env(env, "HIMAWARI_LATEST_DELAY_MINUTES", 30),
+        "hours": _window_hours_env(env),
+        "retention_hours": _retention_hours_env(env),
+        "delay_minutes": _latest_delay_minutes_env(env),
         "interval_minutes": _int_env(env, "HIMAWARI_DOWNLOAD_INTERVAL_MINUTES", 10),
         "max_jobs_per_run": _worker_max_jobs(env, queue),
         "max_workers": _max_workers_env(env),
@@ -389,6 +407,7 @@ def start_himawari_auto_download(
     removed_expired = himawari_adapter.cleanup_himawari_retention(
         output_root,
         retention_hours=config["retention_hours"],
+        delay_minutes=config["delay_minutes"],
     )
     cleanup_result = {}
     if removed_raw:

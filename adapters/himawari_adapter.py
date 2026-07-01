@@ -45,6 +45,14 @@ HIMAWARI_QUICK_BANDS = HIMAWARI_TARGET_BANDS
 HIMAWARI_FULL_BANDS = HIMAWARI_TARGET_BANDS
 TRUE_COLOR_BANDS = ["B03", "B02", "B01"]
 SLOW_MIN_REMAINING_MINUTES = 120
+B13_FAST_BANDS = ["B13"]
+VISIBLE_COLOR_BANDS = ["B03", "B02", "B01"]
+VISIBLE_LOCAL_START_HOUR = 6
+VISIBLE_LOCAL_END_HOUR = 18
+VISIBLE_LOCAL_UTC_OFFSET_HOURS = 8
+PARTIAL_MAX_AGE_HOURS = 6
+DEFAULT_WINDOW_HOURS = 24
+DEFAULT_LATEST_DELAY_MINUTES = 60
 
 
 def _emit_progress(progress_callback: Any, **event: Any) -> None:
@@ -78,6 +86,24 @@ def _scene_datetime(date: str, scene_time: str) -> datetime | None:
         return datetime.strptime(f"{date}{scene_time}", "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
     except ValueError:
         return None
+
+
+def _scene_beijing_datetime(date: str, scene_time: str) -> datetime | None:
+    scene_dt = _scene_datetime(date, scene_time)
+    if not scene_dt:
+        return None
+    return scene_dt + timedelta(hours=VISIBLE_LOCAL_UTC_OFFSET_HOURS)
+
+
+def _is_visible_light_slot(date: str, scene_time: str) -> bool:
+    local_dt = _scene_beijing_datetime(date, scene_time)
+    if not local_dt:
+        return False
+    return VISIBLE_LOCAL_START_HOUR <= local_dt.hour < VISIBLE_LOCAL_END_HOUR
+
+
+def _visible_light_bands_for_slot(date: str, scene_time: str) -> list[str]:
+    return list(VISIBLE_COLOR_BANDS) if _is_visible_light_slot(date, scene_time) else []
 
 
 def _product_name(item: dict[str, Any]) -> str:
@@ -374,7 +400,7 @@ def build_himawari_remote_dirs(date: str, time: str, root: str = FTP_ROOT) -> li
     return unique_dirs
 
 
-def latest_himawari_slot(now: datetime | None = None, delay_minutes: int = 30) -> tuple[str, str]:
+def latest_himawari_slot(now: datetime | None = None, delay_minutes: int = DEFAULT_LATEST_DELAY_MINUTES) -> tuple[str, str]:
     base = now or datetime.now(timezone.utc)
     if base.tzinfo is None:
         base = base.replace(tzinfo=timezone.utc)
@@ -386,8 +412,8 @@ def latest_himawari_slot(now: datetime | None = None, delay_minutes: int = 30) -
 
 def himawari_slot_window(
     now: datetime | None = None,
-    hours: int = 3,
-    delay_minutes: int = 30,
+    hours: int = DEFAULT_WINDOW_HOURS,
+    delay_minutes: int = DEFAULT_LATEST_DELAY_MINUTES,
     interval_minutes: int = 10,
 ) -> list[tuple[str, str]]:
     if hours <= 0:
@@ -397,10 +423,7 @@ def himawari_slot_window(
 
     latest_date, latest_time = latest_himawari_slot(now=now, delay_minutes=delay_minutes)
     latest = datetime.strptime(f"{latest_date}{latest_time}", "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
-    base = now or datetime.now(timezone.utc)
-    if base.tzinfo is None:
-        base = base.replace(tzinfo=timezone.utc)
-    earliest = (base.astimezone(timezone.utc) - timedelta(hours=hours)).replace(minute=0, second=0, microsecond=0)
+    earliest = latest - timedelta(hours=hours)
     if earliest > latest:
         earliest = latest
     slots = []
@@ -478,13 +501,13 @@ def _download_himawari_file(
         ftp.connect(host, FTP_PORT, timeout=timeout)
         ftp.login(user, password)
         target.parent.mkdir(parents=True, exist_ok=True)
-        with part.open("wb") as file:
-            ftp.retrbinary(f"RETR {_remote_retr_path(remote_dir, remote_name)}", file.write)
+        resume_at = part.stat().st_size if part.exists() else 0
+        mode = "ab" if resume_at > 0 else "wb"
+        with part.open(mode) as file:
+            ftp.retrbinary(f"RETR {_remote_retr_path(remote_dir, remote_name)}", file.write, rest=resume_at or None)
         part.replace(target)
         return target.as_posix()
     except Exception:
-        if part.exists():
-            part.unlink()
         raise
     finally:
         _close_ftp(ftp)
@@ -498,7 +521,7 @@ def download_himawari_hsd_scene(
     overwrite: bool = False,
     parse_after_download: bool = False,
     delete_raw_after_parse: bool = True,
-    retention_hours: int = 24,
+    retention_hours: int = DEFAULT_WINDOW_HOURS,
     ftp_factory: Any = ftplib.FTP,
     host: str | None = None,
     user: str | None = None,
@@ -508,6 +531,7 @@ def download_himawari_hsd_scene(
     phase: str | None = None,
     progress_callback: Any = None,
     file_workers: int = 1,
+    latest_delay_minutes: int = 0,
 ) -> dict[str, Any]:
     date, time = _validate_hsd_date_time(date, time)
     env = os.environ
@@ -601,20 +625,18 @@ def download_himawari_hsd_scene(
                 )
                 part = target.with_name(f"{target.name}.part")
                 try:
-                    with part.open("wb") as file:
-                        ftp.retrbinary(f"RETR {remote_name}", file.write)
+                    resume_at = part.stat().st_size if part.exists() else 0
+                    mode = "ab" if resume_at > 0 else "wb"
+                    with part.open(mode) as file:
+                        ftp.retrbinary(f"RETR {remote_name}", file.write, rest=resume_at or None)
                 except Exception:
-                    if part.exists():
-                        part.unlink()
                     raise
                 part.replace(target)
                 downloaded.append(target.as_posix())
         _emit_progress(progress_callback, stage="downloaded", phase=phase, scene_id=scene_id, detail="HSD 分段下载完成", queue_done=len(remote_files), queue_total=len(remote_files))
     except Exception:
-        if parse_after_download and delete_raw_after_parse and raw_dir.exists():
-            _emit_progress(progress_callback, stage="cleanup_raw", phase=phase, scene_id=scene_id, detail="下载失败，删除 raw 临时数据")
-            shutil.rmtree(raw_dir, ignore_errors=True)
-            _remove_empty_scene_dirs(raw_dir.parent)
+        if parse_after_download and raw_dir.exists():
+            _emit_progress(progress_callback, stage="failed", phase=phase, scene_id=scene_id, detail="下载失败，保留 raw 供下一轮续传")
         raise
     finally:
         _close_ftp(ftp)
@@ -635,17 +657,14 @@ def download_himawari_hsd_scene(
     if parse_after_download:
         if not _raw_scene_has_complete_bands(raw_dir, bands=bands):
             result["parse_skipped"] = "HSD raw 分段未完整，等待下一轮自动补齐后再解析。"
-            if delete_raw_after_parse and raw_dir.exists():
-                _emit_progress(progress_callback, stage="cleanup_raw", phase=phase, scene_id=scene_id, detail="raw 分段不完整，删除临时数据")
-                shutil.rmtree(raw_dir, ignore_errors=True)
-                _remove_empty_scene_dirs(raw_dir.parent)
-                result["raw_deleted"] = True
+            _emit_progress(progress_callback, stage="downloaded", phase=phase, scene_id=scene_id, detail="raw 分段不完整，保留给下一轮续传")
             return result
         result["parsed"] = process_downloaded_himawari_scene(
             raw_dir,
             output_root,
             delete_raw=delete_raw_after_parse,
             retention_hours=retention_hours,
+            latest_delay_minutes=latest_delay_minutes,
             progress_callback=progress_callback,
             phase=phase,
         )
@@ -658,7 +677,7 @@ def run_himawari_download_loop(
     interval_minutes: int,
     iterations: int | None = None,
     latest: bool = False,
-    latest_delay_minutes: int = 30,
+    latest_delay_minutes: int = DEFAULT_LATEST_DELAY_MINUTES,
     **download_kwargs: Any,
 ) -> list[dict[str, Any]]:
     results = []
@@ -726,14 +745,20 @@ def _is_retention_managed_scene(scene_dir: Path) -> bool:
 
 def cleanup_himawari_retention(
     output_root: str | Path = DATA_DIR,
-    retention_hours: int = 24,
+    retention_hours: int = DEFAULT_WINDOW_HOURS,
     now: datetime | None = None,
+    delay_minutes: int = 0,
 ) -> list[str]:
     root = Path(output_root)
     current = now or datetime.now(timezone.utc)
     if current.tzinfo is None:
         current = current.replace(tzinfo=timezone.utc)
-    cutoff = current.astimezone(timezone.utc) - timedelta(hours=retention_hours)
+    if delay_minutes > 0:
+        latest_date, latest_time = latest_himawari_slot(now=current, delay_minutes=delay_minutes)
+        reference = datetime.strptime(f"{latest_date}{latest_time}", "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
+    else:
+        reference = current.astimezone(timezone.utc)
+    cutoff = reference - timedelta(hours=retention_hours)
     removed: list[str] = []
     for scene_dir in sorted(root.glob("*/*")):
         if not scene_dir.is_dir() or scene_dir.name == "raw":
@@ -758,8 +783,9 @@ def process_downloaded_himawari_scene(
     raw_dir: str | Path,
     output_root: str | Path = DATA_DIR,
     delete_raw: bool = True,
-    retention_hours: int = 24,
+    retention_hours: int = DEFAULT_WINDOW_HOURS,
     now: datetime | None = None,
+    latest_delay_minutes: int = 0,
     **process_kwargs: Any,
 ) -> dict[str, Any]:
     raw_path = Path(raw_dir)
@@ -786,14 +812,27 @@ def process_downloaded_himawari_scene(
                 raw_path.parent.rmdir()
         except OSError:
             pass
-    cleanup_himawari_retention(output_root, retention_hours=retention_hours, now=now)
+    cleanup_himawari_retention(output_root, retention_hours=retention_hours, now=now, delay_minutes=latest_delay_minutes)
     _emit_progress(progress_callback, stage="parsed", phase=phase, scene_id=meta.get("scene_id"), detail="PNG/meta 生成完成")
     return meta
 
 
-def cleanup_partial_himawari_downloads(output_root: str | Path = DATA_DIR) -> list[str]:
+def cleanup_partial_himawari_downloads(
+    output_root: str | Path = DATA_DIR,
+    max_age_hours: int = PARTIAL_MAX_AGE_HOURS,
+    now: datetime | None = None,
+) -> list[str]:
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    cutoff = current.timestamp() - max(0, max_age_hours) * 3600
     removed: list[str] = []
     for path in sorted(Path(output_root).glob("*/*/raw/*.part")):
+        try:
+            if max_age_hours > 0 and path.stat().st_mtime >= cutoff:
+                continue
+        except OSError:
+            continue
         try:
             path.unlink()
             removed.append(path.as_posix())
@@ -813,10 +852,21 @@ def _remove_empty_scene_dirs(scene_dir: Path) -> None:
         pass
 
 
-def cleanup_himawari_raw_dirs(output_root: str | Path = DATA_DIR) -> list[str]:
+def cleanup_himawari_raw_dirs(
+    output_root: str | Path = DATA_DIR,
+    max_age_hours: int = PARTIAL_MAX_AGE_HOURS,
+    now: datetime | None = None,
+) -> list[str]:
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    cutoff = current.timestamp() - max(0, max_age_hours) * 3600
     removed: list[str] = []
     for raw_dir in sorted(Path(output_root).glob("*/*/raw")):
         if not raw_dir.is_dir():
+            continue
+        newest_mtime = max((path.stat().st_mtime for path in raw_dir.glob("*") if path.exists()), default=0)
+        if max_age_hours > 0 and newest_mtime >= cutoff:
             continue
         try:
             shutil.rmtree(raw_dir)
@@ -852,13 +902,42 @@ def _target_himawari_jobs(
     scene_time: str,
     root: Path,
     target_bands: list[str],
+    phase: str = "download",
 ) -> list[tuple[str, str, str, list[str]]]:
     scene_dir = root / date / scene_time
     target_bands = _ordered_unique_bands(target_bands)
     missing_bands = [band for band in target_bands if not _scene_has_bands(scene_dir, [band])]
     if not missing_bands:
         return []
-    return [(date, scene_time, "download", missing_bands)]
+    return [(date, scene_time, phase, missing_bands)]
+
+
+def _build_himawari_priority_jobs(
+    scene_slots: list[tuple[str, str]],
+    root: Path,
+    target_bands: list[str],
+) -> list[tuple[str, str, str, list[str]]]:
+    requested = set(_ordered_unique_bands(target_bands))
+    scene_order = list(reversed(scene_slots))
+    jobs: list[tuple[str, str, str, list[str]]] = []
+
+    if "B13" in requested:
+        for date, scene_time in scene_order:
+            jobs.extend(_target_himawari_jobs(date, scene_time, root, B13_FAST_BANDS, phase="quick_b13"))
+
+    visible_targets = [band for band in VISIBLE_COLOR_BANDS if band in requested]
+    if visible_targets:
+        for date, scene_time in scene_order:
+            visible_bands = [band for band in _visible_light_bands_for_slot(date, scene_time) if band in visible_targets]
+            if visible_bands:
+                jobs.extend(_target_himawari_jobs(date, scene_time, root, visible_bands, phase="visible_color"))
+
+    fallback_targets = [band for band in target_bands if band not in set(B13_FAST_BANDS + VISIBLE_COLOR_BANDS)]
+    if fallback_targets:
+        for date, scene_time in scene_order:
+            jobs.extend(_target_himawari_jobs(date, scene_time, root, fallback_targets, phase="download"))
+
+    return jobs
 
 
 def _raw_scene_has_complete_bands(raw_dir: str | Path, bands: list[str] | None = None) -> bool:
@@ -891,10 +970,10 @@ def _raw_scene_has_complete_bands(raw_dir: str | Path, bands: list[str] | None =
 def recover_himawari_scene_window(
     output_root: str | Path = DATA_DIR,
     slots: list[tuple[str, str]] | None = None,
-    hours: int = 3,
-    delay_minutes: int = 30,
+    hours: int = DEFAULT_WINDOW_HOURS,
+    delay_minutes: int = DEFAULT_LATEST_DELAY_MINUTES,
     interval_minutes: int = 10,
-    retention_hours: int = 24,
+    retention_hours: int = DEFAULT_WINDOW_HOURS,
     bands: list[str] | None = None,
     quick_bands: list[str] | None = None,
     max_scenes_per_run: int | None = None,
@@ -911,7 +990,6 @@ def recover_himawari_scene_window(
 ) -> dict[str, Any]:
     root = Path(output_root)
     scene_slots = slots or himawari_slot_window(now=now, hours=hours, delay_minutes=delay_minutes, interval_minutes=interval_minutes)
-    scene_order = list(scene_slots)
     requested_bands = [item.upper() for item in (bands or quick_bands or HIMAWARI_TARGET_BANDS)]
     target_band_list = [item for item in _ordered_unique_bands(requested_bands) if item in HIMAWARI_TARGET_BANDS] or list(HIMAWARI_TARGET_BANDS)
     queue_key = str(queue or "download").lower()
@@ -938,7 +1016,7 @@ def recover_himawari_scene_window(
         "stopped": None,
         "phase": None,
         "removed_part_files": cleanup_partial_himawari_downloads(root),
-        "removed_expired": cleanup_himawari_retention(root, retention_hours=retention_hours, now=retention_now),
+        "removed_expired": cleanup_himawari_retention(root, retention_hours=retention_hours, now=retention_now, delay_minutes=delay_minutes),
     }
 
     handled = 0
@@ -952,7 +1030,17 @@ def recover_himawari_scene_window(
         try:
             _emit_progress(progress_callback, stage="checking", phase=phase, scene_id=scene_id, detail="检查本地结果和 raw 完整性")
             if _raw_scene_has_complete_bands(raw_dir, bands=wanted_bands):
-                processor(raw_dir, root, delete_raw=True, retention_hours=retention_hours, now=retention_now, bands=wanted_bands, progress_callback=progress_callback, phase=phase)
+                processor(
+                    raw_dir,
+                    root,
+                    delete_raw=True,
+                    retention_hours=retention_hours,
+                    now=retention_now,
+                    latest_delay_minutes=delay_minutes,
+                    bands=wanted_bands,
+                    progress_callback=progress_callback,
+                    phase=phase,
+                )
                 return {"kind": "processed_raw", "scene_id": scene_id}
             downloader_result = downloader(
                 date,
@@ -963,6 +1051,7 @@ def recover_himawari_scene_window(
                 parse_after_download=True,
                 delete_raw_after_parse=True,
                 retention_hours=retention_hours,
+                latest_delay_minutes=delay_minutes,
                 phase=phase,
                 progress_callback=progress_callback,
                 **download_kwargs,
@@ -995,15 +1084,13 @@ def recover_himawari_scene_window(
                 if job_result.get("stopped") and not result["stopped"]:
                     result["stopped"] = job_result["stopped"]
 
-    for date, scene_time in scene_order:
+    for date, scene_time in scene_slots:
         scene_id = f"{date}_{scene_time}"
         scene_dir = root / date / scene_time
         if _scene_has_bands(scene_dir, target_band_list):
             result["target_complete"].append(scene_id)
 
-    priority_jobs: list[tuple[str, str, str, list[str]]] = []
-    for date, scene_time in scene_order:
-        priority_jobs.extend(_target_himawari_jobs(date, scene_time, root, target_band_list))
+    priority_jobs = _build_himawari_priority_jobs(scene_slots, root, target_band_list)
 
     if job_limit:
         priority_jobs = priority_jobs[:job_limit]
@@ -1028,7 +1115,7 @@ def recover_himawari_scene_window(
                     break
 
     if result["downloaded"] or result["processed_raw"] or result["skipped"]:
-        result["removed_expired"].extend(cleanup_himawari_retention(root, retention_hours=retention_hours, now=retention_now))
+        result["removed_expired"].extend(cleanup_himawari_retention(root, retention_hours=retention_hours, now=retention_now, delay_minutes=delay_minutes))
     _emit_progress(progress_callback, stage="idle", phase=result["phase"], detail="本轮 Himawari 自动任务结束")
     return result
 
@@ -1502,13 +1589,13 @@ def main() -> int:
     parser.add_argument("--no-composites", action="store_true")
     parser.add_argument("--download", action="store_true", help="从 Himawari FTP 下载 HSD raw 文件")
     parser.add_argument("--latest", action="store_true", help="下载当前时间向前延迟后的最新 10 分钟时次")
-    parser.add_argument("--latest-delay-minutes", type=int, default=30)
+    parser.add_argument("--latest-delay-minutes", type=int, default=DEFAULT_LATEST_DELAY_MINUTES)
     parser.add_argument("--interval-minutes", type=int, help="定期下载间隔；设置后持续循环，配合 --iterations 可限制次数")
     parser.add_argument("--iterations", type=int, help="定期下载循环次数；不设置则持续运行")
     parser.add_argument("--overwrite", action="store_true", help="重新下载并覆盖已有 HSD 文件")
     parser.add_argument("--parse-after-download", action="store_true", help="下载完成后立即调用现有解析流程")
     parser.add_argument("--keep-raw", action="store_true", help="下载后解析成功也保留 HSD raw 文件；默认解析成功后删除 raw")
-    parser.add_argument("--retention-hours", type=int, default=24, help="解析结果保留小时数，默认 24")
+    parser.add_argument("--retention-hours", type=int, default=DEFAULT_WINDOW_HOURS, help="解析结果窗口小时数，默认 24")
     parser.add_argument("--ftp-host", default=None, help="默认读取 HIMAWARI_FTP_HOST 或 ftp.ptree.jaxa.jp")
     parser.add_argument("--ftp-root", default=None, help="默认读取 HIMAWARI_FTP_ROOT 或 /jma/hsd，支持 {yyyymm}/{dd}/{time} 模板")
     args = parser.parse_args()
@@ -1524,6 +1611,7 @@ def main() -> int:
             "parse_after_download": args.parse_after_download,
             "delete_raw_after_parse": not args.keep_raw,
             "retention_hours": args.retention_hours,
+            "latest_delay_minutes": args.latest_delay_minutes,
             "host": args.ftp_host,
             "remote_root": args.ftp_root,
         }

@@ -3,7 +3,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from adapters.himawari_adapter import normalize_himawari_meta
+from adapters.himawari_adapter import (
+    DEFAULT_LATEST_DELAY_MINUTES,
+    DEFAULT_WINDOW_HOURS,
+    latest_himawari_slot,
+    normalize_himawari_meta,
+)
 
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "Himawari"
@@ -109,17 +114,36 @@ def _read_meta_entry(meta_path: Path) -> dict[str, Any] | None:
     }
 
 
-def _meta_entries(retention_hours: int = 24) -> list[dict[str, Any]]:
+def _display_window_bounds(
+    now: datetime | None = None,
+    retention_hours: int = DEFAULT_WINDOW_HOURS,
+    delay_minutes: int = DEFAULT_LATEST_DELAY_MINUTES,
+) -> tuple[datetime, datetime]:
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    latest_date, latest_time = latest_himawari_slot(now=current, delay_minutes=delay_minutes)
+    latest = datetime.strptime(f"{latest_date}{latest_time}", "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
+    return latest - timedelta(hours=retention_hours), latest
+
+
+def _meta_entries(
+    retention_hours: int = DEFAULT_WINDOW_HOURS,
+    now: datetime | None = None,
+    delay_minutes: int = DEFAULT_LATEST_DELAY_MINUTES,
+) -> list[dict[str, Any]]:
     entries = []
     for meta_path in list(DATA_DIR.glob("*/*/meta/scene.meta.json")) + list(DATA_DIR.glob("*.meta.json")):
         if entry := _read_meta_entry(meta_path):
             entries.append(entry)
     if not entries:
         return []
-    latest = max((entry["observed"] for entry in entries if entry["observed"]), default=None)
-    if latest:
-        cutoff = latest - timedelta(hours=retention_hours)
-        entries = [entry for entry in entries if not entry["observed"] or entry["observed"] >= cutoff]
+    cutoff, latest = _display_window_bounds(now=now, retention_hours=retention_hours, delay_minutes=delay_minutes)
+    entries = [
+        entry
+        for entry in entries
+        if not entry["observed"] or cutoff <= entry["observed"] <= latest
+    ]
     return sorted(entries, key=lambda item: (item["observed"] or datetime.min.replace(tzinfo=timezone.utc), item["path"].as_posix()))
 
 
@@ -142,8 +166,13 @@ def _select_entry(entries: list[dict[str, Any]], scene_id: str | None = None) ->
     return entries[-1]
 
 
-def get_display_data(scene_id: str | None = None, retention_hours: int = 24) -> dict[str, Any]:
-    entries = _meta_entries(retention_hours=retention_hours)
+def get_display_data(
+    scene_id: str | None = None,
+    retention_hours: int = DEFAULT_WINDOW_HOURS,
+    now: datetime | None = None,
+    delay_minutes: int = DEFAULT_LATEST_DELAY_MINUTES,
+) -> dict[str, Any]:
+    entries = _meta_entries(retention_hours=retention_hours, now=now, delay_minutes=delay_minutes)
     selected = _select_entry(entries, scene_id)
     meta_files = [entry["path"] for entry in entries]
     png_files = sorted(
