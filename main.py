@@ -1,4 +1,7 @@
+import asyncio
+import contextlib
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +22,7 @@ from services import (
     era5_service,
     gfs_service,
     himawari_service,
+    himawari_scheduler,
     radar_service,
     wrf_service,
 )
@@ -55,7 +59,20 @@ DISPLAY_SERVICES = {
 }
 
 
-app = FastAPI(title="Weather Data Display Backend", version="0.1.0")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    himawari_tasks = himawari_scheduler.start_himawari_auto_download()
+    try:
+        yield
+    finally:
+        if himawari_tasks:
+            for task in himawari_tasks:
+                task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await asyncio.gather(*himawari_tasks)
+
+
+app = FastAPI(title="Weather Data Display Backend", version="0.1.0", lifespan=lifespan)
 
 _cors_origins = os.getenv(
     "CORS_ORIGINS",
@@ -174,6 +191,11 @@ def health() -> dict[str, Any]:
     return ok({"status": "online"})
 
 
+@app.get("/api/himawari/auto-status")
+def himawari_auto_status() -> dict[str, Any]:
+    return ok(himawari_scheduler.get_himawari_auto_status())
+
+
 @app.post("/api/files/parse")
 def parse_file(
     file: UploadFile | None = File(default=None),
@@ -210,6 +232,7 @@ def display_data(
     business_type: str,
     variable: str | None = Query(default=None),
     level_index: int = Query(default=0, ge=0),
+    scene_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     service = DISPLAY_SERVICES.get(business_type.upper())
     if service is None:
@@ -217,6 +240,8 @@ def display_data(
 
     if business_type.upper() in {"CMA", "ERA5"}:
         return ok(service.get_display_data(variable=variable, level_index=level_index))
+    if business_type.upper() == "HIMAWARI":
+        return ok(service.get_display_data(scene_id=scene_id))
 
     return ok(service.get_display_data())
 

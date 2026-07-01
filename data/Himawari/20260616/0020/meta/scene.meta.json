@@ -1,4 +1,34 @@
 {
+  "schema_version": "1.0",
+  "dataset_id": "20260616_0020_himawari_hsd",
+  "data_type": "Himawari",
+  "file_format": "HSD",
+  "source_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/raw",
+  "meta_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/meta/scene.meta.json",
+  "png_files": [
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B01.png",
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B02.png",
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B03.png",
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B04.png",
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B07.png",
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B08.png",
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B13.png",
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B14.png",
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B16.png",
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/composites/true_color.png"
+  ],
+  "default_png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/composites/true_color.png",
+  "default_variable": "B13",
+  "times": [
+    "2026-06-16T00:20:00Z"
+  ],
+  "levels": [],
+  "bbox": [
+    73,
+    18,
+    136,
+    54
+  ],
   "scene_id": "20260616_0020",
   "satellite": "Himawari-9",
   "observation_time": "2026-06-16T00:20:00Z",
@@ -17,338 +47,356 @@
   },
   "variables": [
     {
-      "key": "B01",
-      "name_zh": "蓝光反射率",
-      "plain_name": "白天云和地表颜色辅助通道",
-      "category": "可见光反射率",
-      "wavelength": "0.47um",
+      "name": "B01",
+      "long_name": "白天云和地表颜色辅助通道",
+      "short_name": "B01",
+      "raw_name": null,
+      "name_cn": "蓝光反射率",
       "unit": "%",
       "display_unit": "%",
-      "description": "反映云、海洋和地表对蓝光的反射强弱，数值越大通常越亮。",
-      "uses": [
-        "识别白天云区",
-        "辅助真彩色合成"
+      "shape": [
+        901,
+        1576
       ],
-      "cautions": [
-        "夜间没有太阳照射，该通道不可用于夜间云图。"
+      "dims": [
+        "lat",
+        "lon"
       ],
-      "grid": {
-        "nx": 1576,
-        "ny": 901
-      },
-      "extent": [
-        73,
-        18,
-        136,
-        54
-      ],
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B01.png",
-      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B01.float32",
-      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B01.nc",
+      "level": null,
+      "missing": null,
       "stats": {
         "min": 0.779405951499939,
         "max": 97.57369995117188,
-        "mean": 23.53612518310547
-      }
+        "mean": 23.53612518310547,
+        "std": null
+      },
+      "category": "可见光反射率",
+      "description": "反映云、海洋和地表对蓝光的反射强弱，数值越大通常越亮。",
+      "wavelength": "0.47um",
+      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B01.float32",
+      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B01.nc",
+      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B01.png"
     },
     {
-      "key": "B02",
-      "name_zh": "绿光反射率",
-      "plain_name": "白天自然颜色辅助通道",
-      "category": "可见光反射率",
-      "wavelength": "0.51um",
+      "name": "B02",
+      "long_name": "白天自然颜色辅助通道",
+      "short_name": "B02",
+      "raw_name": null,
+      "name_cn": "绿光反射率",
       "unit": "%",
       "display_unit": "%",
-      "description": "反映目标对绿光的反射强弱，是真彩色合成的重要组成部分。",
-      "uses": [
-        "真彩色云图",
-        "白天云系观察"
+      "shape": [
+        901,
+        1576
       ],
-      "cautions": [
-        "只代表反射光强，不是温度或降水强度。"
+      "dims": [
+        "lat",
+        "lon"
       ],
-      "grid": {
-        "nx": 1576,
-        "ny": 901
-      },
-      "extent": [
-        73,
-        18,
-        136,
-        54
-      ],
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B02.png",
-      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B02.float32",
-      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B02.nc",
+      "level": null,
+      "missing": null,
       "stats": {
         "min": 0.5930083990097046,
         "max": 94.66397857666016,
-        "mean": 20.57931900024414
-      }
+        "mean": 20.57931900024414,
+        "std": null
+      },
+      "category": "可见光反射率",
+      "description": "反映目标对绿光的反射强弱，是真彩色合成的重要组成部分。",
+      "wavelength": "0.51um",
+      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B02.float32",
+      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B02.nc",
+      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B02.png"
     },
     {
-      "key": "B03",
-      "name_zh": "红光反射率",
-      "plain_name": "白天高分辨率云图通道",
-      "category": "可见光反射率",
-      "wavelength": "0.64um",
+      "name": "B03",
+      "long_name": "白天高分辨率云图通道",
+      "short_name": "B03",
+      "raw_name": null,
+      "name_cn": "红光反射率",
       "unit": "%",
       "display_unit": "%",
-      "description": "红光反射率能清楚显示白天云的纹理和边界。",
-      "uses": [
-        "白天云系监测",
-        "真彩色合成"
+      "shape": [
+        901,
+        1576
       ],
-      "cautions": [
-        "夜间不可用，强反射不等于云顶更高。"
+      "dims": [
+        "lat",
+        "lon"
       ],
-      "grid": {
-        "nx": 1576,
-        "ny": 901
-      },
-      "extent": [
-        73,
-        18,
-        136,
-        54
-      ],
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B03.png",
-      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B03.float32",
-      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B03.nc",
+      "level": null,
+      "missing": null,
       "stats": {
         "min": 0.32476842403411865,
         "max": 101.1840591430664,
-        "mean": 17.692943572998047
-      }
+        "mean": 17.692943572998047,
+        "std": null
+      },
+      "category": "可见光反射率",
+      "description": "红光反射率能清楚显示白天云的纹理和边界。",
+      "wavelength": "0.64um",
+      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B03.float32",
+      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B03.nc",
+      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B03.png"
     },
     {
-      "key": "B04",
-      "name_zh": "近红外反射率",
-      "plain_name": "植被和云相态辅助通道",
-      "category": "近红外反射率",
-      "wavelength": "0.86um",
+      "name": "B04",
+      "long_name": "植被和云相态辅助通道",
+      "short_name": "B04",
+      "raw_name": null,
+      "name_cn": "近红外反射率",
       "unit": "%",
       "display_unit": "%",
-      "description": "对植被、水体和部分云相态差异比较敏感。",
-      "uses": [
-        "区分陆地植被和水体",
-        "辅助自然色合成"
+      "shape": [
+        901,
+        1576
       ],
-      "cautions": [
-        "该通道仍依赖太阳光，夜间不适合使用。"
+      "dims": [
+        "lat",
+        "lon"
       ],
-      "grid": {
-        "nx": 1576,
-        "ny": 901
-      },
-      "extent": [
-        73,
-        18,
-        136,
-        54
-      ],
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B04.png",
-      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B04.float32",
-      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B04.nc",
+      "level": null,
+      "missing": null,
       "stats": {
         "min": 0.2068578600883484,
         "max": 114.74186706542969,
-        "mean": 22.866275787353516
-      }
+        "mean": 22.866275787353516,
+        "std": null
+      },
+      "category": "近红外反射率",
+      "description": "对植被、水体和部分云相态差异比较敏感。",
+      "wavelength": "0.86um",
+      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B04.float32",
+      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B04.nc",
+      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B04.png"
     },
     {
-      "key": "B07",
-      "name_zh": "短波红外亮温",
-      "plain_name": "夜间低云雾和热点辅助通道",
-      "category": "红外亮温",
-      "wavelength": "3.9um",
+      "name": "B07",
+      "long_name": "夜间低云雾和热点辅助通道",
+      "short_name": "B07",
+      "raw_name": null,
+      "name_cn": "短波红外亮温",
       "unit": "K",
       "display_unit": "degC",
-      "description": "夜间常用于低云雾和热点识别，白天会受太阳反射影响。",
-      "uses": [
-        "夜间低云雾识别",
-        "火点辅助判断"
+      "shape": [
+        901,
+        1576
       ],
-      "cautions": [
-        "白天会混入太阳反射，解释时要区分昼夜。"
+      "dims": [
+        "lat",
+        "lon"
       ],
-      "grid": {
-        "nx": 1576,
-        "ny": 901
-      },
-      "extent": [
-        73,
-        18,
-        136,
-        54
-      ],
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B07.png",
-      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B07.float32",
-      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B07.nc",
+      "level": null,
+      "missing": null,
       "stats": {
         "min": 235.0270538330078,
         "max": 311.0298767089844,
-        "mean": 285.1722717285156
-      }
+        "mean": 285.1722717285156,
+        "std": null
+      },
+      "category": "红外亮温",
+      "description": "夜间常用于低云雾和热点识别，白天会受太阳反射影响。",
+      "wavelength": "3.9um",
+      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B07.float32",
+      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B07.nc",
+      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B07.png"
     },
     {
-      "key": "B08",
-      "name_zh": "高层水汽亮温",
-      "plain_name": "高空水汽分布通道",
-      "category": "水汽亮温",
-      "wavelength": "6.2um",
+      "name": "B08",
+      "long_name": "高空水汽分布通道",
+      "short_name": "B08",
+      "raw_name": null,
+      "name_cn": "高层水汽亮温",
       "unit": "K",
       "display_unit": "degC",
-      "description": "主要反映对流层中高层水汽和云的辐射特征。",
-      "uses": [
-        "分析高空水汽",
-        "识别干侵入"
+      "shape": [
+        901,
+        1576
       ],
-      "cautions": [
-        "它不是地面湿度，主要代表较高层大气信息。"
+      "dims": [
+        "lat",
+        "lon"
       ],
-      "grid": {
-        "nx": 1576,
-        "ny": 901
-      },
-      "extent": [
-        73,
-        18,
-        136,
-        54
-      ],
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B08.png",
-      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B08.float32",
-      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B08.nc",
+      "level": null,
+      "missing": null,
       "stats": {
         "min": 187.91075134277344,
         "max": 248.54872131347656,
-        "mean": 231.03411865234375
-      }
+        "mean": 231.03411865234375,
+        "std": null
+      },
+      "category": "水汽亮温",
+      "description": "主要反映对流层中高层水汽和云的辐射特征。",
+      "wavelength": "6.2um",
+      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B08.float32",
+      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B08.nc",
+      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B08.png"
     },
     {
-      "key": "B13",
-      "name_zh": "红外窗口亮温",
-      "plain_name": "云顶温度观测通道",
-      "category": "红外亮温",
-      "wavelength": "10.4um",
+      "name": "B13",
+      "long_name": "云顶温度观测通道",
+      "short_name": "B13",
+      "raw_name": null,
+      "name_cn": "红外窗口亮温",
       "unit": "K",
       "display_unit": "degC",
-      "description": "温度越低，通常表示云顶越高或越冷。",
-      "uses": [
-        "观察深对流",
-        "识别台风云系"
+      "shape": [
+        901,
+        1576
       ],
-      "cautions": [
-        "它不是地面气温，而是卫星看到的辐射亮温。"
+      "dims": [
+        "lat",
+        "lon"
       ],
-      "grid": {
-        "nx": 1576,
-        "ny": 901
-      },
-      "extent": [
-        73,
-        18,
-        136,
-        54
-      ],
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B13.png",
-      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B13.float32",
-      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B13.nc",
+      "level": null,
+      "missing": null,
       "stats": {
         "min": 183.57655334472656,
         "max": 301.05706787109375,
-        "mean": 269.07550048828125
-      }
+        "mean": 269.07550048828125,
+        "std": null
+      },
+      "category": "红外亮温",
+      "description": "温度越低，通常表示云顶越高或越冷。",
+      "wavelength": "10.4um",
+      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B13.float32",
+      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B13.nc",
+      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B13.png"
     },
     {
-      "key": "B14",
-      "name_zh": "长波红外窗口亮温",
-      "plain_name": "标准红外云图通道",
-      "category": "红外亮温",
-      "wavelength": "11.2um",
+      "name": "B14",
+      "long_name": "标准红外云图通道",
+      "short_name": "B14",
+      "raw_name": null,
+      "name_cn": "长波红外窗口亮温",
       "unit": "K",
       "display_unit": "degC",
-      "description": "适合全天候观察云顶温度和大范围云系。",
-      "uses": [
-        "全天候云图",
-        "云顶温度分析"
+      "shape": [
+        901,
+        1576
       ],
-      "cautions": [
-        "晴空下可能反映地表或海表辐射。"
+      "dims": [
+        "lat",
+        "lon"
       ],
-      "grid": {
-        "nx": 1576,
-        "ny": 901
-      },
-      "extent": [
-        73,
-        18,
-        136,
-        54
-      ],
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B14.png",
-      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B14.float32",
-      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B14.nc",
+      "level": null,
+      "missing": null,
       "stats": {
         "min": 183.05718994140625,
         "max": 300.854248046875,
-        "mean": 268.1826171875
-      }
+        "mean": 268.1826171875,
+        "std": null
+      },
+      "category": "红外亮温",
+      "description": "适合全天候观察云顶温度和大范围云系。",
+      "wavelength": "11.2um",
+      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B14.float32",
+      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B14.nc",
+      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B14.png"
     },
     {
-      "key": "B16",
-      "name_zh": "二氧化碳吸收带亮温",
-      "plain_name": "高云和云顶高度辅助通道",
-      "category": "红外亮温",
-      "wavelength": "13.3um",
+      "name": "B16",
+      "long_name": "高云和云顶高度辅助通道",
+      "short_name": "B16",
+      "raw_name": null,
+      "name_cn": "二氧化碳吸收带亮温",
       "unit": "K",
       "display_unit": "degC",
-      "description": "对高层云和云顶高度相关信息较敏感。",
-      "uses": [
-        "高云识别",
-        "云顶高度辅助判断"
+      "shape": [
+        901,
+        1576
       ],
-      "cautions": [
-        "不是二氧化碳浓度产品。"
+      "dims": [
+        "lat",
+        "lon"
       ],
-      "grid": {
-        "nx": 1576,
-        "ny": 901
-      },
-      "extent": [
-        73,
-        18,
-        136,
-        54
-      ],
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B16.png",
-      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B16.float32",
-      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B16.nc",
+      "level": null,
+      "missing": null,
       "stats": {
         "min": 185.97740173339844,
         "max": 277.1961364746094,
-        "mean": 252.35281372070312
-      }
+        "mean": 252.35281372070312,
+        "std": null
+      },
+      "category": "红外亮温",
+      "description": "对高层云和云顶高度相关信息较敏感。",
+      "wavelength": "13.3um",
+      "float32": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B16.float32",
+      "netcdf": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B16.nc",
+      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/latlon/B16.png"
     }
   ],
   "composites": [
     {
-      "key": "true_color",
-      "name_zh": "真彩色云图",
-      "plain_name": "接近人眼看到的白天卫星图",
+      "name": "true_color",
+      "name_cn": "真彩色云图",
+      "description": "用于直观看云、陆地、水体和大范围天气系统。",
       "source_bands": [
         "B03",
         "B02",
         "B01"
       ],
-      "description": "用于直观看云、陆地、水体和大范围天气系统。",
-      "cautions": [
-        "夜间没有可见光，真彩色产品不可用或效果很差。"
-      ],
+      "float32": null,
+      "netcdf": null,
       "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/composites/true_color.png"
     }
   ],
+  "weather_info": {
+    "source": "Himawari",
+    "product": "葵花静止卫星 HSD 等经纬度网格产品",
+    "element": "红外窗口亮温",
+    "time": "2026-06-16T00:20:00Z",
+    "level": "卫星观测",
+    "range": "73°E-136°E, 18°N-54°N",
+    "resolution": "0.04°",
+    "grid": "1576 × 901",
+    "valid_grid": null,
+    "coverage": null,
+    "missing": null,
+    "unit": "degC",
+    "variable_count": 9,
+    "step_count": 1,
+    "status": "解析完成",
+    "quality": "等经纬度网格已生成",
+    "max": 301.05706787109375,
+    "min": 183.57655334472656,
+    "mean": 269.07550048828125,
+    "alert": null,
+    "updated_at": "2026-06-24T12:40:11.417703+00:00",
+    "bars": [],
+    "bars_labels": [],
+    "trend": [],
+    "trend_times": []
+  },
+  "extra": {
+    "status": "parsed",
+    "generated_at": "2026-06-24T12:40:11.417703+00:00",
+    "note": null,
+    "cma": {},
+    "era5": {},
+    "gfs": {},
+    "himawari": {
+      "satellite": "Himawari-9",
+      "projection": "EPSG:4326",
+      "grid_type": "regular_latlon",
+      "loaded_bands": [
+        "B01",
+        "B02",
+        "B03",
+        "B04",
+        "B07",
+        "B08",
+        "B13",
+        "B14",
+        "B16"
+      ],
+      "raw_file_count": 90,
+      "source_raw_dir": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/raw",
+      "retention_managed": false
+    },
+    "radar": {},
+    "wrf": {}
+  },
   "loaded_bands": [
     "B01",
     "B02",
@@ -362,5 +410,6 @@
   ],
   "source_raw_dir": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260616/0020/raw",
   "raw_file_count": 90,
+  "retention_managed": false,
   "generated_at": "2026-06-24T12:40:11.417703+00:00"
 }
