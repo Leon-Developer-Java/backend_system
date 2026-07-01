@@ -1,17 +1,17 @@
 {
   "schema_version": "1.0",
-  "dataset_id": "20260630_0710_himawari_hsd",
+  "dataset_id": "20260701_0320_himawari_hsd",
   "data_type": "Himawari",
   "file_format": "HSD",
-  "source_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260630/0710/raw",
-  "meta_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260630/0710/meta/scene.meta.json",
+  "source_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0320/raw",
+  "meta_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0320/meta/scene.meta.json",
   "png_files": [
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260630/0710/latlon/B13.png"
+    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0320/latlon/B13.png"
   ],
-  "default_png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260630/0710/latlon/B13.png",
+  "default_png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0320/latlon/B13.png",
   "default_variable": "B13",
   "times": [
-    "2026-06-30T07:10:00Z"
+    "2026-07-01T03:20:00Z"
   ],
   "levels": [],
   "bbox": [
@@ -20,9 +20,9 @@
     136,
     54
   ],
-  "scene_id": "20260630_0710",
+  "scene_id": "20260701_0320",
   "satellite": "Himawari-9",
-  "observation_time": "2026-06-30T07:10:00Z",
+  "observation_time": "2026-07-01T03:20:00Z",
   "projection": "EPSG:4326",
   "grid_type": "regular_latlon",
   "extent": [
@@ -56,9 +56,9 @@
       "level": null,
       "missing": null,
       "stats": {
-        "min": 188.96136474609375,
-        "max": 317.78228759765625,
-        "mean": 265.8525695800781,
+        "min": 188.74954223632812,
+        "max": 319.09295654296875,
+        "mean": 272.1788330078125,
         "std": null
       },
       "category": "红外亮温",
@@ -66,7 +66,7 @@
       "wavelength": "10.4um",
       "float32": null,
       "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260630/0710/latlon/B13.png"
+      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0320/latlon/B13.png"
     }
   ],
   "composites": [],
@@ -74,7 +74,7 @@
     "source": "Himawari",
     "product": "葵花静止卫星 HSD 等经纬度网格产品",
     "element": "红外窗口亮温",
-    "time": "2026-06-30T07:10:00Z",
+    "time": "2026-07-01T03:20:00Z",
     "level": "卫星观测",
     "range": "73°E-136°E, 18°N-54°N",
     "resolution": "0.04°",
@@ -87,11 +87,11 @@
     "step_count": 1,
     "status": "解析完成",
     "quality": "等经纬度网格已生成",
-    "max": 317.78228759765625,
-    "min": 188.96136474609375,
-    "mean": 265.8525695800781,
+    "max": 319.09295654296875,
+    "min": 188.74954223632812,
+    "mean": 272.1788330078125,
     "alert": null,
-    "updated_at": "2026-07-01T05:36:37.328111+00:00",
+    "updated_at": "2026-07-01T08:18:29.124257+00:00",
     "bars": [],
     "bars_labels": [],
     "trend": [],
@@ -99,7 +99,7 @@
   },
   "extra": {
     "status": "parsed",
-    "generated_at": "2026-07-01T05:36:37.328111+00:00",
+    "generated_at": "2026-07-01T08:18:29.124257+00:00",
     "note": null,
     "cma": {},
     "era5": {},
@@ -112,7 +112,7 @@
         "B13"
       ],
       "raw_file_count": 10,
-      "source_raw_dir": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260630/0710/raw",
+      "source_raw_dir": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0320/raw",
       "retention_managed": true
     },
     "radar": {},
@@ -121,8 +121,8 @@
   "loaded_bands": [
     "B13"
   ],
-  "source_raw_dir": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260630/0710/raw",
+  "source_raw_dir": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0320/raw",
   "raw_file_count": 10,
   "retention_managed": true,
-  "generated_at": "2026-07-01T05:36:37.328111+00:00"
+  "generated_at": "2026-07-01T08:18:29.124257+00:00"
 }
