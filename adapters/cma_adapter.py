@@ -20,18 +20,6 @@ DATA_DIR = DATA_ROOT / "CMA"
 INFO_FILE = Path(__file__).resolve().parents[1] / "docs" / "CMA" / "information.txt"
 DEFAULT_NC_VARIABLES = ("Tair_f_inst", "Rainf_tavg", "AvgSurfT_inst", "Wind_f_inst")
 DEFAULT_GRIB_VARIABLES = ("TMP", "SPFH", "UGRD", "VGRD")
-COMMON_NC_DISPLAY_VARIABLES = (
-    "Tair_f_inst",
-    "Rainf_tavg",
-    "TotalPrecip_tavg",
-    "Wind_f_inst",
-    "Qair_f_inst",
-    "Psurf_f_inst",
-    "AvgSurfT_inst",
-    "SoilMoist_inst",
-    "SoilTemp_inst",
-    "SWdown_f_tavg",
-)
 
 
 def process_file(file_path: str, data_type: str = "CMA") -> dict[str, Any]:
@@ -155,7 +143,7 @@ def _inspect_nc_product(source_file: Path, files: list[Path] | None = None) -> d
             )
 
     primary = _pick_variable([item["name"] for item in variables], DEFAULT_NC_VARIABLES)
-    stat_names = [item["name"] for item in variables if item["name"] in COMMON_NC_DISPLAY_VARIABLES]
+    stat_names = [item["name"] for item in _renderable_product_variables(variables)]
     if primary not in stat_names:
         stat_names.append(primary)
     variable_stats = {name: _nc_stats(files, name) for name in stat_names}
