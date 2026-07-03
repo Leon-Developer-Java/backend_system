@@ -15,16 +15,21 @@ LON_NAMES = ("longitude", "lon", "x")
 def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[str, Any]:
     meta_json = _latest_meta(allow_empty=True)
     png_files = sorted(DATA_DIR.glob("*.png"), key=lambda item: item.stat().st_mtime, reverse=True)
+    webp_files = sorted(DATA_DIR.glob("*.webp"), key=lambda item: item.stat().st_mtime, reverse=True)
 
     variables = _display_variables(meta_json)
     selected = _primary_variable(meta_json, variable) if meta_json else ""
     layer = _layer_for_variable(meta_json, selected) if meta_json else None
+    first_image = _first_image(meta_json, layer, webp_files, png_files)
 
     return {
         "business_type": "ERA5",
         "meta_file": _path_string(_meta_path(meta_json)) if meta_json else None,
         "meta_json": meta_json,
-        "png": _first_png(meta_json, layer, png_files),
+        "webp": first_image,
+        "image_url": first_image,
+        "png": first_image,
+        "webp_files": _all_images(meta_json, webp_files, png_files, prefer_webp=True),
         "png_files": _all_pngs(meta_json, png_files),
         "variables": variables,
         "variable_options": meta_json.get("variable_options", variables) if meta_json else [],
@@ -97,16 +102,54 @@ def _public_url(path: str | Path | None) -> str | None:
     return normalized[idx:] if idx >= 0 else normalized
 
 
-def _first_png(meta: dict[str, Any] | None, layer: dict[str, Any] | None, png_files: list[Path]) -> str | None:
+def _first_image(
+    meta: dict[str, Any] | None,
+    layer: dict[str, Any] | None,
+    webp_files: list[Path],
+    png_files: list[Path],
+) -> str | None:
     if layer:
-        urls = layer.get("png_urls") or []
+        urls = layer.get("webp_urls") or layer.get("image_urls") or layer.get("png_urls") or []
         if urls:
             return _public_url(urls[0])
+    if meta and meta.get("default_webp"):
+        return _public_url(meta.get("default_webp"))
     if meta and meta.get("default_png"):
         return _public_url(meta.get("default_png"))
+    if webp_files:
+        return _path_string(webp_files[0])
     if png_files:
         return _path_string(png_files[0])
     return None
+
+
+def _all_images(
+    meta: dict[str, Any] | None,
+    webp_files: list[Path],
+    png_files: list[Path],
+    prefer_webp: bool = False,
+) -> list[str]:
+    result: list[str] = []
+    if meta:
+        meta_fields = ("webp_files", "png_files") if prefer_webp else ("png_files", "webp_files")
+        layer_fields = ("webp_urls", "image_urls", "png_urls") if prefer_webp else ("png_urls", "webp_urls", "image_urls")
+        for field in meta_fields:
+            for item in meta.get(field) or []:
+                public = _public_url(item)
+                if public and public not in result:
+                    result.append(public)
+        for layer in (meta.get("variable_layers") or {}).values():
+            for field in layer_fields:
+                for item in layer.get(field) or []:
+                    public = _public_url(item)
+                    if public and public not in result:
+                        result.append(public)
+    files = [*webp_files, *png_files] if prefer_webp else [*png_files, *webp_files]
+    for path in files:
+        value = _path_string(path)
+        if value and value not in result:
+            result.append(value)
+    return result
 
 
 def _all_pngs(meta: dict[str, Any] | None, png_files: list[Path]) -> list[str]:
@@ -192,6 +235,9 @@ def _grid_descriptor(meta: dict[str, Any], variable: str, layer: dict[str, Any])
     stats = layer.get("stats") or []
     first_stats = stats[0] if stats else {}
     grid_urls = layer.get("grid_urls") or layer.get("float32_urls") or []
+    webp_urls = layer.get("webp_urls") or layer.get("image_urls") or []
+    image_urls = webp_urls or layer.get("png_urls") or []
+    image_url = _public_url(image_urls[0]) if image_urls else None
     return {
         "business_type": "ERA5",
         "dataset_id": meta.get("dataset_id"),
@@ -207,6 +253,10 @@ def _grid_descriptor(meta: dict[str, Any], variable: str, layer: dict[str, Any])
         "mean": first_stats.get("mean", 0.0),
         "nodata": layer.get("nodata", NODATA),
         "grid_urls": grid_urls,
+        "webp_url": image_url,
+        "image_url": image_url,
+        "webp_urls": webp_urls,
+        "image_urls": image_urls,
         "png_urls": layer.get("png_urls") or [],
         "times": layer.get("times") or meta.get("times") or [],
         "stats": stats,

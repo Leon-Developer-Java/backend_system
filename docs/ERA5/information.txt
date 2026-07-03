@@ -1,0 +1,57 @@
+# 格式：变量名|英文标签|中文说明|英文说明
+# 说明：
+# 1. 第一列必须是程序匹配用的变量名。
+# 2. 第二列用于界面展示的英文标签。
+# 3. 第三列用于中文说明。
+# 4. 第四列用于英文说明。
+
+t2m|2 metre temperature|距地面约2米高度的空气温度，用于表示近地面冷热状况，是地面气象分析中最常用的温度变量之一。|Air temperature at about 2 metres above the surface, commonly used to describe near-surface thermal conditions.
+d2m|2 metre dewpoint temperature|距地面约2米高度的露点温度，用于反映近地面空气湿度和水汽状况。|Dewpoint temperature at about 2 metres above the surface, used to describe near-surface humidity conditions.
+tp|Total precipitation|总降水量，表示统计时段内降落到地表的液态和固态降水总量。|Total accumulated precipitation reaching the surface during the valid period, including liquid and solid precipitation.
+sp|Surface pressure|地表气压，表示地表附近大气对单位面积产生的压力。|Surface pressure, representing atmospheric pressure at the Earth's surface.
+msl|Mean sea level pressure|海平面气压，将气压折算到平均海平面高度后得到，常用于天气系统和气压场分析。|Mean sea level pressure, used for synoptic pressure-pattern analysis after reducing pressure to sea level.
+u10|10 metre U wind component|10米高度东西向风分量，正值表示向东，负值表示向西；它是风矢量分量，不是风速大小。|Eastward wind component at 10 metres above the surface; positive values indicate eastward flow and negative values westward flow.
+v10|10 metre V wind component|10米高度南北向风分量，正值表示向北，负值表示向南；它是风矢量分量，不是风速大小。|Northward wind component at 10 metres above the surface; positive values indicate northward flow and negative values southward flow.
+si10|10 metre wind speed|10米高度风速，表示近地面水平风矢量的大小，通常由U、V风分量合成得到。|Wind speed at 10 metres above the surface, representing the magnitude of the near-surface horizontal wind vector.
+u|U component of wind|纬向风分量，表示东西方向风速分量，常用于高空风场和环流分析。|Zonal wind component, describing the east-west component of wind at a given level.
+v|V component of wind|经向风分量，表示南北方向风速分量，常用于高空风场和环流分析。|Meridional wind component, describing the north-south component of wind at a given level.
+t|Temperature|空气温度，表示指定高度层或气压层上的大气热力状态。|Air temperature at a specified model, height, or pressure level.
+q|Specific humidity|比湿，表示湿空气中水汽质量与湿空气总质量之比，用于描述大气水汽含量。|Specific humidity, the mass fraction of water vapour in moist air.
+r|Relative humidity|相对湿度，表示空气中实际水汽含量相对于饱和水汽含量的百分比。|Relative humidity, the ratio of actual water vapour content to saturation water vapour content.
+z|Geopotential|位势，表示单位质量空气在重力场中的势能，常用于计算位势高度和分析高空形势。|Geopotential, representing potential energy per unit mass in the Earth's gravity field and commonly used to derive geopotential height.
+gh|Geopotential height|位势高度，将位势换算为高度后得到，常用于500hPa等高空天气形势分析。|Geopotential height, commonly used in upper-air synoptic analysis such as 500 hPa height fields.
+w|Vertical velocity|垂直速度，表示空气在垂直方向上的运动，用于分析上升和下沉运动。|Vertical velocity, describing vertical atmospheric motion such as ascent and subsidence.
+vo|Vorticity|涡度，表示大气运动的旋转强度，常用于天气系统和动力诊断分析。|Vorticity, describing the rotational tendency of atmospheric flow.
+pv|Potential vorticity|位涡，结合旋转和层结信息的动力变量，常用于中高层天气系统诊断。|Potential vorticity, a dynamical variable combining rotation and stratification.
+sst|Sea surface temperature|海表温度，表示海洋表层温度，用于海气相互作用和天气气候分析。|Sea surface temperature, used in air-sea interaction and climate analysis.
+skt|Skin temperature|地表皮肤温度，表示陆面、海面或冰雪表面的辐射等效温度。|Skin temperature, the radiative temperature of the land, ocean, snow, or ice surface.
+stl1|Soil temperature level 1|第一层土壤温度，表示近地表浅层土壤的热状态。|Soil temperature in layer 1, representing near-surface soil thermal conditions.
+stl2|Soil temperature level 2|第二层土壤温度，表示较深土层的热状态。|Soil temperature in layer 2, representing thermal conditions in a deeper soil layer.
+stl3|Soil temperature level 3|第三层土壤温度，表示深层土壤热状态。|Soil temperature in layer 3, representing deeper soil thermal conditions.
+stl4|Soil temperature level 4|第四层土壤温度，表示更深土层的热状态。|Soil temperature in layer 4, representing the deepest standard ERA5 soil layer.
+swvl1|Volumetric soil water layer 1|第一层体积土壤含水量，表示近地表浅层土壤湿度状况。|Volumetric soil water in layer 1, describing near-surface soil moisture.
+swvl2|Volumetric soil water layer 2|第二层体积土壤含水量，表示较深土层湿度状况。|Volumetric soil water in layer 2, describing moisture in a deeper soil layer.
+swvl3|Volumetric soil water layer 3|第三层体积土壤含水量，表示深层土壤湿度状况。|Volumetric soil water in layer 3, describing deeper soil moisture.
+swvl4|Volumetric soil water layer 4|第四层体积土壤含水量，表示更深土层湿度状况。|Volumetric soil water in layer 4, describing the deepest standard ERA5 soil moisture layer.
+sd|Snow depth|雪深，表示地表积雪层的厚度。|Snow depth, representing the thickness of snow on the surface.
+sde|Snow depth water equivalent|雪水当量，表示积雪全部融化后对应的液态水厚度。|Snow depth water equivalent, representing the equivalent liquid water depth of snowpack.
+tcc|Total cloud cover|总云量，表示网格内被云覆盖的比例。|Total cloud cover, representing the fraction of a grid cell covered by cloud.
+lcc|Low cloud cover|低云量，表示低层云覆盖比例。|Low cloud cover, representing the fraction covered by low-level clouds.
+mcc|Medium cloud cover|中云量，表示中层云覆盖比例。|Medium cloud cover, representing the fraction covered by mid-level clouds.
+hcc|High cloud cover|高云量，表示高层云覆盖比例。|High cloud cover, representing the fraction covered by high-level clouds.
+blh|Boundary layer height|边界层高度，表示大气边界层顶部高度，常用于扩散条件和近地层结构分析。|Boundary layer height, representing the top of the atmospheric boundary layer.
+cape|Convective available potential energy|对流有效位能，表示大气对流发展潜势，常用于强对流天气分析。|Convective available potential energy, indicating the potential for deep convection.
+tcwv|Total column water vapour|整层水汽含量，表示大气柱中水汽总量。|Total column water vapour, representing the vertically integrated atmospheric water vapour content.
+ssrd|Surface solar radiation downwards|地表向下太阳短波辐射，表示到达地表的太阳短波辐射能量。|Surface solar radiation downwards, representing incoming shortwave solar radiation at the surface.
+strd|Surface thermal radiation downwards|地表向下热辐射，表示大气向地表发射的长波辐射能量。|Surface thermal radiation downwards, representing downward longwave radiation emitted by the atmosphere.
+ssr|Surface net solar radiation|地表净太阳辐射，表示地表吸收和反射短波辐射后的净短波能量。|Surface net solar radiation, the net shortwave radiation at the surface after reflection.
+str|Surface net thermal radiation|地表净热辐射，表示地表长波辐射收支后的净长波能量。|Surface net thermal radiation, the net longwave radiation at the surface.
+sshf|Surface sensible heat flux|地表感热通量，表示地表与近地层空气之间的显热交换。|Surface sensible heat flux, representing turbulent sensible heat exchange between the surface and atmosphere.
+slhf|Surface latent heat flux|地表潜热通量，表示蒸发、蒸腾等相变过程引起的能量交换。|Surface latent heat flux, representing turbulent latent heat exchange associated with phase changes.
+e|Evaporation|蒸发量，表示地表向大气输送的水分通量或累积量。|Evaporation, representing water transferred from the surface to the atmosphere.
+ro|Runoff|径流，表示地表和地下径流总量。|Runoff, representing total surface and subsurface runoff.
+sro|Surface runoff|地表径流，表示沿地表流动的水量。|Surface runoff, representing water flowing over the land surface.
+ssro|Sub-surface runoff|地下径流，表示通过土壤或地下通道排出的水量。|Sub-surface runoff, representing runoff discharged below the land surface.
+asn|Snow albedo|雪面反照率，表示积雪表面对太阳短波辐射的反射能力。|Snow albedo, representing the reflectivity of snow-covered surfaces.
+fal|Forecast albedo|预报反照率，表示地表对太阳短波辐射的反射比例。|Forecast albedo, representing the surface fraction of reflected incoming shortwave radiation.
+lsm|Land-sea mask|陆海掩膜，表示网格点属于陆地还是海洋。|Land-sea mask, indicating whether a grid cell is land or sea.
