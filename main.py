@@ -22,10 +22,14 @@ from services import (
     era5_service,
     gfs_service,
     himawari_service,
-    himawari_scheduler,
     radar_service,
     wrf_service,
 )
+
+try:
+    from services import himawari_scheduler
+except Exception:
+    himawari_scheduler = None
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -35,6 +39,7 @@ BUSINESS_DIRS = {
     "CMA": DATA_DIR / "CMA",
     "ERA5": DATA_DIR / "ERA5",
     "GFS": DATA_DIR / "GFS",
+    "ECMWF": DATA_DIR / "ECMWF",
     "Himawari": DATA_DIR / "Himawari",
     "Radar": DATA_DIR / "Radar",
     "WRF": DATA_DIR / "WRF",
@@ -44,6 +49,7 @@ ADAPTERS = {
     "CMA": cma_adapter,
     "ERA5": era5_adapter,
     "GFS": gfs_adapter,
+    "ECMWF": gfs_adapter,
     "Himawari": himawari_adapter,
     "Radar": radar_adapter,
     "WRF": wrf_adapter,
@@ -53,6 +59,7 @@ DISPLAY_SERVICES = {
     "CMA": cma_service,
     "ERA5": era5_service,
     "GFS": gfs_service,
+    "ECMWF": gfs_service,
     "HIMAWARI": himawari_service,
     "RADAR": radar_service,
     "WRF": wrf_service,
@@ -61,7 +68,9 @@ DISPLAY_SERVICES = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    himawari_tasks = himawari_scheduler.start_himawari_auto_download()
+    himawari_tasks = []
+    if himawari_scheduler is not None:
+        himawari_tasks = himawari_scheduler.start_himawari_auto_download()
     try:
         yield
     finally:
@@ -107,6 +116,8 @@ def infer_business_type(filename: str) -> str:
         return "Himawari"
     if name.startswith("z_radr") or "z_radr" in name:
         return "Radar"
+    if "ecmwf" in name or "ifs" in name:
+        return "ECMWF"
     if "cma" in name:
         return "CMA"
     if "era5" in name:
@@ -129,7 +140,7 @@ def infer_business_type(filename: str) -> str:
     if suffix == ".nc":
         return "ERA5"
 
-    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、Himawari、Radar 或 WRF。")
+    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、ECMWF、Himawari、Radar 或 WRF。")
 
 
 def save_upload_file(file: UploadFile, target_dir: Path, business_type: str | None = None) -> Path:
@@ -178,7 +189,7 @@ def infer_upload_business_type(files: list[UploadFile]) -> str:
             return infer_business_type(item.filename)
         except ValueError:
             continue
-    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、Himawari、Radar 或 WRF。")
+    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、ECMWF、Himawari、Radar 或 WRF。")
 
 
 @app.get("/")
@@ -193,6 +204,11 @@ def health() -> dict[str, Any]:
 
 @app.get("/api/himawari/auto-status")
 def himawari_auto_status() -> dict[str, Any]:
+    if himawari_scheduler is None:
+        return ok({
+            "status": "disabled",
+            "message": "当前 services 中未配置 himawari_scheduler，已跳过自动下载任务。",
+        })
     return ok(himawari_scheduler.get_himawari_auto_status())
 
 
@@ -241,16 +257,24 @@ def display_data(
     meta_file: str | None = Query(default=None),
     scene_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
-    service = DISPLAY_SERVICES.get(business_type.upper())
+    raw_key = business_type.upper()
+    normalized_key = normalize_business_type(business_type)
+    service = DISPLAY_SERVICES.get(raw_key)
+
     if service is None:
         raise HTTPException(status_code=404, detail="不支持的数据类型。")
 
-    if business_type.upper() == "CMA":
+    if raw_key == "CMA":
         return ok(service.get_display_data(variable=variable, level_index=level_index, time_index=time_index, meta_file=meta_file))
-    if business_type.upper() == "ERA5":
+
+    if raw_key == "ERA5":
         return ok(service.get_display_data(variable=variable, level_index=level_index))
-    if business_type.upper() == "HIMAWARI":
+
+    if raw_key == "HIMAWARI":
         return ok(service.get_display_data(scene_id=scene_id))
+
+    if raw_key in {"GFS", "ECMWF"}:
+        return ok(gfs_service.get_display_data(data_type=normalized_key))
 
     return ok(service.get_display_data())
 
