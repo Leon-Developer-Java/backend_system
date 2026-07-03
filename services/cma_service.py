@@ -1,8 +1,7 @@
-import json
 import io
+import json
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
 
 import h5py
 import numpy as np
@@ -12,70 +11,85 @@ from adapters import cma_adapter
 
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "CMA"
-CMA_SOURCE_DIRS = (
-    DATA_DIR,
-)
+CMA_SOURCE_DIRS = (DATA_DIR,)
 NODATA = -999999.0
-COMMON_NC_DISPLAY_VARIABLES = (
-    "Tair_f_inst",
-    "Rainf_tavg",
-    "TotalPrecip_tavg",
-    "Wind_f_inst",
-    "Qair_f_inst",
-    "Psurf_f_inst",
-    "AvgSurfT_inst",
-    "SoilMoist_inst",
-    "SoilTemp_inst",
-    "SWdown_f_tavg",
-)
 
 
-def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[str, Any]:
-    # 前端点击 CMA 类型时调用该函数，读取 CMA 目录下的 meta.json 和 PNG。
-    _ensure_latest_meta()
-    meta_files = _meta_files()
-    png_files = sorted(DATA_DIR.rglob("*.png"), key=lambda item: item.stat().st_mtime, reverse=True)
-
-    meta_json = None
-    if meta_files:
-        meta_json = _load_meta_file(meta_files[0])
-
+def get_display_data(
+    variable: str | None = None,
+    level_index: int = 0,
+    time_index: int = 0,
+    meta_file: str | None = None,
+) -> dict[str, Any]:
+    meta_path = _selected_meta_file(meta_file)
+    meta_json = _load_meta_file(meta_path) if meta_path else None
     variables = _display_variables(meta_json)
+    frames = _frames_from_meta(meta_json) or (_series_frames(_source_file(meta_json)) if meta_json else [])
     grid = None
-    frames: list[dict[str, Any]] = []
+    weather_info = meta_json.get("weather_info", {}) if isinstance(meta_json, dict) else {}
+
     if meta_json:
         try:
-            grid = get_grid_data(variable=variable, level_index=level_index)
-            frames = _frames_from_meta(meta_json) or _series_frames(_source_file(meta_json))
+            frame = _active_frame(frames, time_index)
+            variable_item = _variable_item(variables, variable or _primary_variable(meta_json)) or {}
+            grid = get_grid_data(
+                variable=variable,
+                level_index=level_index,
+                file_name=frame.get("file") if frame else None,
+                meta=meta_json,
+            )
+            source_file = _resolve_source_file(grid["file"])
+            webp_path = cma_adapter.ensure_variable_webp(
+                source_file,
+                grid["variable"],
+                grid.get("level_index", 0),
+                stats=variable_item.get("stats"),
+            )
             grid["values"] = []
-            grid["binary_url"] = _grid_url(grid["file"], grid["variable"], level_index)
+            grid["webp_url"] = cma_adapter.public_data_path(webp_path)
+            grid["image_url"] = grid["webp_url"]
+            stats = variable_item.get("stats") if isinstance(variable_item, dict) else None
+            if isinstance(stats, dict):
+                grid["scale_min"] = stats.get("min")
+                grid["scale_max"] = stats.get("max")
+            weather_info = _build_display_weather_info(meta_json, grid, variables, frame)
+            meta_json = _merge_display_meta(meta_json, weather_info)
         except ValueError:
             grid = None
 
     return {
         "business_type": "CMA",
-        "meta_file": str(meta_files[0]).replace("\\", "/") if meta_files else None,
+        "meta_file": str(meta_path).replace("\\", "/") if meta_path else None,
         "meta_json": meta_json,
-        "png": str(png_files[0]).replace("\\", "/") if png_files else None,
-        "png_files": [str(path).replace("\\", "/") for path in png_files],
+        "png": meta_json.get("default_png") if isinstance(meta_json, dict) else None,
+        "png_files": meta_json.get("png_files", []) if isinstance(meta_json, dict) else [],
+        "webp": grid.get("webp_url") if grid else (meta_json.get("default_webp") if isinstance(meta_json, dict) else None),
+        "webp_files": meta_json.get("webp_files", []) if isinstance(meta_json, dict) else [],
         "variables": variables,
         "grid": grid,
         "frames": frames,
         "times": [frame["time"] for frame in frames],
         "frame_count": len(frames),
+        "weather_info": weather_info,
     }
 
 
-def get_grid_data(variable: str | None = None, level_index: int = 0, file_name: str | None = None) -> dict[str, Any]:
-    meta = _latest_meta()
+def get_grid_data(
+    variable: str | None = None,
+    level_index: int = 0,
+    file_name: str | None = None,
+    meta: dict[str, Any] | None = None,
+    meta_file: str | None = None,
+) -> dict[str, Any]:
+    meta = meta or _latest_meta(meta_file)
     source_file = _resolve_source_file(file_name) if file_name else _source_file(meta)
     suffix = source_file.suffix.lower()
     file_format = "NC" if suffix == ".nc" else "GRIB" if suffix in {".grib", ".grib2"} else str(meta.get("file_format") or suffix.lstrip(".")).upper()
     variable_name = variable or _primary_variable(meta)
 
-    if file_format == "NC" or source_file.suffix.lower() == ".nc":
+    if file_format == "NC" or suffix == ".nc":
         payload = _read_nc_grid(source_file, meta, variable_name, level_index)
-    elif source_file.suffix.lower() in {".grib", ".grib2"}:
+    elif suffix in {".grib", ".grib2"}:
         payload = _read_grib_grid(source_file, meta, variable_name)
     else:
         raise ValueError(f"Unsupported CMA grid file: {source_file.name}")
@@ -99,20 +113,52 @@ def get_grid_data(variable: str | None = None, level_index: int = 0, file_name: 
         "variables": _display_variables(meta),
         "meta": _grid_meta(meta, payload),
     }
+def _latest_meta(meta_file: str | None = None) -> dict[str, Any]:
+    meta_path = _selected_meta_file(meta_file)
+    if meta_path is None:
+        raise ValueError("No CMA meta.json found. Parse a CMA file first.")
+    return _load_meta_file(meta_path)
 
 
-def get_binary_grid_data(file_name: str | None = None, variable: str | None = None, level_index: int = 0) -> dict[str, Any]:
-    grid = get_grid_data(variable=variable, level_index=level_index, file_name=file_name)
-    values = np.asarray(grid.pop("values"), dtype="float32")
-    return {**grid, "bytes": values.tobytes(), "dtype": "float32"}
+def _selected_meta_file(meta_file: str | None = None) -> Path | None:
+    if meta_file:
+        raw = str(meta_file).replace("\\", "/").strip()
+        candidate = Path(raw).expanduser()
+        if not candidate.is_absolute():
+            relative = Path(raw.lstrip("/"))
+            options = [
+                (Path.cwd() / relative).resolve(),
+                (DATA_DIR / relative).resolve(),
+                (DATA_DIR.parent / relative).resolve(),
+            ]
+            candidate = next((item for item in options if item.exists()), options[0])
+        else:
+            candidate = candidate.resolve()
 
+        if not candidate.exists():
+            raise ValueError("CMA meta.json not found.")
+        if not candidate.name.endswith(".meta.json"):
+            raise ValueError("Invalid CMA meta file.")
+        if not _is_under_cma_dir(candidate):
+            raise ValueError("CMA meta file is outside the data directory.")
+        if not _is_renderable_meta_file(candidate):
+            raise ValueError("CMA meta file is not renderable.")
+        return candidate
 
-def _latest_meta() -> dict[str, Any]:
     _ensure_latest_meta()
     meta_files = _meta_files()
-    if not meta_files:
-        raise ValueError("No CMA meta.json found. Parse a CMA file first.")
-    return _load_meta_file(meta_files[0])
+    return meta_files[0] if meta_files else None
+
+
+def _is_under_cma_dir(path: Path) -> bool:
+    resolved = path.resolve()
+    for directory in CMA_SOURCE_DIRS:
+        try:
+            resolved.relative_to(directory.resolve())
+            return True
+        except ValueError:
+            continue
+    return False
 
 
 def _source_file(meta: dict[str, Any]) -> Path:
@@ -258,10 +304,6 @@ def _format_time(value: str) -> str:
     return f"{value[:4]}-{value[4:6]}-{value[6:8]} {value[8:10]}:00"
 
 
-def _grid_url(file_name: str, variable: str, level_index: int) -> str:
-    return f"/api/cma/grid?{urlencode({'file': file_name, 'variable': variable, 'level_index': level_index})}"
-
-
 def _ensure_latest_meta() -> None:
     sources = sorted(_source_files(), key=_source_sort_key)
     if not sources:
@@ -296,60 +338,38 @@ def _primary_variable(meta: dict[str, Any]) -> str:
 def _display_variables(meta: dict[str, Any] | None) -> list[dict[str, Any]]:
     if not meta:
         return []
+
+    variable_docs = cma_adapter.load_information_map()
     top_variables = meta.get("variables", [])
     if top_variables and isinstance(top_variables[0], dict):
-        display_variables = [
-            {
-                "name": item.get("name"),
-                "label": item.get("long_name") or item.get("name"),
-                "unit": item.get("display_unit") or item.get("unit", ""),
-                "dims": item.get("dims", []),
-                "shape": item.get("shape", []),
-                "stats": item.get("stats"),
-            }
-            for item in top_variables
-            if _is_grid_variable(item)
-        ]
-        if meta.get("extra", {}).get("cma", {}).get("product_type") == "LAND_NC":
-            common = _common_nc_variables(display_variables)
-            if common:
-                return common
-        return display_variables
+        return [_normalize_variable_item(item, variable_docs) for item in top_variables]
 
-    cma = meta.get("extra", {}).get("cma", {})
-    products = cma.get("products", {})
-    for product in products.values():
-        variables = product.get("variables", [])
-        if variables:
-            display_variables = [
-                {
-                    "name": item.get("name"),
-                    "label": item.get("long_name") or item.get("name"),
-                    "unit": item.get("unit", ""),
-                    "dims": item.get("dims", []),
-                    "shape": item.get("shape", []),
-                    "stats": item.get("stats"),
-                }
-                for item in variables
-                if _is_grid_variable(item)
-            ]
-            if product.get("product_type") == "LAND_NC":
-                common = _common_nc_variables(display_variables)
-                if common:
-                    return common
-            return display_variables
     return [{"name": name, "label": name, "unit": ""} for name in top_variables]
 
 
-def _common_nc_variables(variables: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    by_name = {str(item.get("name")): item for item in variables if item.get("name")}
-    return [by_name[name] for name in COMMON_NC_DISPLAY_VARIABLES if name in by_name]
+def _normalize_variable_item(item: dict[str, Any], variable_docs: dict[str, dict[str, str]] | None = None) -> dict[str, Any]:
+    variable_docs = variable_docs or {}
+    name = item.get("name")
+    doc = variable_docs.get(name, {})
+    label = doc.get("label") or item.get("long_name") or item.get("label") or name
+    return {
+        "name": name,
+        "label": label,
+        "unit": item.get("display_unit") or item.get("unit", ""),
+        "dims": item.get("dims", []),
+        "shape": item.get("shape", []),
+        "stats": item.get("stats"),
+        "name_cn": doc.get("desc_zh") or item.get("name_cn"),
+        "description": doc.get("desc_zh") or item.get("description"),
+        "description_en": doc.get("desc_en") or item.get("description_en"),
+        "webp": item.get("webp"),
+    }
 
 
 def _is_grid_variable(item: dict[str, Any]) -> bool:
     dims = item.get("dims") or []
     shape = item.get("shape") or []
-    return bool(item.get("float32")) or bool(item.get("band")) or dims[-2:] == ["lat", "lon"] or len(shape) in {2, 3}
+    return bool(item.get("band")) or dims[-2:] == ["lat", "lon"] or len(shape) in {2, 3}
 
 
 def _read_nc_grid(source_file: Path, meta: dict[str, Any], variable: str, level_index: int) -> dict[str, Any]:
@@ -500,10 +520,16 @@ def _grid_payload(variable: str, label: str, unit: str, data: np.ndarray, extent
 
 
 def _grid_meta(meta: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
-    variable_names = [item.get("name") for item in _display_variables(meta) if item.get("name")]
+    variable_item = _variable_item(_display_variables(meta), payload["variable"])
+    label = _strip_label_unit(variable_item.get("label") if variable_item else payload["label"], _clean_unit(payload["unit"]))
+    element = payload["variable"] if not label or label == payload["variable"] else f"{payload['variable']} - {label}"
+    weather_info = meta.get("weather_info", {})
     return {
         **{key: value for key, value in meta.items() if key in {"file", "time", "range", "grid", "missing", "vars", "steps"}},
-        "element": ", ".join(variable_names) or str(payload["variable"]),
+        "element": element,
+        "variable_key": payload["variable"],
+        "element_desc_zh": variable_item.get("description") if variable_item else weather_info.get("element_desc_zh"),
+        "element_desc_en": variable_item.get("description_en") if variable_item else weather_info.get("element_desc_en"),
         "unit": _clean_unit(payload["unit"]),
         "extent": payload["extent"],
         "grid": f"{payload['width']} x {payload['height']}",
@@ -511,3 +537,93 @@ def _grid_meta(meta: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
         "max": payload["max"],
         "mean": payload["mean"],
     }
+
+
+def _variable_item(variables: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
+    return next((item for item in variables if item.get("name") == name), None)
+
+
+def _strip_label_unit(label: Any, unit: str) -> str:
+    text = str(label or "").strip()
+    if not text or not unit:
+        return text
+    compact_unit = unit.replace(" ", "").lower()
+    import re
+    match = re.search(r"\[(.*?)\]\s*$", text)
+    if not match:
+        return text
+    bracket_unit = match.group(1).replace(" ", "").lower()
+    if bracket_unit != compact_unit:
+        return text
+    return text[: match.start()].strip()
+
+
+def _active_frame(frames: list[dict[str, Any]], time_index: int) -> dict[str, Any] | None:
+    if not frames:
+        return None
+    index = min(max(int(time_index or 0), 0), len(frames) - 1)
+    return frames[index]
+
+
+def _build_display_weather_info(
+    meta: dict[str, Any],
+    grid: dict[str, Any],
+    variables: list[dict[str, Any]],
+    frame: dict[str, Any] | None,
+) -> dict[str, Any]:
+    item = _variable_item(variables, grid["variable"]) or {}
+    label = _strip_label_unit(item.get("label") or grid["label"] or grid["variable"], _clean_unit(grid["unit"]))
+    element = grid["variable"] if label == grid["variable"] else f"{grid['variable']} - {label}"
+    base = dict(meta.get("weather_info", {}))
+    base.update(
+        {
+            "file": grid["file"],
+            "element": element,
+            "variable_key": grid["variable"],
+            "element_desc_zh": item.get("description") or base.get("element_desc_zh") or "",
+            "element_desc_en": item.get("description_en") or base.get("element_desc_en") or "",
+            "time": frame.get("time_label") if frame else base.get("time"),
+            "range": _format_range_text(grid["extent"]),
+            "grid": f"{grid['width']} x {grid['height']}",
+            "unit": _clean_unit(grid["unit"]),
+            "missing": str(grid.get("nodata", NODATA)),
+            "status": "解析成功",
+            "min": _format_number(grid["min"]),
+            "mean": _format_number(grid["mean"]),
+            "max": _format_number(grid["max"]),
+            "webp_url": grid.get("webp_url"),
+        }
+    )
+    return base
+
+
+def _merge_display_meta(meta: dict[str, Any], weather_info: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(meta)
+    merged.update(
+        {
+            "file": weather_info.get("file") or meta.get("file"),
+            "element": weather_info.get("element") or meta.get("element"),
+            "variable_key": weather_info.get("variable_key"),
+            "element_desc_zh": weather_info.get("element_desc_zh"),
+            "element_desc_en": weather_info.get("element_desc_en"),
+            "time": weather_info.get("time") or meta.get("time"),
+            "range": weather_info.get("range") or meta.get("range"),
+            "grid": weather_info.get("grid") or meta.get("grid"),
+            "missing": weather_info.get("missing") or meta.get("missing"),
+            "unit": weather_info.get("unit") or meta.get("unit"),
+            "weather_info": weather_info,
+        }
+    )
+    return merged
+
+
+def _format_range_text(extent: list[float]) -> str:
+    west, south, east, north = extent
+    return f"{west:.4f}E-{east:.4f}E, {south:.4f}N-{north:.4f}N"
+
+
+def _format_number(value: Any) -> str:
+    try:
+        return f"{float(value):.3f}"
+    except Exception:
+        return str(value)

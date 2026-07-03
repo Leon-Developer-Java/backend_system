@@ -87,18 +87,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=[
-        "X-CMA-Nx",
-        "X-CMA-Ny",
-        "X-CMA-Extent",
-        "X-CMA-Missing",
-        "X-CMA-Dtype",
-        "X-CMA-Min",
-        "X-CMA-Max",
-        "X-CMA-Mean",
-        "X-CMA-Variable",
-        "X-CMA-Unit",
-    ],
 )
 
 # 关键：让前端可以访问后端生成的 PNG：
@@ -249,13 +237,17 @@ def display_data(
     business_type: str,
     variable: str | None = Query(default=None),
     level_index: int = Query(default=0, ge=0),
+    time_index: int = Query(default=0, ge=0),
+    meta_file: str | None = Query(default=None),
     scene_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     service = DISPLAY_SERVICES.get(business_type.upper())
     if service is None:
         raise HTTPException(status_code=404, detail="不支持的数据类型。")
 
-    if business_type.upper() in {"CMA", "ERA5"}:
+    if business_type.upper() == "CMA":
+        return ok(service.get_display_data(variable=variable, level_index=level_index, time_index=time_index, meta_file=meta_file))
+    if business_type.upper() == "ERA5":
         return ok(service.get_display_data(variable=variable, level_index=level_index))
     if business_type.upper() == "HIMAWARI":
         return ok(service.get_display_data(scene_id=scene_id))
@@ -280,32 +272,6 @@ def radar_grid(
         "X-Radar-Extent": ",".join(str(item) for item in grid["extent"]),
         "X-Radar-Missing": str(grid["missing"]),
         "X-Radar-Dtype": grid["dtype"],
-    }
-    return Response(content=grid["bytes"], media_type="application/octet-stream", headers=headers)
-
-
-@app.get("/api/cma/grid")
-def cma_grid(
-    file: str | None = Query(default=None),
-    variable: str | None = Query(default=None),
-    level_index: int = Query(default=0, ge=0),
-) -> Response:
-    try:
-        grid = cma_service.get_binary_grid_data(file, variable, level_index)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    headers = {
-        "X-CMA-Nx": str(grid["width"]),
-        "X-CMA-Ny": str(grid["height"]),
-        "X-CMA-Extent": ",".join(str(item) for item in grid["extent"]),
-        "X-CMA-Missing": str(grid["nodata"]),
-        "X-CMA-Dtype": grid["dtype"],
-        "X-CMA-Min": str(grid["min"]),
-        "X-CMA-Max": str(grid["max"]),
-        "X-CMA-Mean": str(grid["mean"]),
-        "X-CMA-Variable": str(grid["variable"]),
-        "X-CMA-Unit": str(grid["unit"]),
     }
     return Response(content=grid["bytes"], media_type="application/octet-stream", headers=headers)
 

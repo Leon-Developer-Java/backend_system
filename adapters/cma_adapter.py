@@ -7,12 +7,17 @@ from typing import Any
 import h5py
 import numpy as np
 import rasterio
+from PIL import Image
 
 from adapters.base import build_dataset_id, write_meta
 
 
 TIME_RE = re.compile(r"_(\d{10})_")
 RESOLUTION_RE = re.compile(r"(?P<resolution>\d+(?:KM|km)|\d+P\d+|\d+\.\d+)")
+NON_WORD_RE = re.compile(r"[^0-9A-Za-z_.-]+")
+DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
+DATA_DIR = DATA_ROOT / "CMA"
+INFO_FILE = Path(__file__).resolve().parents[1] / "docs" / "CMA" / "information.txt"
 DEFAULT_NC_VARIABLES = ("Tair_f_inst", "Rainf_tavg", "AvgSurfT_inst", "Wind_f_inst")
 DEFAULT_GRIB_VARIABLES = ("TMP", "SPFH", "UGRD", "VGRD")
 COMMON_NC_DISPLAY_VARIABLES = (
@@ -56,9 +61,12 @@ def _process_files(paths: list[Path], data_type: str = "CMA") -> dict[str, Any]:
     else:
         raise ValueError(f"CMA adapter only supports .nc, .grib and .grib2 files: {source_file.name}")
 
-    frontend_meta = _build_frontend_meta(source_file, product)
-    weather_info = _build_weather_info(frontend_meta, product)
+    variable_docs = load_information_map()
+    frontend_meta = _build_frontend_meta(source_file, product, variable_docs)
+    weather_info = _build_weather_info(frontend_meta, product, variable_docs)
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
+    schema_variables = _schema_variables(product, variable_docs)
+    webp_files = _render_primary_variable_webps(paths, product)
     source_files: str | list[str] = (
         [path.as_posix() for path in paths]
         if len(paths) > 1
@@ -75,8 +83,10 @@ def _process_files(paths: list[Path], data_type: str = "CMA") -> dict[str, Any]:
         "meta_file": meta_file.as_posix(),
         "png_files": [],
         "default_png": None,
+        "webp_files": webp_files,
+        "default_webp": webp_files[0] if webp_files else None,
         "default_variable": product["primary_variable"],
-        "variables": _schema_variables(product),
+        "variables": schema_variables,
         "composites": [],
         "times": [_iso_time(value) for value in product["times"]],
         "frames": product["frames"],
@@ -95,6 +105,7 @@ def _process_files(paths: list[Path], data_type: str = "CMA") -> dict[str, Any]:
                 "product_name": product["product_name"],
                 "primary_variable": product["primary_variable"],
                 "primary_unit": _clean_unit(product["primary_unit"]),
+                "description_file": INFO_FILE.as_posix(),
             },
             "era5": {},
             "gfs": {},
@@ -249,30 +260,40 @@ def _inspect_grib_product(source_file: Path, files: list[Path] | None = None) ->
     }
 
 
-def _build_frontend_meta(source_file: Path, product: dict[str, Any]) -> dict[str, Any]:
-    variable_label = product["primary_long_name"] or product["primary_variable"]
+def _build_frontend_meta(source_file: Path, product: dict[str, Any], variable_docs: dict[str, dict[str, str]]) -> dict[str, Any]:
+    variable_info = _variable_doc(product["primary_variable"], product["primary_long_name"], variable_docs)
+    variable_label = variable_info["label"] or product["primary_long_name"] or product["primary_variable"]
     time_label = _time_span(product)
+    renderable_count = len(_renderable_product_variables(product["variables"]))
     return {
         "file": source_file.name,
-        "element": f"{product['primary_variable']} - {variable_label}",
+        "element": _display_element(product["primary_variable"], variable_label),
         "time": time_label,
         "level": " / ".join(product["levels"][:3]),
         "range": product["range"],
         "grid": product["grid"],
         "missing": str(product["missing"]),
         "unit": _clean_unit(product["primary_unit"]),
-        "vars": str(len(product["variable_names"])),
+        "vars": str(renderable_count),
         "steps": str(len(product["times"]) or product["file_count"]),
         "extent": product["extent"],
+        "variable_key": product["primary_variable"],
+        "element_desc_zh": variable_info["desc_zh"],
+        "element_desc_en": variable_info["desc_en"],
     }
 
 
-def _build_weather_info(frontend_meta: dict[str, Any], product: dict[str, Any]) -> dict[str, Any]:
+def _build_weather_info(frontend_meta: dict[str, Any], product: dict[str, Any], variable_docs: dict[str, dict[str, str]]) -> dict[str, Any]:
     stats = product["stats"]
+    variable_info = _variable_doc(product["primary_variable"], product["primary_long_name"], variable_docs)
+    renderable_count = len(_renderable_product_variables(product["variables"]))
     return {
         "source": "CMA",
         "product": product["product_name"],
         "element": frontend_meta["element"],
+        "variable_key": product["primary_variable"],
+        "element_desc_zh": variable_info["desc_zh"],
+        "element_desc_en": variable_info["desc_en"],
         "time": frontend_meta["time"],
         "level": frontend_meta["level"],
         "range": frontend_meta["range"],
@@ -283,7 +304,7 @@ def _build_weather_info(frontend_meta: dict[str, Any], product: dict[str, Any]) 
         "coverage": product["coverage"],
         "missing": frontend_meta["missing"],
         "unit": frontend_meta["unit"],
-        "variable_count": len(product["variable_names"]),
+        "variable_count": renderable_count,
         "step_count": len(product["times"]) or product["file_count"],
         "vars": frontend_meta["vars"],
         "variables": frontend_meta["vars"],
@@ -302,18 +323,19 @@ def _build_weather_info(frontend_meta: dict[str, Any], product: dict[str, Any]) 
     }
 
 
-def _schema_variables(product: dict[str, Any]) -> list[dict[str, Any]]:
+def _schema_variables(product: dict[str, Any], variable_docs: dict[str, dict[str, str]]) -> list[dict[str, Any]]:
     stats_by_name = product.get("variable_stats") or {}
     variables = []
-    for item in product["variables"]:
+    for item in _renderable_product_variables(product["variables"]):
         name = item.get("name", "")
+        info = _variable_doc(name, item.get("long_name"), variable_docs)
         variables.append(
             {
                 "name": name,
-                "long_name": item.get("long_name") or name,
+                "long_name": info["label"] or item.get("long_name") or name,
                 "short_name": item.get("short_name"),
                 "raw_name": None,
-                "name_cn": None,
+                "name_cn": info["name_cn"] or None,
                 "unit": _clean_unit(item.get("unit")) or None,
                 "display_unit": None,
                 "shape": item.get("shape", []),
@@ -322,14 +344,26 @@ def _schema_variables(product: dict[str, Any]) -> list[dict[str, Any]]:
                 "missing": item.get("missing"),
                 "stats": _schema_stats(stats_by_name.get(name)),
                 "category": None,
-                "description": None,
+                "description": info["desc_zh"] or None,
+                "description_en": info["desc_en"] or None,
                 "wavelength": None,
-                "float32": _grid_url(product["files"][0], name),
+                "float32": None,
                 "netcdf": None,
                 "png": None,
+                "webp": _webp_url(product["files"][0], name, 0),
             }
         )
     return variables
+
+
+def _renderable_product_variables(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [item for item in items if _is_renderable_product_variable(item)]
+
+
+def _is_renderable_product_variable(item: dict[str, Any]) -> bool:
+    dims = item.get("dims") or []
+    shape = item.get("shape") or []
+    return bool(item.get("band")) or dims[-2:] == ["lat", "lon"] or len(shape) in {2, 3}
 
 
 def _schema_stats(stats: dict[str, Any] | None) -> dict[str, Any]:
@@ -544,14 +578,6 @@ def _clean_unit(value: Any) -> str:
     if len(text) >= 2 and text.startswith("[") and text.endswith("]"):
         return text[1:-1].strip()
     return text
-
-
-def _grid_url(file_name: str, variable: str) -> str:
-    from urllib.parse import urlencode
-
-    return f"/api/cma/grid?{urlencode({'file': file_name, 'variable': variable, 'level_index': 0})}"
-
-
 def _nc_dims(shape: tuple[int, ...], grid_shape: list[int]) -> list[str]:
     if list(shape) == grid_shape:
         return ["lat", "lon"]
@@ -661,3 +687,230 @@ def _bars(stats: dict[str, float | None]) -> list[float]:
     if min_value is None or max_value is None:
         return [0, 0, 0, 0, 0]
     return [round(float(value), 3) for value in np.linspace(float(min_value), float(max_value), 5)]
+
+
+def load_information_map() -> dict[str, dict[str, str]]:
+    if not INFO_FILE.exists():
+        return {}
+
+    text = INFO_FILE.read_text(encoding="utf-8-sig").strip()
+    if not text:
+        return {}
+
+    records: dict[str, dict[str, str]] = {}
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        columns = _split_info_line(line)
+        if len(columns) < 2:
+            continue
+
+        key = columns[0].strip()
+        if not key:
+            continue
+
+        if len(columns) >= 4:
+            _, label, zh, en = columns[:4]
+        elif len(columns) == 3:
+            _, zh, en = columns
+            label = ""
+        else:
+            _, zh = columns
+            label = ""
+            en = ""
+
+        records[key] = {
+            "label": label.strip(),
+            "desc_zh": zh.strip(),
+            "desc_en": en.strip(),
+        }
+    return records
+
+
+def ensure_variable_webp(
+    source_file: Path | str,
+    variable: str,
+    level_index: int = 0,
+    stats: dict[str, Any] | None = None,
+) -> Path | None:
+    path = Path(source_file).resolve()
+    try:
+        data, _, _ = _read_render_grid(path, variable, level_index)
+    except Exception:
+        return None
+
+    output = _webp_output_path(path, variable, level_index)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    scale_min, scale_max = _stats_range(stats)
+    image = Image.fromarray(_rgba_from_grid(data, scale_min=scale_min, scale_max=scale_max), mode="RGBA")
+    image.save(output, format="WEBP", lossless=True, method=6)
+    return output
+
+
+def public_data_path(path: Path | str | None) -> str | None:
+    if not path:
+        return None
+    value = Path(path).resolve()
+    try:
+        relative = value.relative_to(DATA_ROOT.resolve())
+    except ValueError:
+        return value.as_posix()
+    return "/data/" + relative.as_posix()
+
+
+def _render_primary_variable_webps(paths: list[Path], product: dict[str, Any]) -> list[str]:
+    urls: list[str] = []
+    shared_stats = product.get("stats")
+    for path in paths:
+        output = ensure_variable_webp(path, product["primary_variable"], 0, stats=shared_stats)
+        url = public_data_path(output)
+        if url:
+            urls.append(url)
+    return urls
+
+
+def _split_info_line(line: str) -> list[str]:
+    for delimiter in ("\t", "|", "｜", "，", ","):
+        parts = [item.strip() for item in line.split(delimiter)]
+        if len(parts) >= 2:
+            return parts
+    return [line]
+
+
+def _variable_doc(name: str, long_name: str | None, variable_docs: dict[str, dict[str, str]]) -> dict[str, str]:
+    doc = variable_docs.get(name, {})
+    label = (doc.get("label") or "").strip() or str(long_name or "").strip()
+    desc_en = (doc.get("desc_en") or "").strip()
+    if not desc_en and label and label != name:
+        desc_en = label
+    desc_zh = (doc.get("desc_zh") or "").strip()
+    return {
+        "label": label or name,
+        "name_cn": desc_zh,
+        "desc_zh": desc_zh,
+        "desc_en": desc_en,
+    }
+
+
+def _display_element(name: str, label: str | None) -> str:
+    text = str(label or "").strip()
+    if not text or text == name:
+        return name
+    return f"{name} - {text}"
+
+
+def _webp_url(file_name: str, variable: str, level_index: int = 0) -> str:
+    source_file = DATA_DIR / Path(file_name).name
+    return public_data_path(_webp_output_path(source_file, variable, level_index)) or ""
+
+
+def _webp_output_path(source_file: Path, variable: str, level_index: int = 0) -> Path:
+    safe_name = NON_WORD_RE.sub("_", str(variable or "field")).strip("._") or "field"
+    return source_file.with_name(f"{source_file.name}.{safe_name}.L{level_index}.webp")
+
+
+def _read_render_grid(source_file: Path, variable: str, level_index: int) -> tuple[np.ndarray, str, str]:
+    suffix = source_file.suffix.lower()
+    if suffix == ".nc":
+        return _read_nc_render_grid(source_file, variable, level_index)
+    if suffix in {".grib", ".grib2"}:
+        return _read_grib_render_grid(source_file, variable)
+    raise ValueError(f"Unsupported CMA grid file: {source_file.name}")
+
+
+def _read_nc_render_grid(source_file: Path, variable: str, level_index: int) -> tuple[np.ndarray, str, str]:
+    with _open_hdf(source_file) as dataset:
+        if variable not in dataset:
+            raise ValueError(f"Variable not found: {variable}")
+        item = dataset[variable]
+        attrs = {key: _decode_attr(value) for key, value in item.attrs.items()}
+        raw = item[:]
+        if raw.ndim == 3:
+            safe_level = min(max(level_index, 0), raw.shape[0] - 1)
+            raw = raw[safe_level, :, :]
+        elif raw.ndim != 2:
+            raise ValueError(f"Variable is not renderable: {variable}")
+        data = _clean_data(raw, attrs.get("_FillValue") or attrs.get("missing_value"))
+        data = _orient_nc_grid(dataset, data)
+    return data, str(attrs.get("long_name") or variable), _clean_unit(attrs.get("units") or "")
+
+
+def _read_grib_render_grid(source_file: Path, variable: str) -> tuple[np.ndarray, str, str]:
+    with rasterio.open(source_file) as dataset:
+        band_index = None
+        tags = {}
+        for band in range(1, dataset.count + 1):
+            band_tags = dataset.tags(band)
+            if band_tags.get("GRIB_ELEMENT") == variable:
+                band_index = band
+                tags = band_tags
+                break
+        if band_index is None:
+            raise ValueError(f"Variable not found: {variable}")
+        data = _clean_data(dataset.read(band_index), dataset.nodata)
+    return data, str(tags.get("GRIB_COMMENT") or tags.get("GRIB_ELEMENT") or variable), _clean_unit(tags.get("GRIB_UNIT") or "")
+
+
+def _orient_nc_grid(dataset: h5py.File, data: np.ndarray) -> np.ndarray:
+    oriented = data
+    if "lat" in dataset:
+        lat = np.array(dataset["lat"][:], dtype="float64")
+        if lat.ndim == 1 and lat.size > 1 and lat[0] < lat[-1]:
+            oriented = np.flipud(oriented)
+    if "lon" in dataset:
+        lon = np.array(dataset["lon"][:], dtype="float64")
+        if lon.ndim == 1 and lon.size > 1 and lon[0] > lon[-1]:
+            oriented = np.fliplr(oriented)
+    return oriented
+
+
+def _rgba_from_grid(data: np.ndarray, scale_min: float | None = None, scale_max: float | None = None) -> np.ndarray:
+    rgba = np.zeros((data.shape[0], data.shape[1], 4), dtype=np.uint8)
+    finite = data[np.isfinite(data)]
+    if not finite.size:
+        return rgba
+
+    min_value = scale_min if scale_min is not None else float(np.nanmin(finite))
+    max_value = scale_max if scale_max is not None else float(np.nanmax(finite))
+    if not np.isfinite(min_value) or not np.isfinite(max_value) or max_value <= min_value:
+        min_value = float(np.nanmin(finite))
+        max_value = float(np.nanmax(finite))
+    span = max(max_value - min_value, 1e-6)
+
+    mask = np.isfinite(data)
+    norm = np.zeros_like(data, dtype=np.float32)
+    norm[mask] = np.clip((data[mask] - min_value) / span, 0.0, 1.0)
+    color_stops = np.array([
+        [29, 78, 216],
+        [8, 145, 178],
+        [22, 163, 74],
+        [250, 204, 21],
+        [220, 38, 38],
+    ], dtype=np.float32)
+    scaled = np.zeros_like(norm, dtype=np.float32)
+    scaled[mask] = norm[mask] * (len(color_stops) - 1)
+    lower = np.zeros_like(scaled, dtype=np.int32)
+    lower[mask] = np.floor(scaled[mask]).astype(np.int32)
+    upper = np.clip(lower + 1, 0, len(color_stops) - 1)
+    local = (scaled - lower)[..., None]
+    lower = np.clip(lower, 0, len(color_stops) - 1)
+    rgb = color_stops[lower] + (color_stops[upper] - color_stops[lower]) * local
+
+    rgba[..., :3] = np.where(mask[..., None], np.round(rgb).astype(np.uint8), 0)
+    rgba[..., 3] = np.where(mask, 200, 0).astype(np.uint8)
+    return rgba
+
+
+def _stats_range(stats: dict[str, Any] | None) -> tuple[float | None, float | None]:
+    if not isinstance(stats, dict):
+        return None, None
+    try:
+        min_value = float(stats.get("min"))
+        max_value = float(stats.get("max"))
+    except (TypeError, ValueError):
+        return None, None
+    if not np.isfinite(min_value) or not np.isfinite(max_value) or max_value <= min_value:
+        return None, None
+    return min_value, max_value

@@ -1,0 +1,63 @@
+# 格式：变量名|英文标签|中文说明|英文说明
+# 说明：
+# 1. 第一列必须是程序匹配用的变量名。
+# 2. 第二列用于界面展示的英文标签。
+# 3. 第三列用于中文说明。
+# 4. 第四列用于英文说明。
+
+SoilMoist_profiles|Soil moisture profile layers|土壤湿度剖面层数据，表示多层土壤中的体积含水量分布。|Soil moisture profile data describing volumetric water content across multiple soil layers.
+SoilTemp_profiles|Soil temperature profile layers|土壤温度剖面层数据，表示多层土壤中的温度分布。|Soil temperature profile data describing temperature distribution across multiple soil layers.
+SmLiqFrac_profiles|Liquid soil moisture fraction profile layers|液态土壤水分比例剖面层数据，表示多层土壤中液态水所占比例。|Profile data of the liquid fraction of soil moisture across multiple soil layers.
+Swnet_tavg|Net downward shortwave radiation|地表净向下短波辐射，表示短波辐射收支后的向下净能量通量。|Net downward shortwave radiation at the surface after radiative balance.
+Lwnet_tavg|Net downward longwave radiation|地表净向下长波辐射，表示长波辐射收支后的向下净能量通量。|Net downward longwave radiation at the surface after radiative balance.
+Qle_tavg|Latent heat flux|潜热通量，表示蒸发、蒸腾等相变过程引起的能量交换。|Latent heat flux associated with evaporation, transpiration, and phase-change processes.
+Qh_tavg|Sensible heat flux|感热通量，表示地表与近地层空气之间的显热交换。|Sensible heat flux representing heat exchange between the surface and near-surface air.
+Qg_tavg|Soil heat flux|土壤热通量，表示进入或离开土壤的热量传输。|Soil heat flux representing heat transfer into or out of the soil.
+Snowf_tavg|Snowfall rate|降雪率，表示单位时间内的降雪质量通量。|Snowfall rate expressed as snowfall mass flux per unit time.
+Rainf_tavg|Total precipitation flux|总降水通量，表示统计时段内到达地表的液态和固态降水平均质量通量。|Average total precipitation mass flux reaching the surface during the averaging period.
+Evap_tavg|Total evapotranspiration flux|总蒸散发通量，表示统计时段内蒸发和植物蒸腾造成的平均水分损失通量。|Average total evapotranspiration flux from evaporation and plant transpiration during the averaging period.
+Qs_tavg|Surface runoff flux|地表径流通量，表示统计时段内沿地表流走的平均水量通量。|Average surface runoff flux flowing over the land surface during the averaging period.
+Qsb_tavg|Subsurface runoff flux|地下径流通量，表示统计时段内通过土壤浅层或地下排出的平均水量通量。|Average subsurface runoff flux discharged below the land surface during the averaging period.
+Qsm_tavg|Snowmelt flux|融雪通量，表示统计时段内由融雪产生的平均水量通量。|Average snowmelt water flux produced during the averaging period.
+AvgSurfT_tavg|Surface temperature|平均地表温度，表示时间平均后的地表热状态。|Time-averaged surface temperature describing the thermal state of the surface.
+AvgSurfT_inst|Surface temperature instant|瞬时地表温度，表示当前时刻的地表温度。|Instantaneous surface temperature at the current analysis or forecast time.
+RadT_tavg|Surface radiative temperature|平均地表辐射温度，表示时间平均后的辐射等效温度。|Time-averaged surface radiative temperature representing radiative emission conditions.
+RadT_inst|Surface radiative temperature instant|瞬时地表辐射温度，表示当前时刻的辐射等效温度。|Instantaneous surface radiative temperature at the current analysis or forecast time.
+Albedo_tavg|Surface albedo|地表反照率，表示地表对太阳短波辐射的反射能力。|Surface albedo representing the fraction of incoming shortwave radiation reflected by the surface.
+SWE_tavg|Snow water equivalent|平均积雪水当量，表示积雪折算成液态水后的等效厚度。|Time-averaged snow water equivalent describing the water stored in snowpack.
+SWE_inst|Snow water equivalent instant|瞬时积雪水当量，表示当前时刻积雪所含的等效液态水量。|Instantaneous snow water equivalent at the current analysis or forecast time.
+SnowDepth_tavg|Snow depth|积雪深度，表示地表积雪层的平均厚度。|Snow depth describing the average thickness of the snow layer on the surface.
+SoilMoist_tavg|Soil moisture content|平均土壤含水量，表示土壤体积含水率的时间平均。|Time-averaged soil moisture content expressed as volumetric water content.
+SoilMoist_inst|Soil moisture content instant|瞬时土壤含水量，表示当前时刻土壤中的体积含水率。|Instantaneous soil moisture content expressed as volumetric water content.
+SoilTemp_tavg|Soil temperature|平均土壤温度，表示土壤热状态的时间平均。|Time-averaged soil temperature describing the thermal state of the soil.
+SoilTemp_inst|Soil temperature instant|瞬时土壤温度，表示当前时刻土壤温度。|Instantaneous soil temperature at the current analysis or forecast time.
+SmLiqFrac_tavg|Average liquid soil moisture fraction|平均液态土壤水分比例，表示土壤水分中液态部分所占比例。|Time-averaged liquid fraction of soil moisture within the soil column.
+SmLiqFrac_inst|Liquid soil moisture fraction instant|瞬时液态土壤水分比例，表示当前时刻土壤水分中液态部分所占比例。|Instantaneous liquid fraction of soil moisture at the current analysis or forecast time.
+SoilWet_tavg|Total soil wetness|平均土壤湿润度，表示土壤整体湿润状态。|Time-averaged total soil wetness representing overall soil saturation conditions.
+SoilWet_inst|Total soil wetness instant|瞬时土壤湿润度，表示当前时刻土壤整体湿润状态。|Instantaneous total soil wetness at the current analysis or forecast time.
+PotEvap_tavg|Potential evapotranspiration flux|潜在蒸散发通量，表示统计时段内在水分不受限制条件下的平均潜在蒸散发通量。|Average potential evapotranspiration flux under unlimited water availability conditions during the averaging period.
+ECanop_tavg|Canopy interception evaporation flux|冠层截留蒸发通量，表示统计时段内植被冠层截留水分的平均蒸发损失通量。|Average evaporation flux of intercepted canopy water during the averaging period.
+TVeg_tavg|Vegetation transpiration flux|植被蒸腾通量，表示统计时段内植物通过蒸腾作用释放到大气中的平均水分通量。|Average vegetation transpiration flux from plants to the atmosphere during the averaging period.
+ESoil_tavg|Bare soil evaporation flux|裸土蒸发通量，表示统计时段内裸露土壤表面的平均蒸发通量。|Average evaporation flux from bare soil surfaces during the averaging period.
+CanopInt_tavg|Total canopy water storage|平均冠层储水量，表示植被冠层中截留的总水量。|Time-averaged total canopy water storage retained on vegetation.
+CanopInt_inst|Total canopy water storage instant|瞬时冠层储水量，表示当前时刻植被冠层中截留的总水量。|Instantaneous total canopy water storage retained on vegetation.
+SubSnow_tavg|Snow sublimation flux|积雪升华通量，表示统计时段内积雪直接转化为水汽造成的平均水量损失通量。|Average snow sublimation flux caused by direct conversion of snow to water vapor during the averaging period.
+SnowCover_tavg|Snow cover|积雪覆盖率，表示地表被积雪覆盖的比例。|Snow cover fraction representing the portion of the surface covered by snow.
+Wind_f_inst|Wind speed|近地面风速，表示当前时刻风矢量的大小。|Near-surface wind speed representing the magnitude of the wind vector.
+Rainf_f_tavg|Rainfall flux|降雨通量，表示统计时段内液态降水到达地表的平均质量通量。|Average rainfall mass flux reaching the surface during the averaging period.
+Tair_f_inst|Air temperature|近地面气温，表示当前时刻近地层空气温度。|Near-surface air temperature at the current analysis or forecast time.
+Qair_f_inst|Specific humidity|比湿，表示空气中水汽质量与湿空气总质量之比。|Specific humidity representing the mass fraction of water vapor in moist air.
+Psurf_f_inst|Surface pressure|地表气压，表示地表或近地面的气压值。|Surface pressure measured at or near the land surface.
+SWdown_f_tavg|Surface downward shortwave radiation|地表向下短波辐射，表示到达地表的平均太阳短波辐射通量。|Time-averaged downward shortwave radiation reaching the surface.
+SWdown_f_inst|Surface downward shortwave radiation instant|瞬时地表向下短波辐射，表示当前时刻到达地表的太阳短波辐射通量。|Instantaneous downward shortwave radiation reaching the surface.
+LWdown_f_tavg|Surface downward longwave radiation|地表向下长波辐射，表示到达地表的平均大气长波辐射通量。|Time-averaged downward longwave radiation reaching the surface.
+LWdown_f_inst|Surface downward longwave radiation instant|瞬时地表向下长波辐射，表示当前时刻到达地表的大气长波辐射通量。|Instantaneous downward longwave radiation reaching the surface.
+Landmask_inst|Land mask|陆地掩膜，表示网格点是陆地还是非陆地区域。|Land mask indicating whether a grid cell belongs to land or non-land area.
+Landcover_inst|Land cover type|土地覆盖类型，表示地表覆盖物类别。|Land cover classification describing the surface cover category.
+Soiltype_inst|Soil type|土壤类型，表示网格点对应的土壤类别。|Soil type classification assigned to each grid cell.
+Tempbot_inst|Bottom temperature|底层温度，表示土壤或下边界底层的温度状态。|Bottom temperature describing the thermal state of the lower boundary layer.
+TotalPrecip_tavg|Total precipitation flux|总降水通量，表示统计时段内液态和固态降水的平均质量通量。|Average total precipitation mass flux during the averaging period.
+TMP|Temperature|气温，表示当前层次空气温度，单位为摄氏度。|Air temperature at the current level in degrees Celsius.
+SPFH|Specific humidity|比湿，表示空气中水汽的质量混合比。|Specific humidity representing the mass fraction of water vapor in air.
+UGRD|U-component of wind|纬向风分量，表示沿东西方向的风速分量。|U-component of wind representing the east-west wind component.
+VGRD|V-component of wind|经向风分量，表示沿南北方向的风速分量。|V-component of wind representing the north-south wind component.
