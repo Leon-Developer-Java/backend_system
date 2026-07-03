@@ -108,6 +108,23 @@ def ok(data: Any = None, message: str = "success") -> dict[str, Any]:
     return {"code": 0, "data": data, "message": message}
 
 
+
+def normalize_business_type(value: str) -> str:
+    key = str(value or "").strip()
+    upper = key.upper()
+
+    if upper == "HIMAWARI":
+        return "Himawari"
+    if upper == "RADAR":
+        return "Radar"
+    if upper == "ECMWF":
+        return "ECMWF"
+    if upper in {"CMA", "ERA5", "GFS", "WRF"}:
+        return upper
+
+    return key
+
+
 def infer_business_type(filename: str) -> str:
     name = filename.lower()
     suffix = Path(filename).suffix.lower()
