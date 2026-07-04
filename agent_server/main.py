@@ -98,6 +98,13 @@ def normalize_source(value: str | None) -> str:
 def detect_intent(text: str) -> str:
     t = text.strip().lower()
     zh = text
+
+    if any(k in zh for k in ["全部数据", "全部数据源", "所有数据", "所有数据源", "现有全部数据", "现有数据", "当前全部数据", "数据总览", "总览", "整体状态", "双源", "对比", "比较"]):
+        return "smart_overview"
+
+    if ("GFS" in text.upper() and ("ECMWF" in text.upper() or "EC" in text.upper())):
+        return "smart_overview"
+
     if any(k in text for k in ["帮助", "怎么用", "能做什么", "指令"]) or t in {"help", "/help"}:
         return "help"
     if any(k in text for k in ["下载", "更新", "拉取"]) or any(k in t for k in ["download", "update"]):
@@ -236,6 +243,118 @@ def latest_files(root: Path, patterns: list[str], limit: int = 10) -> list[dict[
         except Exception:
             pass
     return out
+
+
+def judge_source_health(row: dict[str, Any]) -> dict[str, Any]:
+    issues = []
+    suggestions = []
+
+    ok = bool(row.get("ok"))
+    fmt = str(row.get("format") or "").lower()
+    webp = int(row.get("webp") or 0)
+    png = int(row.get("png") or 0)
+    times = int(row.get("times") or 0)
+    grib2 = int(row.get("grib2") or 0)
+    meta_json = int(row.get("meta_json") or 0)
+    float32 = int(row.get("float32") or 0)
+
+    score = 100
+
+    if not ok:
+        score -= 50
+        issues.append("展示接口异常")
+        suggestions.append("先检查 8002 主后端 `/api/display` 接口。")
+
+    if fmt != "webp":
+        score -= 20
+        issues.append("主展示格式不是 WEBP")
+        suggestions.append("检查后端是否返回 `webp_url` / `webp_urls`。")
+
+    if webp <= 0:
+        score -= 20
+        issues.append("没有检测到 WEBP 资源")
+        suggestions.append("重新执行下载解析，并确认 WEBP 渲染流程是否成功。")
+
+    if times <= 0:
+        score -= 10
+        issues.append("没有检测到有效预报时次")
+        suggestions.append("检查 meta.json 中的 times / steps 字段。")
+
+    if grib2 <= 0:
+        score -= 10
+        issues.append("缺少 GRIB2 原始文件")
+        suggestions.append("检查下载脚本是否成功保存原始 GRIB2。")
+
+    if meta_json <= 0:
+        score -= 10
+        issues.append("缺少 meta.json")
+        suggestions.append("检查解析流程是否生成元数据文件。")
+
+    if png > max(100, webp * 10):
+        score -= 5
+        issues.append("PNG 兜底/历史资源偏多")
+        suggestions.append("后续建议加入安全清理策略，只清理过期 PNG，不删除最新 WEBP。")
+
+    if float32 <= 0:
+        suggestions.append("如果后续需要点查或数值剖面，建议确认 float32 是否按变量生成。")
+
+    score = max(0, min(100, score))
+
+    if score >= 90:
+        level = "健康"
+    elif score >= 70:
+        level = "可用但需关注"
+    elif score >= 50:
+        level = "部分异常"
+    else:
+        level = "异常"
+
+    if not issues:
+        issues.append("未发现明显问题")
+
+    if not suggestions:
+        suggestions.append("保持当前流程，后续可接入任务记录与自动巡检。")
+
+    return {
+        "score": score,
+        "level": level,
+        "issues": issues,
+        "suggestions": suggestions,
+    }
+
+
+def make_smart_conclusion(rows: list[dict[str, Any]]) -> str:
+    normal = [r for r in rows if r.get("health", {}).get("score", 0) >= 90]
+    warning = [r for r in rows if 70 <= r.get("health", {}).get("score", 0) < 90]
+    bad = [r for r in rows if r.get("health", {}).get("score", 0) < 70]
+
+    all_webp = all(str(r.get("format") or "").lower() == "webp" for r in rows if r.get("ok"))
+    all_ok = all(r.get("ok") for r in rows)
+
+    parts = []
+
+    if all_ok and all_webp:
+        parts.append("GFS 和 ECMWF 当前均可用，且主展示格式均为 WEBP。")
+    elif all_ok:
+        parts.append("GFS 和 ECMWF 接口均可用，但至少一个数据源主展示格式不是 WEBP。")
+    else:
+        parts.append("至少一个数据源接口异常，需要优先检查 8002 主后端。")
+
+    if normal:
+        parts.append("健康数据源：" + "、".join(r["source"] for r in normal) + "。")
+    if warning:
+        parts.append("需关注数据源：" + "、".join(r["source"] for r in warning) + "。")
+    if bad:
+        parts.append("异常数据源：" + "、".join(r["source"] for r in bad) + "。")
+
+    if any(int(r.get("png") or 0) > max(100, int(r.get("webp") or 0) * 10) for r in rows):
+        parts.append("检测到部分数据源 PNG 兜底/历史资源偏多，建议 V5 加入安全清理策略。")
+
+    parts.append("下一步最值得做的是任务中心：记录每次下载、解析、生成 WEBP 的结果，方便追踪失败原因。")
+
+    return "\\n".join(f"- {x}" for x in parts)
+
+
 
 def audit_assets(source: str) -> dict[str, Any]:
     source = normalize_source(source)
@@ -383,6 +502,103 @@ async def handle_download(text: str) -> AsyncGenerator[str, None]:
         yield text_event(f"⚠️ {source} 下载解析失败。\n\n退出码：{rc}\n\n日志尾部：\n```text\n{tail}\n```")
     yield done_event()
 
+
+
+
+async def handle_smart_overview(text: str) -> AsyncGenerator[str, None]:
+    sources = ["GFS", "ECMWF"]
+
+    yield text_event("我来做一次 GFS + ECMWF 全部数据智能体检，不只查接口，也会判断资源是否健康。\n")
+    yield tool_event("smart_overview", "启动全部数据源体检", 10, "GFS + ECMWF")
+
+    rows = []
+
+    for i, source in enumerate(sources, start=1):
+        yield tool_event("smart_overview", f"检查 {source} 展示接口与本地资源", 10 + i * 30)
+
+        display = await fetch_display(source)
+        audit = audit_assets(source)
+
+        if display.get("ok"):
+            info = display.get("info") or {}
+            row = {
+                "source": source,
+                "ok": True,
+                "status": info.get("status"),
+                "format": info.get("image_format"),
+                "webp": int(info.get("webp_count") or 0),
+                "png": int(info.get("png_count") or 0),
+                "times": int(info.get("time_count") or 0),
+                "image_url": info.get("image_url"),
+                "main_variable": info.get("main_variable"),
+                "unit": info.get("unit"),
+                "grid": info.get("grid"),
+                "range": info.get("range"),
+                "update": info.get("update"),
+                "grib2": int(audit["counts"]["grib2"] or 0),
+                "meta_json": int(audit["counts"]["meta_json"] or 0),
+                "float32": int(audit["counts"]["float32"] or 0),
+            }
+        else:
+            row = {
+                "source": source,
+                "ok": False,
+                "status": "error",
+                "format": "unknown",
+                "webp": 0,
+                "png": 0,
+                "times": 0,
+                "image_url": "",
+                "main_variable": "",
+                "unit": "",
+                "grid": "",
+                "range": "",
+                "update": "",
+                "grib2": int(audit["counts"]["grib2"] or 0),
+                "meta_json": int(audit["counts"]["meta_json"] or 0),
+                "float32": int(audit["counts"]["float32"] or 0),
+                "error": display.get("summary"),
+            }
+
+        row["health"] = judge_source_health(row)
+        rows.append(row)
+
+    yield tool_event("smart_overview", "全部数据源体检完成", 100, "health scoring finished", status="done")
+
+    lines = []
+    lines.append("| 数据源 | 健康度 | 接口 | 主展示 | WEBP | PNG | 时次 | GRIB2 | meta.json | float32 |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+
+    for r in rows:
+        ok_text = "正常" if r["ok"] else "异常"
+        h = r["health"]
+        lines.append(
+            f"| {r['source']} | {h['score']} / {h['level']} | {ok_text} | {r['format']} | {r['webp']} | {r['png']} | {r['times']} | {r['grib2']} | {r['meta_json']} | {r['float32']} |"
+        )
+
+    detail_blocks = []
+    for r in rows:
+        h = r["health"]
+        detail_blocks.append(
+            f"### {r['source']}\n"
+            f"- 状态判断：{h['level']}，健康度 {h['score']}/100\n"
+            f"- 主变量：{r.get('main_variable') or '未提供'}\n"
+            f"- 主展示：{r.get('format')}\n"
+            f"- WEBP / PNG / 时次：{r.get('webp')} / {r.get('png')} / {r.get('times')}\n"
+            f"- 主要问题：{'；'.join(h['issues'])}\n"
+            f"- 建议：{'；'.join(h['suggestions'])}"
+        )
+
+    yield text_event(
+        "## 全部数据源智能体检结果\n\n"
+        + "\n".join(lines)
+        + "\n\n"
+        + "\n\n".join(detail_blocks)
+        + "\n\n## 总体结论\n"
+        + make_smart_conclusion(rows)
+    )
+
+    yield done_event()
 
 
 async def handle_compare_sources(text: str) -> AsyncGenerator[str, None]:
@@ -588,6 +804,9 @@ async def chat(req: AgentChatRequest):
                 async for item in handle_diagnose(text): yield item
             elif intent == "check_format":
                 async for item in handle_check_format(text): yield item
+            elif intent == "smart_overview":
+                async for item in handle_smart_overview(text):
+                    yield item
             elif intent == "compare_sources":
                 async for item in handle_compare_sources(text):
                     yield item
