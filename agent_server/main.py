@@ -3,6 +3,8 @@ import json
 import os
 import re
 import sys
+import subprocess
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, AsyncGenerator
@@ -20,6 +22,13 @@ DATA_DIR = BACKEND_SYSTEM_DIR / "data"
 DOWNLOAD_SCRIPT = BACKEND_SYSTEM_DIR / "scripts" / "download_gfs_ecmwf.py"
 HTTP_TIMEOUT = float(os.getenv("AGENT_HTTP_TIMEOUT", "60"))
 MAX_SUBPROCESS_SECONDS = int(os.getenv("AGENT_SUBPROCESS_TIMEOUT", "1800"))
+
+TASK_LOG_PATH = Path(
+    os.getenv(
+        "AGENT_TASK_LOG",
+        str(Path(__file__).with_name("agent_tasks.jsonl")),
+    )
+)
 
 app = FastAPI(title="Weather Data Agent", version="1.0.0")
 
@@ -98,6 +107,10 @@ def normalize_source(value: str | None) -> str:
 def detect_intent(text: str) -> str:
     t = text.strip().lower()
     zh = text
+
+    if any(k in zh for k in ["最近任务", "任务记录", "任务中心", "下载记录", "解析记录", "今日任务", "任务报告", "最近一次任务", "最后一次任务"]):
+        return "task_center"
+
 
     if any(k in zh for k in ["全部数据", "全部数据源", "所有数据", "所有数据源", "现有全部数据", "现有数据", "当前全部数据", "数据总览", "总览", "整体状态", "双源", "对比", "比较"]):
         return "smart_overview"
@@ -245,6 +258,148 @@ def latest_files(root: Path, patterns: list[str], limit: int = 10) -> list[dict[
     return out
 
 
+
+def make_task_id(task_type: str, source: str) -> str:
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    short = uuid.uuid4().hex[:8]
+    return f"{task_type}_{source}_{ts}_{short}"
+
+
+def now_local_str() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def append_task_record(record: dict[str, Any]) -> None:
+    TASK_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with TASK_LOG_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+
+def load_task_records(
+    limit: int = 20,
+    source: str | None = None,
+    task_type: str | None = None,
+    today_only: bool = False,
+) -> list[dict[str, Any]]:
+    """
+    Load task records and deduplicate by task_id.
+
+    Because each task writes a running record first and a final record later,
+    task center should show only the latest state of each task.
+    """
+    if not TASK_LOG_PATH.exists():
+        return []
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    latest_by_id: dict[str, dict[str, Any]] = {}
+
+    with TASK_LOG_PATH.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+
+            try:
+                obj = json.loads(line)
+            except Exception:
+                continue
+
+            if source and str(obj.get("source", "")).upper() != source.upper():
+                continue
+
+            if task_type and str(obj.get("task_type", "")) != task_type:
+                continue
+
+            if today_only:
+                started = str(obj.get("started_at", ""))
+                if not started.startswith(today):
+                    continue
+
+            task_id = str(obj.get("task_id") or f"legacy_{len(latest_by_id)}")
+            latest_by_id[task_id] = obj
+
+    rows = list(latest_by_id.values())
+
+    def sort_key(x: dict[str, Any]) -> str:
+        return str(x.get("started_at", ""))
+
+    rows = sorted(rows, key=sort_key, reverse=True)
+    return rows[:max(1, int(limit))]
+
+
+
+
+def detect_task_source_filter(text: str) -> str | None:
+    upper = text.upper()
+    if "GFS" in upper:
+        return "GFS"
+    if "ECMWF" in upper or re.search(r"\bEC\b", upper) or "欧洲" in text:
+        return "ECMWF"
+    return None
+
+
+def parse_task_limit(text: str, default: int = 5) -> int:
+    m = re.search(r"最近\s*(\d{1,2})\s*(?:个|条|次)?", text)
+    if m:
+        return max(1, min(50, int(m.group(1))))
+
+    if "最近一次" in text or "最后一次" in text:
+        return 1
+
+    return default
+
+
+def short_log_tail(text: str, n: int = 1200) -> str:
+    text = str(text or "")
+    if len(text) <= n:
+        return text
+    return text[-n:]
+
+
+def format_task_record_md(record: dict[str, Any], idx: int) -> str:
+    params = record.get("params") or {}
+    assets = record.get("assets_after") or {}
+    counts = assets.get("counts") or {}
+
+    status = record.get("status", "unknown")
+    status_icon = "✅" if status == "success" else ("❌" if status == "failed" else "⏳")
+
+    return (
+        f"{idx}. {status_icon} **{record.get('source', '-') } 下载解析任务**\n"
+        f"   - 任务 ID：`{record.get('task_id', '-')}`\n"
+        f"   - 状态：{status}\n"
+        f"   - 开始：{record.get('started_at', '-')}\n"
+        f"   - 结束：{record.get('ended_at', '-')}\n"
+        f"   - 耗时：{record.get('duration_seconds', '-')} 秒\n"
+        f"   - lead：{params.get('lead_start', '-')}-{params.get('lead_end', '-')}, step={params.get('lead_step', '-')}\n"
+        f"   - overwrite：{params.get('overwrite', False)}\n"
+        f"   - 退出码：{record.get('exit_code', '-')}\n"
+        f"   - 当前资源：GRIB2={counts.get('grib2', 0)}, meta.json={counts.get('meta_json', 0)}, WEBP={counts.get('webp', 0)}, PNG={counts.get('png', 0)}, float32={counts.get('float32', 0)}"
+    )
+
+
+def summarize_task_records(records: list[dict[str, Any]]) -> dict[str, Any]:
+    total = len(records)
+    success = sum(1 for r in records if r.get("status") == "success")
+    failed = sum(1 for r in records if r.get("status") == "failed")
+    running = sum(1 for r in records if r.get("status") == "running")
+
+    by_source: dict[str, int] = {}
+    for r in records:
+        src = str(r.get("source", "UNKNOWN"))
+        by_source[src] = by_source.get(src, 0) + 1
+
+    return {
+        "total": total,
+        "success": success,
+        "failed": failed,
+        "running": running,
+        "by_source": by_source,
+    }
+
+
+
 def judge_source_health(row: dict[str, Any]) -> dict[str, Any]:
     issues = []
     suggestions = []
@@ -385,6 +540,48 @@ async def run_subprocess(cmd: list[str], cwd: Path) -> tuple[int, str]:
         proc.kill()
         return -9, "".join(chunks) + f"\n[TIMEOUT] subprocess exceeded {MAX_SUBPROCESS_SECONDS}s\n"
 
+
+
+
+async def run_subprocess_stream(cmd: list[str], cwd: Path) -> tuple[int, str]:
+    """
+    Windows-stable subprocess runner.
+
+    Do not use asyncio.create_subprocess_exec here. On some Windows uvicorn
+    event loops it may raise NotImplementedError. Run blocking subprocess.run()
+    inside asyncio.to_thread() instead.
+    """
+
+    def _run() -> tuple[int, str]:
+        try:
+            completed = subprocess.run(
+                cmd,
+                cwd=str(cwd),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=MAX_SUBPROCESS_SECONDS,
+                shell=False,
+            )
+            return int(completed.returncode), completed.stdout or ""
+
+        except subprocess.TimeoutExpired as e:
+            out = e.stdout or ""
+            if isinstance(out, bytes):
+                out = out.decode("utf-8", errors="replace")
+            out += f"\n[TIMEOUT] subprocess exceeded {MAX_SUBPROCESS_SECONDS}s\n"
+            return -9, out
+
+        except Exception as e:
+            return -99, f"[SUBPROCESS_ERROR] {type(e).__name__}: {e}"
+
+    return await asyncio.to_thread(_run)
+
+
+
+
 def build_download_cmd(source: str, params: dict[str, Any]) -> list[str]:
     cmd = [PYTHON_BIN, str(DOWNLOAD_SCRIPT), "--source", normalize_source(source), "--lead-start", str(params["lead_start"]), "--lead-end", str(params["lead_end"]), "--lead-step", str(params["lead_step"]), "--min-success", "4", "--parse-after"]
     if params.get("overwrite"):
@@ -452,6 +649,82 @@ async def handle_diagnose(text: str) -> AsyncGenerator[str, None]:
     yield text_event(answer)
     yield done_event()
 
+
+async def handle_task_center(text: str) -> AsyncGenerator[str, None]:
+    source = detect_task_source_filter(text)
+    limit = parse_task_limit(text, default=5)
+    today_only = any(k in text for k in ["今日", "今天", "当天"])
+
+    yield text_event("正在读取 Agent 任务中心记录...\n")
+    yield tool_event("task_center", "读取任务记录", 40, str(TASK_LOG_PATH))
+
+    records = load_task_records(
+        limit=limit,
+        source=source,
+        task_type="download_parse",
+        today_only=today_only,
+    )
+
+    if not records:
+        scope = "今日" if today_only else "最近"
+        src_text = f"{source} " if source else ""
+        yield tool_event("task_center", "没有任务记录", 100, "empty", status="done")
+        yield text_event(
+            f"目前没有找到{scope} {src_text}下载解析任务记录。\n\n"
+            f"任务记录文件位置：`{TASK_LOG_PATH}`\n\n"
+            "你可以先触发一次任务，例如：\n\n"
+            "- `下载 GFS 到 24 小时，覆盖并解析`\n"
+            "- `下载 ECMWF 到 24 小时，覆盖并解析`\n"
+        )
+        yield done_event()
+        return
+
+    summary = summarize_task_records(records)
+    yield tool_event(
+        "task_center",
+        "任务记录读取完成",
+        100,
+        f"total={summary['total']}, success={summary['success']}, failed={summary['failed']}",
+        status="done",
+    )
+
+    title_scope = "今日" if today_only else f"最近 {len(records)} 条"
+    if source:
+        title_scope += f" {source}"
+
+    lines = [
+        f"## {title_scope}下载解析任务",
+        "",
+        f"- 任务总数：{summary['total']}",
+        f"- 成功：{summary['success']}",
+        f"- 失败：{summary['failed']}",
+        f"- 运行中记录：{summary['running']}",
+        "",
+    ]
+
+    for i, r in enumerate(records, start=1):
+        lines.append(format_task_record_md(r, i))
+        lines.append("")
+
+    latest = records[0]
+    if latest.get("status") == "failed":
+        lines.append("## 建议")
+        lines.append("- 最近一次任务失败。建议查看日志尾部，优先检查网络、下载源、SSL、文件权限和 GRIB2 解析流程。")
+        tail = latest.get("log_tail") or ""
+        if tail:
+            lines.append("")
+            lines.append("最近失败日志尾部：")
+            lines.append("```text")
+            lines.append(short_log_tail(tail, 1200))
+            lines.append("```")
+    elif latest.get("status") == "success":
+        lines.append("## 建议")
+        lines.append("- 最近一次任务成功。可以继续用 `检查全部数据` 或 `生成图表 GFS/ECMWF` 验证前端展示。")
+
+    yield text_event("\n".join(lines))
+    yield done_event()
+
+
 async def handle_audit(text: str) -> AsyncGenerator[str, None]:
     source = normalize_source(text)
     yield text_event(f"正在审计 {source} 本地资源完整性...\n")
@@ -482,25 +755,142 @@ async def handle_report(text: str) -> AsyncGenerator[str, None]:
     yield text_event(report)
     yield done_event()
 
+
+
 async def handle_download(text: str) -> AsyncGenerator[str, None]:
     source = normalize_source(text)
     params = parse_lead_params(text, source)
-    if not DOWNLOAD_SCRIPT.exists():
-        yield text_event(f"⚠️ 找不到下载脚本：`{DOWNLOAD_SCRIPT}`。\n\n请检查环境变量 `BACKEND_SYSTEM_DIR` 是否指向 backend_system 目录。")
+
+    task_id = make_task_id("download_parse", source)
+    started_dt = datetime.now()
+    started_at = started_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    cmd: list[str] = []
+    rc: int | None = None
+    output = ""
+
+    try:
+        if not DOWNLOAD_SCRIPT.exists():
+            raise FileNotFoundError(f"download script not found: {DOWNLOAD_SCRIPT}")
+
+        cmd = build_download_cmd(source, params)
+
+        running_record = {
+            "task_id": task_id,
+            "task_type": "download_parse",
+            "source": source,
+            "status": "running",
+            "started_at": started_at,
+            "ended_at": "",
+            "duration_seconds": 0,
+            "params": params,
+            "command": cmd,
+            "exit_code": None,
+            "log_tail": "",
+            "assets_after": {},
+        }
+        append_task_record(running_record)
+
+        yield text_event(
+            f"已创建下载解析任务。\n\n"
+            f"- 任务 ID：`{task_id}`\n"
+            f"- 数据源：{source}\n"
+            f"- lead_start：{params['lead_start']}\n"
+            f"- lead_end：{params['lead_end']}\n"
+            f"- lead_step：{params['lead_step']}\n"
+            f"- overwrite：{params['overwrite']}\n"
+            f"- insecure_ssl：{params['insecure_ssl']}\n\n"
+            "开始执行后端下载解析脚本...\n"
+        )
+
+        yield tool_event("download_parse", "启动下载解析脚本", 10, " ".join(cmd))
+
+        rc, output = await run_subprocess_stream(cmd, cwd=BACKEND_SYSTEM_DIR)
+
+        ended_dt = datetime.now()
+        ended_at = ended_dt.strftime("%Y-%m-%d %H:%M:%S")
+        duration = round((ended_dt - started_dt).total_seconds(), 2)
+        tail = short_log_tail(output, 3000)
+        status = "success" if rc == 0 else "failed"
+        assets = audit_assets(source)
+
+        final_record = {
+            "task_id": task_id,
+            "task_type": "download_parse",
+            "source": source,
+            "status": status,
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "duration_seconds": duration,
+            "params": params,
+            "command": cmd,
+            "exit_code": rc,
+            "log_tail": tail,
+            "assets_after": assets,
+        }
+        append_task_record(final_record)
+
+        if rc == 0:
+            yield tool_event("download_parse", "下载解析完成", 100, tail, status="done")
+            yield text_event(
+                f"{source} 下载解析任务执行完成。\n\n"
+                f"- 任务 ID：`{task_id}`\n"
+                f"- 状态：success\n"
+                f"- 耗时：{duration} 秒\n"
+                f"- 退出码：{rc}\n"
+                f"- 当前 WEBP：{assets['counts']['webp']}\n"
+                f"- 当前 GRIB2：{assets['counts']['grib2']}\n\n"
+                f"关键日志：\n```text\n{tail}\n```\n\n"
+                "你可以继续问：`查看最近任务` 或 `查看最近一次 GFS 下载任务`。"
+            )
+        else:
+            yield tool_event("download_parse", "下载解析失败", 100, tail, status="error")
+            yield text_event(
+                f"⚠️ {source} 下载解析失败。\n\n"
+                f"- 任务 ID：`{task_id}`\n"
+                f"- 状态：failed\n"
+                f"- 耗时：{duration} 秒\n"
+                f"- 退出码：{rc}\n\n"
+                f"日志尾部：\n```text\n{tail}\n```\n\n"
+                "你可以继续问：`查看最近任务`，我会保留这次失败记录。"
+            )
+
         yield done_event()
-        return
-    cmd = build_download_cmd(source, params)
-    yield text_event(f"准备下载并解析 {source} 数据。\n\n- lead_start：{params['lead_start']}\n- lead_end：{params['lead_end']}\n- lead_step：{params['lead_step']}\n- overwrite：{params['overwrite']}\n- insecure_ssl：{params['insecure_ssl']}\n\n开始执行后端下载解析脚本...\n")
-    yield tool_event("download_parse", "启动下载解析脚本", 10, " ".join(cmd))
-    rc, output = await run_subprocess(cmd, cwd=BACKEND_SYSTEM_DIR)
-    tail = output[-3000:] if output else ""
-    if rc == 0:
-        yield tool_event("download_parse", "下载解析完成", 100, tail, status="done")
-        yield text_event(f"{source} 下载解析任务执行完成。\n\n退出码：{rc}\n\n关键日志：\n```text\n{tail}\n```\n\n你可以继续问：检查 ECMWF 是否是 WEBP / 审计 ECMWF 资源完整性。")
-    else:
-        yield tool_event("download_parse", "下载解析失败", 100, tail, status="error")
-        yield text_event(f"⚠️ {source} 下载解析失败。\n\n退出码：{rc}\n\n日志尾部：\n```text\n{tail}\n```")
-    yield done_event()
+
+    except Exception as e:
+        ended_dt = datetime.now()
+        ended_at = ended_dt.strftime("%Y-%m-%d %H:%M:%S")
+        duration = round((ended_dt - started_dt).total_seconds(), 2)
+
+        err_text = f"{type(e).__name__}: {e}"
+        assets = audit_assets(source)
+
+        final_record = {
+            "task_id": task_id,
+            "task_type": "download_parse",
+            "source": source,
+            "status": "failed",
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "duration_seconds": duration,
+            "params": params,
+            "command": cmd,
+            "exit_code": rc if rc is not None else -1,
+            "log_tail": short_log_tail(output or err_text, 3000),
+            "error": err_text,
+            "assets_after": assets,
+        }
+        append_task_record(final_record)
+
+        yield tool_event("download_parse", "下载解析异常", 100, err_text, status="error")
+        yield text_event(
+            f"⚠️ {source} 下载解析任务异常结束。\n\n"
+            f"- 任务 ID：`{task_id}`\n"
+            f"- 状态：failed\n"
+            f"- 错误：{err_text}\n\n"
+            "异常已经写入任务中心，你可以问：`查看最近任务`。"
+        )
+        yield done_event()
 
 
 
@@ -787,6 +1177,29 @@ def tools() -> dict[str, Any]:
         {"name": "download", "description": "下载并解析 GFS/ECMWF", "examples": ["下载 ECMWF 到 72 小时", "下载 GFS 到 24 小时，覆盖并解析"]},
     ]}
 
+
+@app.get("/api/agent/tasks")
+def list_agent_tasks(
+    limit: int = 20,
+    source: str | None = None,
+    today_only: bool = False,
+) -> dict[str, Any]:
+    source_norm = normalize_source(source) if source else None
+    records = load_task_records(
+        limit=limit,
+        source=source_norm,
+        task_type="download_parse",
+        today_only=today_only,
+    )
+    return {
+        "code": 0,
+        "task_log": str(TASK_LOG_PATH),
+        "count": len(records),
+        "summary": summarize_task_records(records),
+        "data": records,
+    }
+
+
 @app.post("/api/agent/chat")
 async def chat(req: AgentChatRequest):
     text = last_user_text(req.messages)
@@ -796,6 +1209,9 @@ async def chat(req: AgentChatRequest):
             intent = detect_intent(text)
             if intent == "help":
                 async for item in handle_help(): yield item
+            elif intent == "task_center":
+                async for item in handle_task_center(text):
+                    yield item
             elif intent == "download":
                 async for item in handle_download(text): yield item
             elif intent == "audit":
