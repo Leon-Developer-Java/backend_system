@@ -1,0 +1,235 @@
+Himawari AHI 变量说明 / Himawari AHI Variable Information
+
+说明:
+- 本文件集中维护葵花卫星 Himawari AHI HSD 数据解析后的变量解释。
+- 中文解释面向非专业用户，英文解释用于接口、元数据和国际化展示。
+- 反射率通道单位为 %，亮温通道单位为 K。
+- RGB 合成产品不是单一物理变量，单位记为 RGB composite / RGB 合成。
+
+Fields:
+- Code: internal variable key used by parser and frontend.
+- Name CN: Chinese display name.
+- Name EN: English display name.
+- Unit: physical unit after parsing.
+- Wavelength: approximate AHI central wavelength.
+- Description CN / EN: plain-language explanation.
+- Typical Use: common visual or meteorological use.
+- Caution: interpretation notes for non-specialist users.
+
+
+B01
+Name CN: 蓝光反射率
+Name EN: Blue-band reflectance
+Unit: %
+Wavelength: 0.47 um
+Description CN: 反映云、海洋和地表对蓝光的反射强弱，数值越大通常越亮。
+Description EN: Blue-band reflectance for daytime cloud and surface color reference.
+Typical Use: 识别白天云区；辅助真彩色合成。
+Caution: 夜间没有太阳照射，该通道不可用于夜间云图。
+
+B02
+Name CN: 绿光反射率
+Name EN: Green-band reflectance
+Unit: %
+Wavelength: 0.51 um
+Description CN: 反映目标对绿光的反射强弱，是真彩色合成的重要组成部分。
+Description EN: Green-band reflectance used for daytime natural color and true color products.
+Typical Use: 真彩色云图；白天云系观察。
+Caution: 只代表反射光强，不是温度或降水强度。
+
+B03
+Name CN: 红光反射率
+Name EN: Red-band reflectance
+Unit: %
+Wavelength: 0.64 um
+Description CN: 红光反射率能清楚显示白天云的纹理和边界。
+Description EN: Red-band reflectance that highlights daytime cloud texture and boundaries.
+Typical Use: 白天云系监测；真彩色合成。
+Caution: 夜间不可用，强反射不等于云顶更高。
+
+B04
+Name CN: 近红外反射率
+Name EN: Near-infrared reflectance
+Unit: %
+Wavelength: 0.86 um
+Description CN: 对植被、水体和部分云相态差异比较敏感。
+Description EN: Near-infrared reflectance for vegetation, water and cloud phase context.
+Typical Use: 区分陆地植被和水体；辅助自然色合成。
+Caution: 该通道仍依赖太阳光，夜间不适合使用。
+
+B05
+Name CN: 雪冰云粒子反射率
+Name EN: Snow, ice and cloud-particle reflectance
+Unit: %
+Wavelength: 1.6 um
+Description CN: 对雪冰、云粒子大小和低云特征较敏感。
+Description EN: Near-infrared reflectance sensitive to snow, ice and cloud particle size.
+Typical Use: 识别雪冰覆盖；辅助云相态分析。
+Caution: 不是直接的雪深或云水含量，只是反射率观测。
+
+B06
+Name CN: 短波近红外反射率
+Name EN: Shortwave near-infrared reflectance
+Unit: %
+Wavelength: 2.3 um
+Description CN: 对云粒子和地表类型差异有响应，常用于组合产品。
+Description EN: Shortwave near-infrared reflectance for cloud particle and surface type contrast.
+Typical Use: 自然色增强；云和地表区分。
+Caution: 白天使用效果更可靠，不能单独解释为天气强弱。
+
+B07
+Name CN: 短波红外亮温
+Name EN: Shortwave infrared brightness temperature
+Unit: K
+Wavelength: 3.9 um
+Description CN: 夜间常用于低云雾和热点识别，白天会受太阳反射影响。
+Description EN: Shortwave infrared brightness temperature for nighttime low cloud, fog and hot spot context.
+Typical Use: 夜间低云雾识别；火点辅助判断。
+Caution: 白天会混入太阳反射，解释时要区分昼夜。
+
+B08
+Name CN: 高层水汽亮温
+Name EN: Upper-level water vapor brightness temperature
+Unit: K
+Wavelength: 6.2 um
+Description CN: 主要反映对流层中高层水汽和云的辐射特征。
+Description EN: Upper-level water vapor brightness temperature for high-tropospheric moisture patterns.
+Typical Use: 分析高空水汽；识别干侵入。
+Caution: 它不是地面湿度，主要代表较高层大气信息。
+
+B09
+Name CN: 中高层水汽亮温
+Name EN: Mid-to-upper-level water vapor brightness temperature
+Unit: K
+Wavelength: 6.9 um
+Description CN: 用于观察中高层水汽和云系结构。
+Description EN: Mid-to-upper-level water vapor brightness temperature for moisture structure.
+Typical Use: 中高层水汽分析；气团 RGB。
+Caution: 不能直接代表近地面湿度。
+
+B10
+Name CN: 中层水汽亮温
+Name EN: Mid-level water vapor brightness temperature
+Unit: K
+Wavelength: 7.3 um
+Description CN: 辅助判断中层干湿和云系发展环境。
+Description EN: Mid-level water vapor brightness temperature for moisture and cloud environment analysis.
+Typical Use: 中层水汽分析；对流发展环境判断。
+Caution: 亮温受温度和水汽共同影响。
+
+B11
+Name CN: 云相态红外亮温
+Name EN: Cloud-phase infrared brightness temperature
+Unit: K
+Wavelength: 8.6 um
+Description CN: 常和窗口通道组合，用于区分云、沙尘和云相态差异。
+Description EN: Infrared brightness temperature used with window channels for cloud phase and dust context.
+Typical Use: 沙尘 RGB；云相态辅助分析。
+Caution: 通常要和其他红外通道组合使用。
+
+B12
+Name CN: 臭氧吸收带亮温
+Name EN: Ozone-band brightness temperature
+Unit: K
+Wavelength: 9.6 um
+Description CN: 受臭氧吸收影响，常用于气团 RGB。
+Description EN: Ozone absorption band brightness temperature used in air-mass RGB products.
+Typical Use: 气团 RGB；高空动力分析。
+Caution: 不应单独解释为臭氧浓度定量产品。
+
+B13
+Name CN: 红外窗口亮温
+Name EN: Infrared window brightness temperature
+Unit: K
+Wavelength: 10.4 um
+Description CN: 温度越低，通常表示云顶越高或越冷。
+Description EN: Infrared window brightness temperature; colder values usually indicate higher or colder cloud tops.
+Typical Use: 观察深对流；识别台风云系。
+Caution: 它不是地面气温，而是卫星看到的辐射亮温。
+
+B14
+Name CN: 长波红外窗口亮温
+Name EN: Longwave infrared window brightness temperature
+Unit: K
+Wavelength: 11.2 um
+Description CN: 适合全天候观察云顶温度和大范围云系。
+Description EN: Longwave infrared window brightness temperature for all-day cloud-top observation.
+Typical Use: 全天候云图；云顶温度分析。
+Caution: 晴空下可能反映地表或海表辐射。
+
+B15
+Name CN: 分裂窗红外亮温
+Name EN: Split-window infrared brightness temperature
+Unit: K
+Wavelength: 12.4 um
+Description CN: 常与 10.4um 或 11.2um 通道做差。
+Description EN: Split-window infrared brightness temperature used with other channels for dust and thin cloud signals.
+Typical Use: 沙尘 RGB；薄云识别。
+Caution: 亮温差产品比单独通道更有解释价值。
+
+B16
+Name CN: 二氧化碳吸收带亮温
+Name EN: Carbon dioxide absorption-band brightness temperature
+Unit: K
+Wavelength: 13.3 um
+Description CN: 对高层云和云顶高度相关信息较敏感。
+Description EN: Carbon dioxide absorption band brightness temperature for high-cloud and cloud-top height context.
+Typical Use: 高云识别；云顶高度辅助判断。
+Caution: 不是二氧化碳浓度产品。
+
+
+Composite Products / RGB 合成产品
+
+true_color
+Name CN: 真彩色云图
+Name EN: True color RGB
+Unit: RGB composite / RGB 合成
+Source Bands: B03, B02, B01
+Description CN: 用于直观看云、陆地、水体和大范围天气系统。
+Description EN: Daytime RGB composite that approximates natural visual cloud, land and water colors.
+Caution: 夜间没有可见光，真彩色产品不可用或效果很差。
+
+natural_color
+Name CN: 自然色云图
+Name EN: Natural color RGB
+Unit: RGB composite / RGB 合成
+Source Bands: B05, B04, B03
+Description CN: 比真彩色更强调地表和云的差异。
+Description EN: Daytime RGB composite that enhances land, water, vegetation and cloud differences.
+Caution: 这是组合增强图，不是单一物理变量。
+
+air_mass
+Name CN: 气团 RGB
+Name EN: Air mass RGB
+Unit: RGB composite / RGB 合成
+Source Bands: B08, B10, B12, B13
+Description CN: 通过水汽和臭氧吸收带差异突出不同气团和高空动力结构。
+Description EN: RGB composite for dry intrusions, upper-air dynamics and air-mass contrast.
+Caution: 颜色代表通道组合差异，不是气团名称的直接分类。
+
+dust
+Name CN: 沙尘 RGB
+Name EN: Dust RGB
+Unit: RGB composite / RGB 合成
+Source Bands: B11, B13, B14, B15
+Description CN: 通过分裂窗和红外通道差异增强沙尘及薄云信号。
+Description EN: RGB composite that enhances dust, thin cloud and low-level feature signals.
+Caution: 沙尘识别需要结合地面观测和天气背景确认。
+
+night_microphysics
+Name CN: 夜间微物理 RGB
+Name EN: Night microphysics RGB
+Unit: RGB composite / RGB 合成
+Source Bands: B07, B13, B15
+Description CN: 利用短波红外和长波红外差异，在夜间辅助识别低云雾。
+Description EN: Nighttime RGB composite for low cloud, fog and cloud microphysics context.
+Caution: 白天 B07 会受太阳反射影响，夜间解释更稳定。
+
+water_vapor_enhanced
+Name CN: 水汽增强图
+Name EN: Enhanced water vapor RGB
+Unit: RGB composite / RGB 合成
+Source Bands: B08, B09, B10
+Description CN: 将多个水汽通道组合，突出中高层大气干湿结构。
+Description EN: RGB composite that enhances mid-to-upper-level water vapor structure.
+Caution: 它不是地面湿度图，主要反映中高层大气。

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+# 标准库
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta, timezone
 import ftplib
 import json
+import math
 import os
 import posixpath
 import re
@@ -11,14 +14,14 @@ import shutil
 import sys
 from threading import Lock
 import time as time_module
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+# 第三方库
 import numpy as np
-import xarray as xr
 from PIL import Image
 from scipy.ndimage import map_coordinates
+import xarray as xr
 
 if __package__ in {None, ""}:
     sys.path.insert(0, Path(__file__).resolve().parents[1].as_posix())
@@ -32,27 +35,27 @@ HSD_FILENAME_RE = re.compile(
     r"S(?P<segment>\d{2})(?P<total>\d{2})\.DAT(?:\.bz2)?$",
     re.IGNORECASE,
 )
+HSD_UPLOAD_DUPLICATE_RE = re.compile(
+    r"^(?P<base>HS_H\d{2}_\d{8}_\d{4}_B\d{2}_[A-Z0-9]+_R\d{2}_S\d{4}\.DAT)_(?P<index>\d+)(?P<suffix>\.bz2)?$",
+    re.IGNORECASE,
+)
 
-CHINA_EXTENT = [73, 18, 136, 54]
+HIMAWARI_DEFAULT_EXTENT = [118.2, 31.2, 119.4, 32.7]
+CHINA_EXTENT = HIMAWARI_DEFAULT_EXTENT
 LATLON_RESOLUTION = 0.04
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "Himawari"
+DISPLAY_IMAGE_SUFFIX = ".webp"
+DISPLAY_IMAGE_FORMAT = "WEBP"
 FTP_HOST = "ftp.ptree.jaxa.jp"
 FTP_ROOT = "/jma/hsd"
 FTP_PORT = 21
 FTP_TIMEOUT = 60
-HIMAWARI_TARGET_BANDS = ["B13", "B03", "B02", "B01"]
-HIMAWARI_QUICK_BANDS = HIMAWARI_TARGET_BANDS
-HIMAWARI_FULL_BANDS = HIMAWARI_TARGET_BANDS
+HIMAWARI_TARGET_BANDS = [f"B{i:02d}" for i in range(1, 17)]
 TRUE_COLOR_BANDS = ["B03", "B02", "B01"]
-SLOW_MIN_REMAINING_MINUTES = 120
-B13_FAST_BANDS = ["B13"]
-VISIBLE_COLOR_BANDS = ["B03", "B02", "B01"]
-VISIBLE_LOCAL_START_HOUR = 6
-VISIBLE_LOCAL_END_HOUR = 18
-VISIBLE_LOCAL_UTC_OFFSET_HOURS = 8
 PARTIAL_MAX_AGE_HOURS = 6
-DEFAULT_WINDOW_HOURS = 24
+DEFAULT_WINDOW_HOURS = 1
 DEFAULT_LATEST_DELAY_MINUTES = 60
+PRESERVED_AUTO_DIR_NAMES = {"00"}
 
 
 def _emit_progress(progress_callback: Any, **event: Any) -> None:
@@ -76,38 +79,39 @@ def _ordered_unique_bands(bands: list[str] | None) -> list[str]:
     return ordered
 
 
+def himawari_default_extent(environ: dict[str, str] | None = None) -> list[float]:
+    env = environ or os.environ
+    raw = env.get("HIMAWARI_EXTENT", "").strip()
+    if not raw:
+        return list(HIMAWARI_DEFAULT_EXTENT)
+    try:
+        values = [float(item.strip()) for item in raw.split(",")]
+    except ValueError:
+        return list(HIMAWARI_DEFAULT_EXTENT)
+    if len(values) != 4:
+        return list(HIMAWARI_DEFAULT_EXTENT)
+    west, south, east, north = values
+    if west >= east or south >= north:
+        return list(HIMAWARI_DEFAULT_EXTENT)
+    return values
+
+
 def _band_sort_key(value: str) -> tuple[int, str]:
     match = re.search(r"B(\d{2})", str(value).upper())
     return (int(match.group(1)) if match else 999, str(value))
 
 
-def _scene_datetime(date: str, scene_time: str) -> datetime | None:
-    try:
-        return datetime.strptime(f"{date}{scene_time}", "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
-    except ValueError:
-        return None
-
-
-def _scene_beijing_datetime(date: str, scene_time: str) -> datetime | None:
-    scene_dt = _scene_datetime(date, scene_time)
-    if not scene_dt:
-        return None
-    return scene_dt + timedelta(hours=VISIBLE_LOCAL_UTC_OFFSET_HOURS)
-
-
-def _is_visible_light_slot(date: str, scene_time: str) -> bool:
-    local_dt = _scene_beijing_datetime(date, scene_time)
-    if not local_dt:
-        return False
-    return VISIBLE_LOCAL_START_HOUR <= local_dt.hour < VISIBLE_LOCAL_END_HOUR
-
-
-def _visible_light_bands_for_slot(date: str, scene_time: str) -> list[str]:
-    return list(VISIBLE_COLOR_BANDS) if _is_visible_light_slot(date, scene_time) else []
-
-
 def _product_name(item: dict[str, Any]) -> str:
     return str(item.get("name") or item.get("key") or "").strip()
+
+
+def _is_preserved_himawari_path(path: str | Path, output_root: str | Path = DATA_DIR) -> bool:
+    try:
+        relative = Path(path).resolve().relative_to(Path(output_root).resolve())
+    except (OSError, ValueError):
+        return False
+    first = relative.parts[0] if relative.parts else ""
+    return first in PRESERVED_AUTO_DIR_NAMES
 
 
 def _merge_keyed_items(existing: list[dict[str, Any]], incoming: list[dict[str, Any]], sort_bands: bool = False) -> list[dict[str, Any]]:
@@ -145,34 +149,71 @@ def _grid_shape(item: dict[str, Any], grid: dict[str, Any]) -> list[int]:
 
 def _normalize_himawari_variable(item: dict[str, Any], grid: dict[str, Any]) -> dict[str, Any]:
     name = _product_name(item)
+    unit = item.get("unit")
+    display_unit = item.get("display_unit")
+    if unit == "K" and display_unit == "degC":
+        display_unit = "K"
+    description_zh, description_en = _description_pair(name, item)
     return {
         "name": name,
         "long_name": item.get("long_name") or item.get("plain_name"),
         "short_name": item.get("short_name") or name or None,
         "raw_name": item.get("raw_name"),
         "name_cn": item.get("name_cn") or item.get("name_zh"),
-        "unit": item.get("unit"),
-        "display_unit": item.get("display_unit"),
+        "unit": unit,
+        "display_unit": display_unit,
         "shape": _grid_shape(item, grid),
         "dims": item.get("dims") or ["lat", "lon"],
         "level": item.get("level"),
         "missing": item.get("missing"),
         "stats": _stats_template(item.get("stats")),
         "category": item.get("category"),
-        "description": item.get("description"),
+        "description": description_zh,
+        "description_zh": description_zh,
+        "description_en": description_en,
         "wavelength": item.get("wavelength"),
+        "product_type": item.get("product_type") or "variable",
+        "render_mode": item.get("render_mode") or "scalar",
+        "is_rgb": bool(item.get("is_rgb", False)),
+        "show_colorbar": bool(item.get("show_colorbar", True)),
         "float32": item.get("float32"),
         "netcdf": item.get("netcdf"),
         "png": item.get("png"),
+        "vmin": item.get("vmin"),
+        "vmax": item.get("vmax"),
+        "legend_ticks": item.get("legend_ticks") or [],
     }
 
 
-def _normalize_himawari_composite(item: dict[str, Any]) -> dict[str, Any]:
+def _composite_shape(item: dict[str, Any], grid: dict[str, Any]) -> list[int]:
+    shape = item.get("shape")
+    if isinstance(shape, list) and shape:
+        return shape
+    ny = grid.get("ny") if isinstance(grid, dict) else None
+    nx = grid.get("nx") if isinstance(grid, dict) else None
+    return [int(ny), int(nx), 3] if ny and nx else []
+
+
+def _normalize_himawari_composite(item: dict[str, Any], grid: dict[str, Any] | None = None) -> dict[str, Any]:
+    grid = grid or {}
+    name = _product_name(item)
+    description_zh, description_en = _description_pair(name, item)
     return {
-        "name": _product_name(item),
+        "name": name,
         "name_cn": item.get("name_cn") or item.get("name_zh"),
-        "description": item.get("description") or item.get("long_name") or item.get("plain_name"),
+        "description": description_zh,
+        "description_zh": description_zh,
+        "description_en": description_en,
         "source_bands": item.get("source_bands") or [],
+        "product_type": item.get("product_type") or "composite",
+        "render_mode": item.get("render_mode") or "rgb",
+        "is_rgb": bool(item.get("is_rgb", True)),
+        "show_colorbar": bool(item.get("show_colorbar", False)),
+        "unit": item.get("unit") or "-",
+        "display_unit": item.get("display_unit") or "RGB合成",
+        "shape": _composite_shape(item, grid),
+        "dims": item.get("dims") or ["lat", "lon", "rgb"],
+        "stats": _stats_template(item.get("stats")),
         "float32": item.get("float32"),
         "netcdf": item.get("netcdf"),
         "png": item.get("png"),
@@ -215,10 +256,14 @@ def _weather_info(meta: dict[str, Any], variables: list[dict[str, Any]], default
     stats = default_item.get("stats") or {}
     extent = meta.get("extent") or meta.get("bbox") or CHINA_EXTENT
     grid = meta.get("grid") if isinstance(meta.get("grid"), dict) else {}
+    description_zh, description_en = _description_pair(default_variable or _product_name(default_item), default_item)
     return {
         "source": existing.get("source") or "Himawari",
         "product": existing.get("product") or "葵花静止卫星 HSD 等经纬度网格产品",
         "element": existing.get("element") or default_item.get("name_cn") or default_item.get("long_name") or default_variable or "卫星通道",
+        "description": existing.get("description") or description_zh,
+        "description_zh": existing.get("description_zh") or description_zh,
+        "description_en": existing.get("description_en") or description_en,
         "time": existing.get("time") or meta.get("observation_time") or "",
         "level": existing.get("level") or "卫星观测",
         "range": existing.get("range") or _format_extent_label(extent),
@@ -255,7 +300,7 @@ def normalize_himawari_meta(meta: dict[str, Any], meta_path: str | Path | None =
     grid = {"nx": int(grid.get("nx")), "ny": int(grid.get("ny"))} if grid.get("nx") and grid.get("ny") else grid
     generated_at = meta.get("generated_at") or meta.get("extra", {}).get("generated_at") or datetime.now(timezone.utc).isoformat()
     variables = [_normalize_himawari_variable(item, grid) for item in meta.get("variables", []) if _product_name(item)]
-    composites = [_normalize_himawari_composite(item) for item in meta.get("composites", []) if _product_name(item)]
+    composites = [_normalize_himawari_composite(item, grid) for item in meta.get("composites", []) if _product_name(item)]
     loaded_bands = sorted({_product_name(item) for item in variables if _product_name(item).upper().startswith("B")}, key=_band_sort_key)
     default_variable = meta.get("default_variable") or _default_himawari_variable(variables)
     png_files = [item["png"] for item in variables + composites if item.get("png")]
@@ -290,6 +335,7 @@ def normalize_himawari_meta(meta: dict[str, Any], meta_path: str | Path | None =
         "grid": grid,
         "variables": variables,
         "composites": composites,
+        "products": composites + variables,
         "weather_info": {},
         "extra": {
             "status": meta.get("extra", {}).get("status") or "parsed",
@@ -763,6 +809,8 @@ def cleanup_himawari_retention(
     for scene_dir in sorted(root.glob("*/*")):
         if not scene_dir.is_dir() or scene_dir.name == "raw":
             continue
+        if _is_preserved_himawari_path(scene_dir, root):
+            continue
         if not _is_retention_managed_scene(scene_dir):
             continue
         observation_time = _scene_observation_time(scene_dir)
@@ -813,7 +861,7 @@ def process_downloaded_himawari_scene(
         except OSError:
             pass
     cleanup_himawari_retention(output_root, retention_hours=retention_hours, now=now, delay_minutes=latest_delay_minutes)
-    _emit_progress(progress_callback, stage="parsed", phase=phase, scene_id=meta.get("scene_id"), detail="PNG/meta 生成完成")
+    _emit_progress(progress_callback, stage="parsed", phase=phase, scene_id=meta.get("scene_id"), detail="WebP/meta 生成完成")
     return meta
 
 
@@ -828,6 +876,8 @@ def cleanup_partial_himawari_downloads(
     cutoff = current.timestamp() - max(0, max_age_hours) * 3600
     removed: list[str] = []
     for path in sorted(Path(output_root).glob("*/*/raw/*.part")):
+        if _is_preserved_himawari_path(path, output_root):
+            continue
         try:
             if max_age_hours > 0 and path.stat().st_mtime >= cutoff:
                 continue
@@ -864,6 +914,8 @@ def cleanup_himawari_raw_dirs(
     removed: list[str] = []
     for raw_dir in sorted(Path(output_root).glob("*/*/raw")):
         if not raw_dir.is_dir():
+            continue
+        if _is_preserved_himawari_path(raw_dir, output_root):
             continue
         newest_mtime = max((path.stat().st_mtime for path in raw_dir.glob("*") if path.exists()), default=0)
         if max_age_hours > 0 and newest_mtime >= cutoff:
@@ -912,30 +964,16 @@ def _target_himawari_jobs(
     return [(date, scene_time, phase, missing_bands)]
 
 
-def _build_himawari_priority_jobs(
+def build_himawari_download_jobs(
     scene_slots: list[tuple[str, str]],
     root: Path,
     target_bands: list[str],
 ) -> list[tuple[str, str, str, list[str]]]:
-    requested = set(_ordered_unique_bands(target_bands))
     scene_order = list(reversed(scene_slots))
     jobs: list[tuple[str, str, str, list[str]]] = []
-
-    if "B13" in requested:
-        for date, scene_time in scene_order:
-            jobs.extend(_target_himawari_jobs(date, scene_time, root, B13_FAST_BANDS, phase="quick_b13"))
-
-    visible_targets = [band for band in VISIBLE_COLOR_BANDS if band in requested]
-    if visible_targets:
-        for date, scene_time in scene_order:
-            visible_bands = [band for band in _visible_light_bands_for_slot(date, scene_time) if band in visible_targets]
-            if visible_bands:
-                jobs.extend(_target_himawari_jobs(date, scene_time, root, visible_bands, phase="visible_color"))
-
-    fallback_targets = [band for band in target_bands if band not in set(B13_FAST_BANDS + VISIBLE_COLOR_BANDS)]
-    if fallback_targets:
-        for date, scene_time in scene_order:
-            jobs.extend(_target_himawari_jobs(date, scene_time, root, fallback_targets, phase="download"))
+    full_targets = _ordered_unique_bands(target_bands)
+    for date, scene_time in scene_order:
+        jobs.extend(_target_himawari_jobs(date, scene_time, root, full_targets, phase="download"))
 
     return jobs
 
@@ -975,12 +1013,10 @@ def recover_himawari_scene_window(
     interval_minutes: int = 10,
     retention_hours: int = DEFAULT_WINDOW_HOURS,
     bands: list[str] | None = None,
-    quick_bands: list[str] | None = None,
     max_scenes_per_run: int | None = None,
     max_jobs_per_run: int | None = 0,
     max_workers: int = 1,
     queue: str = "download",
-    slow_min_remaining_minutes: int = SLOW_MIN_REMAINING_MINUTES,
     now: datetime | None = None,
     downloader: Any = download_himawari_hsd_scene,
     processor: Any = process_downloaded_himawari_scene,
@@ -990,7 +1026,7 @@ def recover_himawari_scene_window(
 ) -> dict[str, Any]:
     root = Path(output_root)
     scene_slots = slots or himawari_slot_window(now=now, hours=hours, delay_minutes=delay_minutes, interval_minutes=interval_minutes)
-    requested_bands = [item.upper() for item in (bands or quick_bands or HIMAWARI_TARGET_BANDS)]
+    requested_bands = [item.upper() for item in (bands or HIMAWARI_TARGET_BANDS)]
     target_band_list = [item for item in _ordered_unique_bands(requested_bands) if item in HIMAWARI_TARGET_BANDS] or list(HIMAWARI_TARGET_BANDS)
     queue_key = str(queue or "download").lower()
     if queue_key in {"all", "fast", "quick", "slow", "full"}:
@@ -1029,6 +1065,7 @@ def recover_himawari_scene_window(
         raw_dir = scene_dir / "raw"
         try:
             _emit_progress(progress_callback, stage="checking", phase=phase, scene_id=scene_id, detail="检查本地结果和 raw 完整性")
+            parsed = False
             if _raw_scene_has_complete_bands(raw_dir, bands=wanted_bands):
                 processor(
                     raw_dir,
@@ -1048,15 +1085,28 @@ def recover_himawari_scene_window(
                 output_root=root,
                 bands=wanted_bands,
                 overwrite=False,
-                parse_after_download=True,
-                delete_raw_after_parse=True,
+                parse_after_download=False,
+                delete_raw_after_parse=False,
                 retention_hours=retention_hours,
                 latest_delay_minutes=delay_minutes,
                 phase=phase,
                 progress_callback=progress_callback,
                 **download_kwargs,
             )
-            return {"kind": "downloaded", "scene_id": scene_id, "result": downloader_result}
+            if _raw_scene_has_complete_bands(raw_dir, bands=wanted_bands):
+                processor(
+                    raw_dir,
+                    root,
+                    delete_raw=True,
+                    retention_hours=retention_hours,
+                    now=retention_now,
+                    latest_delay_minutes=delay_minutes,
+                    bands=wanted_bands,
+                    progress_callback=progress_callback,
+                    phase=phase,
+                )
+                parsed = True
+            return {"kind": "downloaded", "scene_id": scene_id, "result": downloader_result, "processed": parsed}
         except Exception as exc:
             if raise_errors:
                 raise
@@ -1078,6 +1128,8 @@ def recover_himawari_scene_window(
                 handled += 1
             elif kind == "downloaded":
                 result["downloaded"].append(scene_id)
+                if job_result.get("processed"):
+                    result["processed_raw"].append(scene_id)
                 handled += 1
             elif kind == "error":
                 result["errors"].append({"scene_id": scene_id, "error": job_result.get("error")})
@@ -1090,16 +1142,16 @@ def recover_himawari_scene_window(
         if _scene_has_bands(scene_dir, target_band_list):
             result["target_complete"].append(scene_id)
 
-    priority_jobs = _build_himawari_priority_jobs(scene_slots, root, target_band_list)
+    download_jobs = build_himawari_download_jobs(scene_slots, root, target_band_list)
 
     if job_limit:
-        priority_jobs = priority_jobs[:job_limit]
+        download_jobs = download_jobs[:job_limit]
 
-    if priority_jobs:
-        result["phase"] = priority_jobs[0][2]
-    worker_count = max(1, min(int(max_workers or 1), len(priority_jobs) or 1))
+    if download_jobs:
+        result["phase"] = download_jobs[0][2]
+    worker_count = max(1, min(int(max_workers or 1), len(download_jobs) or 1))
     if worker_count == 1:
-        for date, scene_time, phase, wanted_bands in priority_jobs:
+        for date, scene_time, phase, wanted_bands in download_jobs:
             record_job(handle_scene(date, scene_time, phase, wanted_bands))
             if result["stopped"]:
                 break
@@ -1107,7 +1159,7 @@ def recover_himawari_scene_window(
         with ThreadPoolExecutor(max_workers=worker_count) as executor:
             futures = [
                 executor.submit(handle_scene, date, scene_time, phase, wanted_bands)
-                for date, scene_time, phase, wanted_bands in priority_jobs
+                for date, scene_time, phase, wanted_bands in download_jobs
             ]
             for future in as_completed(futures):
                 record_job(future.result())
@@ -1147,7 +1199,7 @@ def _band(
         "category": category,
         "wavelength": wavelength,
         "unit": unit,
-        "display_unit": "%" if unit == "%" else "degC",
+        "display_unit": unit,
         "description": description,
         "uses": uses,
         "cautions": cautions,
@@ -1186,6 +1238,48 @@ COMPOSITE_CATALOG: dict[str, dict[str, Any]] = {
 }
 
 
+BAND_DESCRIPTION_EN: dict[str, str] = {
+    "B01": "Blue-band reflectance for daytime cloud and surface color reference.",
+    "B02": "Green-band reflectance used for daytime natural color and true color products.",
+    "B03": "Red-band reflectance that highlights daytime cloud texture and boundaries.",
+    "B04": "Near-infrared reflectance for vegetation, water and cloud phase context.",
+    "B05": "Near-infrared reflectance sensitive to snow, ice and cloud particle size.",
+    "B06": "Shortwave near-infrared reflectance for cloud particle and surface type contrast.",
+    "B07": "Shortwave infrared brightness temperature for nighttime low cloud, fog and hot spot context.",
+    "B08": "Upper-level water vapor brightness temperature for high-tropospheric moisture patterns.",
+    "B09": "Mid-to-upper-level water vapor brightness temperature for moisture structure.",
+    "B10": "Mid-level water vapor brightness temperature for moisture and cloud environment analysis.",
+    "B11": "Infrared brightness temperature used with window channels for cloud phase and dust context.",
+    "B12": "Ozone absorption band brightness temperature used in air-mass RGB products.",
+    "B13": "Infrared window brightness temperature; colder values usually indicate higher or colder cloud tops.",
+    "B14": "Longwave infrared window brightness temperature for all-day cloud-top observation.",
+    "B15": "Split-window infrared brightness temperature used with other channels for dust and thin cloud signals.",
+    "B16": "Carbon dioxide absorption band brightness temperature for high-cloud and cloud-top height context.",
+}
+
+
+COMPOSITE_DESCRIPTION_EN: dict[str, str] = {
+    "true_color": "Daytime RGB composite that approximates natural visual cloud, land and water colors.",
+    "natural_color": "Daytime RGB composite that enhances land, water, vegetation and cloud differences.",
+    "air_mass": "RGB composite for dry intrusions, upper-air dynamics and air-mass contrast.",
+    "dust": "RGB composite that enhances dust, thin cloud and low-level feature signals.",
+    "night_microphysics": "Nighttime RGB composite for low cloud, fog and cloud microphysics context.",
+    "water_vapor_enhanced": "RGB composite that enhances mid-to-upper-level water vapor structure.",
+}
+
+
+def _description_pair(name: str | None, item: dict[str, Any] | None = None) -> tuple[str | None, str | None]:
+    item = item or {}
+    product_name = str(name or _product_name(item) or "").strip()
+    description_zh = item.get("description_zh") or item.get("description") or item.get("long_name") or item.get("plain_name")
+    description_en = item.get("description_en")
+    if not description_en:
+        description_en = BAND_DESCRIPTION_EN.get(product_name.upper()) or COMPOSITE_DESCRIPTION_EN.get(product_name)
+    if not description_en and description_zh:
+        description_en = f"Himawari product description: {description_zh}"
+    return description_zh, description_en
+
+
 def parse_hsd_filename(filename: str) -> dict[str, Any] | None:
     match = HSD_FILENAME_RE.match(Path(filename).name)
     if not match:
@@ -1205,6 +1299,27 @@ def parse_hsd_filename(filename: str) -> dict[str, Any] | None:
 
 def is_hsd_filename(filename: str) -> bool:
     return parse_hsd_filename(Path(filename).name) is not None
+
+
+def normalize_himawari_upload_filenames(raw_dir: str | Path) -> dict[str, int]:
+    raw_path = Path(raw_dir)
+    result = {"renamed": 0, "removed_duplicates": 0}
+    if not raw_path.exists():
+        return result
+    for path in sorted(raw_path.glob("HS_H*.DAT_*")):
+        match = HSD_UPLOAD_DUPLICATE_RE.match(path.name)
+        if not match:
+            continue
+        canonical = raw_path / f"{match.group('base')}{match.group('suffix') or ''}"
+        if parse_hsd_filename(canonical.name) is None:
+            continue
+        if canonical.exists():
+            path.unlink()
+            result["removed_duplicates"] += 1
+        else:
+            path.rename(canonical)
+            result["renamed"] += 1
+    return result
 
 
 def upload_target_dir(filename: str, base_dir: str | Path) -> Path:
@@ -1232,18 +1347,25 @@ def scan_hsd_scenes(input_root: str | Path, min_files: int = 10) -> list[dict[st
 
 
 def build_latlon_grid(extent: list[float] | None = None, resolution: float = LATLON_RESOLUTION) -> dict[str, Any]:
-    west, south, east, north = extent or CHINA_EXTENT
+    west, south, east, north = extent or himawari_default_extent()
     nx = int(round((east - west) / resolution)) + 1
     ny = int(round((north - south) / resolution)) + 1
     return {"projection": "EPSG:4326", "grid_type": "regular_latlon", "extent": [west, south, east, north], "resolution": resolution, "nx": nx, "ny": ny}
 
 
-def _normalize_for_png(data: np.ndarray, vmin: float, vmax: float) -> np.ndarray:
+def _normalize_for_png(data: np.ndarray, vmin: float, vmax: float, invert: bool = False) -> np.ndarray:
+    """将数据归一化到 0-1 并生成 RGBA 图像。
+
+    invert=True 时反转灰度（用于红外亮温波段）：
+    气象标准约定冷云顶=亮白（高值），暖地表=灰暗（低值）。
+    """
     values = np.asarray(data, dtype=np.float32)
     valid = np.isfinite(values)
     norm = np.zeros(values.shape, dtype=np.float32)
     if vmax > vmin:
         norm[valid] = np.clip((values[valid] - vmin) / (vmax - vmin), 0, 1)
+    if invert:
+        norm[valid] = 1.0 - norm[valid]
     rgba = np.zeros((*values.shape, 4), dtype=np.uint8)
     gray = (norm * 255).astype(np.uint8)
     rgba[..., 0] = gray
@@ -1255,8 +1377,15 @@ def _normalize_for_png(data: np.ndarray, vmin: float, vmax: float) -> np.ndarray
 
 def _render_png(data: np.ndarray, png_path: Path, catalog: dict[str, Any]) -> None:
     png_path.parent.mkdir(parents=True, exist_ok=True)
-    rgba = _normalize_for_png(data, float(catalog.get("vmin", np.nanmin(data))), float(catalog.get("vmax", np.nanmax(data))))
-    Image.fromarray(rgba).save(png_path)
+    # 红外亮温波段（单位 K）按气象标准反转: 冷云顶=亮白
+    invert = str(catalog.get("unit", "")).strip().upper() == "K"
+    rgba = _normalize_for_png(
+        data,
+        float(catalog.get("vmin", np.nanmin(data))),
+        float(catalog.get("vmax", np.nanmax(data))),
+        invert=invert,
+    )
+    Image.fromarray(rgba).save(png_path, format=DISPLAY_IMAGE_FORMAT, lossless=True)
 
 
 def _latlon_coords(grid: dict[str, Any]) -> tuple[np.ndarray, np.ndarray]:
@@ -1285,7 +1414,7 @@ def write_latlon_variable(output_dir: str | Path, band: str, data: np.ndarray, g
     band = band.upper()
     catalog = BAND_CATALOG[band]
     values = np.asarray(data, dtype=np.float32)
-    png_path = latlon_dir / f"{band}.png"
+    png_path = latlon_dir / f"{band}{DISPLAY_IMAGE_SUFFIX}"
     float32_path = latlon_dir / f"{band}.float32"
     nc_path = latlon_dir / f"{band}.nc"
     _render_png(values, png_path, catalog)
@@ -1298,6 +1427,8 @@ def write_latlon_variable(output_dir: str | Path, band: str, data: np.ndarray, g
                 path.unlink()
     finite = values[np.isfinite(values)]
     stats = {"min": float(np.nanmin(finite)) if finite.size else None, "max": float(np.nanmax(finite)) if finite.size else None, "mean": float(np.nanmean(finite)) if finite.size else None, "std": None}
+    vmin = float(catalog["vmin"])
+    vmax = float(catalog["vmax"])
     return {
         "name": catalog["key"],
         "long_name": catalog["plain_name"],
@@ -1313,11 +1444,23 @@ def write_latlon_variable(output_dir: str | Path, band: str, data: np.ndarray, g
         "stats": stats,
         "category": catalog["category"],
         "description": catalog["description"],
+        "description_zh": catalog["description"],
+        "description_en": BAND_DESCRIPTION_EN.get(band),
         "wavelength": catalog["wavelength"],
+        "vmin": vmin,
+        "vmax": vmax,
+        "legend_ticks": _legend_ticks(vmin, vmax),
         "png": png_path.as_posix(),
         "float32": float32_path.as_posix() if save_intermediates else None,
         "netcdf": nc_path.as_posix() if save_intermediates else None,
     }
+
+
+def _legend_ticks(vmin: float, vmax: float, count: int = 4) -> list[str]:
+    if count <= 1 or vmax <= vmin:
+        return [f"{vmin:g}", f"{vmax:g}"]
+    values = np.linspace(vmin, vmax, count)
+    return [f"{value:g}" for value in values]
 
 
 def write_scene_metadata(
@@ -1357,6 +1500,45 @@ def write_scene_metadata(
     with meta_path.open("w", encoding="utf-8") as file:
         json.dump(meta, file, ensure_ascii=False, indent=2)
     return meta
+
+
+def write_incremental_scene_metadata(
+    scene_dir: str | Path,
+    date: str,
+    time: str,
+    satellite: str,
+    raw_dir: str | Path,
+    raw_file_count: int,
+    grid: dict[str, Any],
+    variables: list[dict[str, Any]],
+    composites: list[dict[str, Any]] | None = None,
+    retention_managed: bool = False,
+) -> dict[str, Any]:
+    scene_dir = Path(scene_dir)
+    meta_dir = scene_dir / "meta"
+    meta_dir.mkdir(parents=True, exist_ok=True)
+    meta_path = meta_dir / "scene.meta.json"
+    meta = {
+        "scene_id": f"{date}_{time}",
+        "satellite": satellite,
+        "observation_time": f"{date[:4]}-{date[4:6]}-{date[6:8]}T{time[:2]}:{time[2:4]}:00Z",
+        "projection": grid["projection"],
+        "grid_type": grid["grid_type"],
+        "extent": grid["extent"],
+        "resolution": grid["resolution"],
+        "grid": {"nx": grid["nx"], "ny": grid["ny"]},
+        "variables": variables,
+        "composites": composites or [],
+        "loaded_bands": [_product_name(item) for item in variables if _product_name(item)],
+        "source_raw_dir": Path(raw_dir).as_posix(),
+        "raw_file_count": raw_file_count,
+        "retention_managed": retention_managed,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    normalized = normalize_himawari_meta(meta, meta_path)
+    with meta_path.open("w", encoding="utf-8") as file:
+        json.dump(normalized, file, ensure_ascii=False, indent=2)
+    return normalized
 
 
 def _read_reusable_scene_metadata(scene_dir: Path) -> dict[str, Any] | None:
@@ -1406,8 +1588,14 @@ def _resample_dataset_to_latlon(dataset: Any, grid: dict[str, Any]) -> np.ndarra
     x0, y0, x1, y1 = area.area_extent
     target_lat, target_lon = _latlon_coords(grid)
     lon2d, lat2d = np.meshgrid(target_lon, target_lat)
-    transformer = Transformer.from_crs("EPSG:4326", area.crs, always_xy=True)
-    xs, ys = transformer.transform(lon2d, lat2d)
+    try:
+        transformer = Transformer.from_crs("EPSG:4326", area.crs, always_xy=True)
+        xs, ys = transformer.transform(lon2d, lat2d)
+    except Exception as exc:
+        raise ValueError(
+            f"无法创建坐标转换器 (源 CRS: {getattr(area, 'crs', 'unknown')})，"
+            f"请检查 satpy/pyproj 是否支持该 HSD 数据的投影定义。"
+        ) from exc
     cols = (xs - x0) / (x1 - x0) * (source_width - 1)
     rows = (y1 - ys) / (y1 - y0) * (source_height - 1)
     valid = np.isfinite(rows) & np.isfinite(cols) & (rows >= 0) & (rows <= source_height - 1) & (cols >= 0) & (cols <= source_width - 1)
@@ -1455,16 +1643,206 @@ def _save_rgb_png(rgb: np.ndarray, output_path: Path) -> None:
     rgba = np.zeros((*rgb.shape[:2], 4), dtype=np.uint8)
     rgba[..., :3] = (np.clip(rgb, 0, 1) * 255).astype(np.uint8)
     rgba[..., 3] = np.where(np.all(np.isfinite(rgb), axis=-1), 255, 0).astype(np.uint8)
-    Image.fromarray(rgba).save(output_path)
+    Image.fromarray(rgba).save(output_path, format=DISPLAY_IMAGE_FORMAT, lossless=True)
+
+
+def _rayleigh_optical_depth(wavelength_um: float) -> float:
+    """瑞利光学厚度 (Bodhaine et al., 1999, 标准大气压)"""
+    wl2 = wavelength_um ** (-2)
+    wl4 = wavelength_um ** (-4)
+    return 0.008569 * wl4 * (1.0 + 0.0113 * wl2 + 0.00013 * wl4)
+
+
+# 波段中心波长 (um) — Himawari-8/9 AHI
+_RAYLEIGH_WAVELENGTHS = {"B01": 0.4706, "B02": 0.510, "B03": 0.639}
+
+# 瑞利散射校正几何参数
+_HIMAWARI_SAT_LON = 140.7       # Himawari-9 星下点经度
+_HIMAWARI_SAT_LAT = 0.0         # 星下点纬度
+_HIMAWARI_SAT_HEIGHT_KM = 35786.0  # 卫星轨道高度 (km)
+_EARTH_RADIUS_KM = 6371.0       # 地球半径 (km)
+_RAYLEIGH_PHASE_DEFAULT = 0.75  # 瑞利散射相函数 (Θ≈90°, 侧向散射)
+_MIN_COS_ZENITH = 0.05          # cos(天顶角) 最小值，避免除零
+_TRUE_COLOR_GAMMA = 0.8         # 真彩色 gamma 校正值
+_FALLBACK_COS_SOLAR = 0.73      # cos(太阳天顶角) 默认值 (~43°)
+
+
+def _compute_satellite_zenith(
+    grid: dict[str, Any],
+) -> np.ndarray:
+    """计算每个像素的卫星天顶角余弦值。
+
+    基于 Himawari-9 星下点位置 (140.7°E, 0°N) 和轨道高度 (35786 km)，
+    采用球面几何计算每个格点对应的卫星天顶角。
+    """
+    west, south, east, north = grid["extent"]
+    ny, nx = grid["ny"], grid["nx"]
+
+    lons = np.linspace(west, east, nx, dtype=np.float64)
+    lats = np.linspace(north, south, ny, dtype=np.float64)
+    lon2d, lat2d = np.meshgrid(lons, lats)
+
+    lat_rad = np.radians(lat2d)
+    lon_rad = np.radians(lon2d)
+    sat_lat_rad = np.radians(_HIMAWARI_SAT_LAT)
+    sat_lon_rad = np.radians(_HIMAWARI_SAT_LON)
+
+    # 地心角 γ
+    cos_gamma = (
+        np.sin(sat_lat_rad) * np.sin(lat_rad)
+        + np.cos(sat_lat_rad) * np.cos(lat_rad) * np.cos(lon_rad - sat_lon_rad)
+    )
+    gamma = np.arccos(np.clip(cos_gamma, -1.0, 1.0))
+
+    # 卫星到像素距离
+    d_km = np.sqrt(
+        _EARTH_RADIUS_KM ** 2
+        + (_EARTH_RADIUS_KM + _HIMAWARI_SAT_HEIGHT_KM) ** 2
+        - 2.0 * _EARTH_RADIUS_KM * (_EARTH_RADIUS_KM + _HIMAWARI_SAT_HEIGHT_KM) * cos_gamma
+    )
+
+    # 卫星天顶角
+    sin_sza = np.clip(
+        (_EARTH_RADIUS_KM + _HIMAWARI_SAT_HEIGHT_KM) / d_km * np.sin(gamma),
+        -1.0, 1.0,
+    )
+    sat_zenith = np.arcsin(sin_sza)
+    return np.cos(sat_zenith)
+
+
+def _estimate_cos_solar_zenith(
+    obs_dt: datetime,
+    lat: float,
+    lon: float,
+) -> float:
+    """估算太阳天顶角的余弦值 (NOAA 太阳位置算法简化版)。
+
+    Args:
+        obs_dt: 观测时刻 (UTC)
+        lat: 纬度 (十进制度)
+        lon: 经度 (十进制度)
+
+    Returns:
+        cos(太阳天顶角), 范围 [0.05, 1.0]
+    """
+    year, month, day = obs_dt.year, obs_dt.month, obs_dt.day
+    hour = obs_dt.hour + obs_dt.minute / 60.0 + obs_dt.second / 3600.0
+
+    # 儒略日
+    if month <= 2:
+        year -= 1
+        month += 12
+    a = int(year / 100)
+    b = 2 - a + int(a / 4)
+    jd = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + hour / 24.0 + b - 1524.5
+
+    # 太阳位置
+    n = jd - 2451545.0
+    mean_lon = math.radians((280.460 + 0.9856474 * n) % 360)
+    mean_anom = math.radians((357.528 + 0.9856003 * n) % 360)
+    ecliptic_lon = mean_lon + math.radians(1.915 * math.sin(mean_anom) + 0.020 * math.sin(2 * mean_anom))
+
+    # 黄赤交角
+    obliquity = math.radians(23.439 - 0.0000004 * n)
+
+    # 赤经赤纬
+    dec = math.asin(math.sin(obliquity) * math.sin(ecliptic_lon))
+    ra = math.atan2(math.cos(obliquity) * math.sin(ecliptic_lon), math.cos(ecliptic_lon))
+
+    # 恒星时 → 时角
+    gmst = math.radians((280.46061837 + 360.98564736629 * n) % 360)
+    hour_angle = gmst + math.radians(lon) - ra
+
+    # 太阳天顶角
+    lat_rad = math.radians(lat)
+    cos_sza = (
+        math.sin(lat_rad) * math.sin(dec)
+        + math.cos(lat_rad) * math.cos(dec) * math.cos(hour_angle)
+    )
+    return max(float(cos_sza), _MIN_COS_ZENITH)
+
+
+def _compute_solar_zenith_for_scene(
+    grid: dict[str, Any],
+    cos_sat: np.ndarray,
+    observation_time: str | None = None,
+) -> np.ndarray:
+    """计算场景的太阳天顶角余弦值。
+
+    对场景中心点计算太阳位置，使用常数值填充整个网格
+    （小区域场景内太阳天顶角变化 < 1°，常数近似足够精确）。
+    """
+    if not observation_time:
+        return np.full_like(cos_sat, _FALLBACK_COS_SOLAR, dtype=np.float64)
+
+    west, south, east, north = grid["extent"]
+    center_lat = (north + south) / 2.0
+    center_lon = (east + west) / 2.0
+
+    try:
+        obs_dt = datetime.fromisoformat(observation_time.replace("Z", "+00:00"))
+        cos_sol_val = _estimate_cos_solar_zenith(obs_dt, center_lat, center_lon)
+    except (ValueError, OSError):
+        cos_sol_val = _FALLBACK_COS_SOLAR
+
+    return np.full_like(cos_sat, cos_sol_val, dtype=np.float64)
+
+
+def _apply_rayleigh_correction(
+    arrays: dict[str, np.ndarray],
+    cos_sol: np.ndarray,
+    cos_sat: np.ndarray,
+) -> np.ndarray:
+    """对 B01/B02/B03 应用瑞利散射校正，合成真彩色 RGB。
+
+    瑞利散射使短波（蓝光）被大气散射更多，导致卫星真彩色图偏蓝雾化。
+    本函数逐像素计算瑞利反射率并从观测值中减去，恢复真实地表颜色。
+    """
+    # 瑞利反射率校正因子: R_R(λ) = τ(λ) × P(Θ) / (4 × cosθ_sun × cosθ_sat)
+    denom = 4.0 * np.maximum(cos_sol, _MIN_COS_ZENITH) * np.maximum(cos_sat, _MIN_COS_ZENITH)
+    corr_factor = _RAYLEIGH_PHASE_DEFAULT / denom
+
+    # 各波段瑞利光学厚度
+    tau = {
+        band: _rayleigh_optical_depth(wl)
+        for band, wl in _RAYLEIGH_WAVELENGTHS.items()
+    }
+
+    # 校正: R_corr = R_obs / 100 - τ × corr_factor
+    r_red = np.asarray(arrays["B03"], dtype=np.float64) / 100.0 - tau["B03"] * corr_factor
+    r_green = np.asarray(arrays["B02"], dtype=np.float64) / 100.0 - tau["B02"] * corr_factor
+    r_blue = np.asarray(arrays["B01"], dtype=np.float64) / 100.0 - tau["B01"] * corr_factor
+
+    # gamma 校正
+    rgb = np.stack([
+        np.power(np.clip(r_red, 0.0, 1.0), _TRUE_COLOR_GAMMA).astype(np.float32),
+        np.power(np.clip(r_green, 0.0, 1.0), _TRUE_COLOR_GAMMA).astype(np.float32),
+        np.power(np.clip(r_blue, 0.0, 1.0), _TRUE_COLOR_GAMMA).astype(np.float32),
+    ], axis=-1)
+
+    return rgb
+
+
+def _create_rayleigh_corrected_true_color(
+    arrays: dict[str, np.ndarray],
+    grid: dict[str, Any],
+    observation_time: str | None = None,
+) -> np.ndarray | None:
+    """带瑞利散射校正的真彩色合成 (B03-R, B02-G, B01-B)。"""
+    needed = {"B01", "B02", "B03"}
+    if not needed.issubset(arrays):
+        return None
+
+    cos_sat = _compute_satellite_zenith(grid)
+    cos_sol = _compute_solar_zenith_for_scene(grid, cos_sat, observation_time)
+    return _apply_rayleigh_correction(arrays, cos_sol, cos_sat)
 
 
 def _rgb_from_composite(key: str, arrays: dict[str, np.ndarray]) -> np.ndarray | None:
-    if key == "true_color" and all(item in arrays for item in ("B03", "B02", "B01")):
-        return np.stack([
-            _normalize_reflectance_channel(arrays["B03"]),
-            _normalize_reflectance_channel(arrays["B02"]),
-            _normalize_reflectance_channel(arrays["B01"]),
-        ], axis=-1)
+    if key == "true_color":
+        # true_color 由 _create_rayleigh_corrected_true_color() 单独处理
+        # (带瑞利散射校正), 此处跳过
+        return None
     if key == "natural_color" and all(item in arrays for item in ("B05", "B04", "B03")):
         return np.stack([
             _normalize_reflectance_channel(arrays["B05"]),
@@ -1489,14 +1867,26 @@ def write_composites(scene_dir: str | Path, arrays: dict[str, np.ndarray]) -> li
         rgb = _rgb_from_composite(key, arrays)
         if rgb is None:
             continue
-        png_path = scene_dir / "composites" / f"{key}.png"
+        png_path = scene_dir / "composites" / f"{key}{DISPLAY_IMAGE_SUFFIX}"
         _save_rgb_png(rgb, png_path)
+        description_zh, description_en = _description_pair(key, catalog)
         output.append(
             {
                 "name": catalog["key"],
                 "name_cn": catalog["name_zh"],
-                "description": catalog["description"],
+                "description": description_zh,
+                "description_zh": description_zh,
+                "description_en": description_en,
                 "source_bands": catalog["source_bands"],
+                "product_type": "composite",
+                "render_mode": "rgb",
+                "is_rgb": True,
+                "show_colorbar": False,
+                "unit": "-",
+                "display_unit": "RGB合成",
+                "shape": [rgb.shape[0], rgb.shape[1], rgb.shape[2]],
+                "dims": ["lat", "lon", "rgb"],
+                "stats": {"min": None, "max": None, "mean": None, "std": None},
                 "float32": None,
                 "netcdf": None,
                 "png": png_path.as_posix(),
@@ -1520,7 +1910,8 @@ def process_scene(
     save_intermediates: bool | None = None,
 ) -> dict[str, Any]:
     raw_dir = _find_raw_dir(input_root, date, time)
-    files = sorted(raw_dir.glob("HS_H*.DAT*"))
+    normalize_himawari_upload_filenames(raw_dir)
+    files = sorted(item for item in raw_dir.glob("HS_H*.DAT*") if parse_hsd_filename(item.name))
     if not files:
         raise FileNotFoundError(f"未找到 Himawari HSD 文件: {raw_dir}")
     scene_info = _scene_info_from_files(files)
@@ -1533,7 +1924,12 @@ def process_scene(
         save_intermediates = os.environ.get("HIMAWARI_OUTPUT_MODE", "display").strip().lower() == "debug"
     if bands is None and extent is None and resolution == LATLON_RESOLUTION and composites:
         if meta := _read_reusable_scene_metadata(scene_dir):
-            return meta
+            # 检查缓存结果是否覆盖了 raw 文件中的所有波段
+            # 避免 B13-only 部分解析结果被误认为"已完成"
+            raw_bands = {info["band"] for f in files if (info := parse_hsd_filename(f.name))}
+            cached_bands = set(meta.get("loaded_bands", []))
+            if cached_bands and cached_bands == raw_bands:
+                return meta
 
     from satpy import Scene
 
@@ -1544,27 +1940,81 @@ def process_scene(
         raise ValueError("HSD 场景中没有可解析的 AHI B01-B16 通道。")
     variables: list[dict[str, Any]] = []
     resampled_arrays: dict[str, np.ndarray] = {}
-    for index, band in enumerate(load_bands, start=1):
-        _emit_progress(
-            progress_callback,
-            stage="processing_band",
-            phase=phase,
-            scene_id=scene_id,
-            band=band,
-            file=f"{band}.png",
-            detail=f"解析并重采样 {band}",
-            queue_done=index - 1,
-            queue_total=len(load_bands),
-        )
+
+    # 批量加载波段：每批 4 个波段共享一个 Scene，减少 HSD 文件重复解析
+    # 16 波段 → 4 次 Scene 创建（原为 16 次），I/O 减少 75%
+    _BAND_BATCH_SIZE = 4
+    band_index = 0
+    for batch_start in range(0, len(load_bands), _BAND_BATCH_SIZE):
+        batch = load_bands[batch_start:batch_start + _BAND_BATCH_SIZE]
         scene = Scene(reader="ahi_hsd", filenames=filenames)
-        scene.load([band])
-        values = _resample_dataset_to_latlon(scene[band], grid)
-        variables.append(write_latlon_variable(scene_dir, band, values, grid, save_intermediates=save_intermediates))
-        if composites:
-            resampled_arrays[band] = values
-        del scene, values
+        scene.load(batch)
+        for band in batch:
+            band_index += 1
+            _emit_progress(
+                progress_callback,
+                stage="processing_band",
+                phase=phase,
+                scene_id=scene_id,
+                band=band,
+                file=f"{band}{DISPLAY_IMAGE_SUFFIX}",
+                detail=f"解析并重采样 {band}",
+                queue_done=band_index - 1,
+                queue_total=len(load_bands),
+            )
+            values = _resample_dataset_to_latlon(scene[band], grid)
+            variables.append(write_latlon_variable(scene_dir, band, values, grid, save_intermediates=save_intermediates))
+            write_incremental_scene_metadata(
+                scene_dir,
+                date,
+                time,
+                scene_info["satellite"],
+                raw_dir,
+                len(files),
+                grid,
+                variables,
+                [],
+                retention_managed=retention_managed,
+            )
+            if composites:
+                resampled_arrays[band] = values
+        del scene
     _emit_progress(progress_callback, stage="compositing", phase=phase, scene_id=scene_id, detail="生成 RGB 合成产品")
     composite_meta = write_composites(scene_dir, resampled_arrays) if composites else []
+
+    # 生成瑞利散射校正后的真彩色（替换手动合成的 true_color）
+    if resampled_arrays and all(b in resampled_arrays for b in ("B01", "B02", "B03")):
+        obs_time = f"{date[:4]}-{date[4:6]}-{date[6:8]}T{time[:2]}:{time[2:4]}:00Z"
+        rgb = _create_rayleigh_corrected_true_color(resampled_arrays, grid, observation_time=obs_time)
+        if rgb is not None:
+            png_path = scene_dir / "composites" / f"true_color{DISPLAY_IMAGE_SUFFIX}"
+            _save_rgb_png(rgb, png_path)
+            catalog = COMPOSITE_CATALOG.get("true_color", {})
+            desc_zh, desc_en = _description_pair("true_color", catalog)
+            tc_meta = {
+                "name": "true_color",
+                "name_cn": catalog.get("name_zh", "真彩色云图（瑞利校正）"),
+                "description": desc_zh or "瑞利散射校正后的真彩色云图",
+                "description_zh": desc_zh or "瑞利散射校正后的真彩色云图",
+                "description_en": desc_en or "Rayleigh-corrected true color composite",
+                "source_bands": catalog.get("source_bands", ["B03", "B02", "B01"]),
+                "product_type": "composite",
+                "render_mode": "rgb",
+                "is_rgb": True,
+                "show_colorbar": False,
+                "unit": "-",
+                "display_unit": "RGB合成（瑞利校正）",
+                "shape": [rgb.shape[0], rgb.shape[1], rgb.shape[2]],
+                "dims": ["lat", "lon", "rgb"],
+                "stats": {"min": None, "max": None, "mean": None, "std": None},
+                "float32": None,
+                "netcdf": None,
+                "png": png_path.as_posix(),
+            }
+            # 替换已有 true_color 条目（来自 write_composites 的空壳）
+            composite_meta = [c for c in composite_meta if c.get("name") != "true_color"]
+            composite_meta.append(tc_meta)
+
     _emit_progress(progress_callback, stage="writing_meta", phase=phase, scene_id=scene_id, detail="写入 scene.meta.json")
     return write_scene_metadata(scene_dir, date, time, scene_info["satellite"], raw_dir, len(files), grid, variables, composite_meta, retention_managed=retention_managed)
 
@@ -1595,7 +2045,7 @@ def main() -> int:
     parser.add_argument("--overwrite", action="store_true", help="重新下载并覆盖已有 HSD 文件")
     parser.add_argument("--parse-after-download", action="store_true", help="下载完成后立即调用现有解析流程")
     parser.add_argument("--keep-raw", action="store_true", help="下载后解析成功也保留 HSD raw 文件；默认解析成功后删除 raw")
-    parser.add_argument("--retention-hours", type=int, default=DEFAULT_WINDOW_HOURS, help="解析结果窗口小时数，默认 24")
+    parser.add_argument("--retention-hours", type=int, default=DEFAULT_WINDOW_HOURS, help="解析结果窗口小时数，默认 1")
     parser.add_argument("--ftp-host", default=None, help="默认读取 HIMAWARI_FTP_HOST 或 ftp.ptree.jaxa.jp")
     parser.add_argument("--ftp-root", default=None, help="默认读取 HIMAWARI_FTP_ROOT 或 /jma/hsd，支持 {yyyymm}/{dd}/{time} 模板")
     args = parser.parse_args()

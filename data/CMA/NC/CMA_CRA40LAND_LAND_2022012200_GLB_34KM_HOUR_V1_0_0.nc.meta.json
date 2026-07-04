@@ -1,0 +1,1752 @@
+{
+  "schema_version": "1.0",
+  "file": "CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc",
+  "element": "Tair_f_inst - air temperature",
+  "time": "2022-01-22 00:00",
+  "level": "4 soil profile layers",
+  "range": "116.5625E-121.8750E, 31.0668N-34.8135N",
+  "grid": "18 x 13",
+  "missing": "-9999.0",
+  "unit": "K",
+  "vars": "52",
+  "steps": "1",
+  "extent": [
+    116.5625,
+    31.06679916381836,
+    121.875,
+    34.813499450683594
+  ],
+  "dataset_id": "CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0_nc",
+  "data_type": "CMA",
+  "file_format": "NC",
+  "source_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/CMA/NC/CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc",
+  "meta_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/CMA/NC/CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc.meta.json",
+  "png_files": [],
+  "default_png": null,
+  "default_variable": "Tair_f_inst",
+  "variables": [
+    {
+      "name": "SoilMoist_profiles",
+      "long_name": "SoilMoist_profiles",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": null,
+      "display_unit": null,
+      "shape": [
+        4
+      ],
+      "dims": [],
+      "level": null,
+      "missing": "",
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SoilMoist_profiles&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SoilTemp_profiles",
+      "long_name": "SoilTemp_profiles",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": null,
+      "display_unit": null,
+      "shape": [
+        4
+      ],
+      "dims": [],
+      "level": null,
+      "missing": "",
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SoilTemp_profiles&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SmLiqFrac_profiles",
+      "long_name": "SmLiqFrac_profiles",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": null,
+      "display_unit": null,
+      "shape": [
+        4
+      ],
+      "dims": [],
+      "level": null,
+      "missing": "",
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SmLiqFrac_profiles&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Swnet_tavg",
+      "long_name": "net downward shortwave radiation",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "W m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Swnet_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Lwnet_tavg",
+      "long_name": "net downward longwave radiation",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "W m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Lwnet_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Qle_tavg",
+      "long_name": "latent heat flux",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "W m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Qle_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Qh_tavg",
+      "long_name": "sensible heat flux",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "W m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Qh_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Qg_tavg",
+      "long_name": "soil heat flux",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "W m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Qg_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Snowf_tavg",
+      "long_name": "snowfall rate",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Snowf_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Rainf_tavg",
+      "long_name": "total precipitation",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": 8e-06,
+        "max": 0.000214,
+        "mean": 5.8e-05,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Rainf_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Evap_tavg",
+      "long_name": "total evapotranspiration",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Evap_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Qs_tavg",
+      "long_name": "surface runoff",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Qs_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Qsb_tavg",
+      "long_name": "subsurface runoff amount",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Qsb_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Qsm_tavg",
+      "long_name": "snowmelt",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Qsm_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "AvgSurfT_tavg",
+      "long_name": "surface temperature",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "K",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=AvgSurfT_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "AvgSurfT_inst",
+      "long_name": "surface temperature",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "K",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": 272.237732,
+        "max": 281.417725,
+        "mean": 276.41395,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=AvgSurfT_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "RadT_tavg",
+      "long_name": "surface radiative temperature",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "K",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=RadT_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "RadT_inst",
+      "long_name": "surface radiative temperature",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "K",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=RadT_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Albedo_tavg",
+      "long_name": "surface albedo",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Albedo_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SWE_tavg",
+      "long_name": "snow water equivalent",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SWE_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SWE_inst",
+      "long_name": "snow water equivalent",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SWE_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SnowDepth_tavg",
+      "long_name": "snow depth",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "m",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SnowDepth_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SoilMoist_tavg",
+      "long_name": "soil moisture content",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "m^3 m-3",
+      "display_unit": null,
+      "shape": [
+        4,
+        13,
+        18
+      ],
+      "dims": [
+        "profile",
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SoilMoist_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SoilMoist_inst",
+      "long_name": "soil moisture content",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "m^3 m-3",
+      "display_unit": null,
+      "shape": [
+        4,
+        13,
+        18
+      ],
+      "dims": [
+        "profile",
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SoilMoist_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SoilTemp_tavg",
+      "long_name": "soil temperature",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "K",
+      "display_unit": null,
+      "shape": [
+        4,
+        13,
+        18
+      ],
+      "dims": [
+        "profile",
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SoilTemp_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SoilTemp_inst",
+      "long_name": "soil temperature",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "K",
+      "display_unit": null,
+      "shape": [
+        4,
+        13,
+        18
+      ],
+      "dims": [
+        "profile",
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SoilTemp_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SmLiqFrac_tavg",
+      "long_name": "average layer fraction of liquid moisture",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "m^3 m-3",
+      "display_unit": null,
+      "shape": [
+        4,
+        13,
+        18
+      ],
+      "dims": [
+        "profile",
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SmLiqFrac_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SmLiqFrac_inst",
+      "long_name": "average layer fraction of liquid moisture",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "m^3 m-3",
+      "display_unit": null,
+      "shape": [
+        4,
+        13,
+        18
+      ],
+      "dims": [
+        "profile",
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SmLiqFrac_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SoilWet_tavg",
+      "long_name": "total soil wetness",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SoilWet_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SoilWet_inst",
+      "long_name": "total soil wetness",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SoilWet_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "PotEvap_tavg",
+      "long_name": "potential evapotranspiration",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=PotEvap_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "ECanop_tavg",
+      "long_name": "interception evaporation",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=ECanop_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "TVeg_tavg",
+      "long_name": "vegetation transpiration",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=TVeg_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "ESoil_tavg",
+      "long_name": "bare soil evaporation",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=ESoil_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "CanopInt_tavg",
+      "long_name": "total canopy water storage",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=CanopInt_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "CanopInt_inst",
+      "long_name": "total canopy water storage",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=CanopInt_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SubSnow_tavg",
+      "long_name": "snow sublimation",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SubSnow_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SnowCover_tavg",
+      "long_name": "snow cover",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SnowCover_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Wind_f_inst",
+      "long_name": "wind speed",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "m s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": 0.560786,
+        "max": 4.012378,
+        "mean": 2.613985,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Wind_f_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Rainf_f_tavg",
+      "long_name": "rainfall flux",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Rainf_f_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Tair_f_inst",
+      "long_name": "air temperature",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "K",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": 274.383636,
+        "max": 281.903564,
+        "mean": 278.323132,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Tair_f_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Qair_f_inst",
+      "long_name": "specific humidity",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg kg-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": 0.003561,
+        "max": 0.006261,
+        "mean": 0.004543,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Qair_f_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Psurf_f_inst",
+      "long_name": "surface pressure",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "Pa",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": 96722.164062,
+        "max": 102360.867188,
+        "mean": 101886.437372,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Psurf_f_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SWdown_f_tavg",
+      "long_name": "surface downward shortwave radiation",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "W m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": 0.0,
+        "max": 31.486319,
+        "mean": 9.818789,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SWdown_f_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "SWdown_f_inst",
+      "long_name": "surface downward shortwave radiation",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "W m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=SWdown_f_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "LWdown_f_tavg",
+      "long_name": "surface downward longwave radiation",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "W m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=LWdown_f_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "LWdown_f_inst",
+      "long_name": "surface downward longwave radiation",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "W m-2",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=LWdown_f_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Landmask_inst",
+      "long_name": "landmask",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Landmask_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Landcover_inst",
+      "long_name": "landcover",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Landcover_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Soiltype_inst",
+      "long_name": "soiltype",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Soiltype_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "Tempbot_inst",
+      "long_name": "bottom temperature",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "K",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": null,
+        "max": null,
+        "mean": null,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=Tempbot_inst&level_index=0",
+      "netcdf": null,
+      "png": null
+    },
+    {
+      "name": "TotalPrecip_tavg",
+      "long_name": "precipitation amount",
+      "short_name": null,
+      "raw_name": null,
+      "name_cn": null,
+      "unit": "kg m-2 s-1",
+      "display_unit": null,
+      "shape": [
+        13,
+        18
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "level": null,
+      "missing": -9999.0,
+      "stats": {
+        "min": 8e-06,
+        "max": 0.000214,
+        "mean": 5.8e-05,
+        "std": null
+      },
+      "category": null,
+      "description": null,
+      "wavelength": null,
+      "float32": "/api/cma/grid?file=CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc&variable=TotalPrecip_tavg&level_index=0",
+      "netcdf": null,
+      "png": null
+    }
+  ],
+  "composites": [],
+  "times": [
+    "2022-01-22T00:00:00Z"
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "file": "CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc",
+      "source_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/CMA/NC/CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc",
+      "time": "2022-01-22T00:00:00Z",
+      "raw_time": "2022012200",
+      "time_label": "2022-01-22 00:00",
+      "extent": [
+        116.5625,
+        31.06679916381836,
+        121.875,
+        34.813499450683594
+      ]
+    }
+  ],
+  "levels": [
+    "4 soil profile layers"
+  ],
+  "bbox": [
+    116.5625,
+    31.06679916381836,
+    121.875,
+    34.813499450683594
+  ],
+  "weather_info": {
+    "source": "CMA",
+    "product": "CMA-RA/Land 陆面分析数据（NC）",
+    "element": "Tair_f_inst - air temperature",
+    "time": "2022-01-22 00:00",
+    "level": "4 soil profile layers",
+    "range": "116.5625E-121.8750E, 31.0668N-34.8135N",
+    "resolution": "0.3125° x 0.312225°",
+    "grid": "18 x 13",
+    "valid_grid": "18 x 13",
+    "validGrid": "18 x 13",
+    "coverage": "zhihuiqixiangSQL 34KM",
+    "missing": "-9999.0",
+    "unit": "K",
+    "variable_count": 52,
+    "step_count": 1,
+    "vars": "52",
+    "variables": "52",
+    "steps": "1",
+    "status": "已解析",
+    "quality": "基础元数据解析完成",
+    "max": "281.904",
+    "min": "274.384",
+    "mean": "278.323",
+    "alert": "无",
+    "updated_at": "2026-07-01T08:06:48.553516+00:00",
+    "bars": [
+      274.384,
+      276.264,
+      278.144,
+      280.024,
+      281.904
+    ],
+    "bars_labels": [],
+    "trend": [
+      278.323132
+    ],
+    "trend_times": [
+      "2022-01-22T00:00:00Z"
+    ]
+  },
+  "file_detail": {
+    "name": "CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc",
+    "path": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/CMA/NC/CMA_CRA40LAND_LAND_2022012200_GLB_34KM_HOUR_V1_0_0.nc",
+    "format": "NC",
+    "parsed_at": "2026-07-01T08:06:48.554734+00:00",
+    "parse_status": "success",
+    "file_count": 1
+  },
+  "time_detail": {
+    "start": "2022-01-22T00:00:00Z",
+    "end": "2022-01-22T00:00:00Z",
+    "count": 1,
+    "step_seconds": null,
+    "reference_time": null
+  },
+  "spatial": {
+    "lon_min": 116.5625,
+    "lon_max": 121.875,
+    "lat_min": 31.06679916381836,
+    "lat_max": 34.813499450683594,
+    "resolution_lon": 0.3125,
+    "resolution_lat": 0.312225,
+    "nx": 18,
+    "ny": 13
+  },
+  "extra": {
+    "status": "parsed",
+    "generated_at": "2026-07-01T08:06:48.554745+00:00",
+    "note": "CMA CRA40-Land metadata generated by cma_adapter.py.",
+    "cma": {
+      "product_type": "LAND_NC",
+      "product_name": "CMA-RA/Land 陆面分析数据（NC）",
+      "primary_variable": "Tair_f_inst",
+      "primary_unit": "K"
+    },
+    "era5": {},
+    "gfs": {},
+    "himawari": {},
+    "radar": {},
+    "wrf": {}
+  }
+}

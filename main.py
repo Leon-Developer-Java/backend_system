@@ -196,6 +196,12 @@ def himawari_auto_status() -> dict[str, Any]:
     return ok(himawari_scheduler.get_himawari_auto_status())
 
 
+@app.get("/api/himawari/auto-log")
+def himawari_auto_log(lines: int = Query(default=200, ge=1, le=1000)) -> dict[str, Any]:
+    log_lines = himawari_scheduler.read_himawari_auto_log(lines=lines)
+    return ok({"lines": log_lines, "count": len(log_lines)})
+
+
 @app.post("/api/files/parse")
 def parse_file(
     file: UploadFile | None = File(default=None),

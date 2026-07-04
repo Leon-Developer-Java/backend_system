@@ -1,6 +1,8 @@
 import asyncio
+import logging
 import os
 from datetime import datetime, timedelta, timezone
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from threading import Lock
 from typing import Any, Callable
@@ -9,11 +11,17 @@ from adapters import himawari_adapter
 
 
 FALSE_VALUES = {"0", "false", "no", "off"}
-DEFAULT_DOWNLOAD_MAX_JOBS_PER_RUN = 12
+DEFAULT_DOWNLOAD_MAX_JOBS_PER_RUN = 25
 DOWNLOAD_STAGES = {"connecting", "listing", "downloading"}
 PARSE_STAGES = {"parsing", "processing_band", "compositing", "writing_meta", "cleanup_raw"}
 CLEAR_SCENE_STAGES = {"downloaded", "parsed", "failed", "error"}
 STATE_LOCK = Lock()
+LOG_LOCK = Lock()
+LOG_DIR = Path(__file__).resolve().parents[1] / "logs"
+LOG_FILE = LOG_DIR / "himawari_auto.log"
+LOG_MAX_BYTES = 5 * 1024 * 1024
+LOG_BACKUP_COUNT = 3
+_LOGGER_CACHE: dict[str, logging.Logger] = {}
 
 
 def _worker_state() -> dict[str, Any]:
@@ -64,6 +72,64 @@ def _utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _log_path(log_file: str | Path | None = None) -> Path:
+    return Path(log_file) if log_file else LOG_FILE
+
+
+def _logger_for(log_file: str | Path | None = None) -> logging.Logger:
+    path = _log_path(log_file)
+    key = str(path.resolve())
+    with LOG_LOCK:
+        logger = _LOGGER_CACHE.get(key)
+        if logger:
+            return logger
+        path.parent.mkdir(parents=True, exist_ok=True)
+        logger = logging.getLogger(f"himawari.auto.{abs(hash(key))}")
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+        handler = RotatingFileHandler(
+            path,
+            maxBytes=LOG_MAX_BYTES,
+            backupCount=LOG_BACKUP_COUNT,
+            encoding="utf-8",
+        )
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+        logger.addHandler(handler)
+        _LOGGER_CACHE[key] = logger
+        return logger
+
+
+def _format_log_fields(fields: dict[str, Any]) -> str:
+    parts = []
+    for key, value in fields.items():
+        if value is None:
+            continue
+        lowered = key.lower()
+        if "password" in lowered or "token" in lowered or "secret" in lowered:
+            continue
+        parts.append(f"{key}={value}")
+    return "" if not parts else " | " + " ".join(parts)
+
+
+def write_himawari_log(
+    message: str,
+    *,
+    level: int = logging.INFO,
+    log_file: str | Path | None = None,
+    **fields: Any,
+) -> None:
+    logger = _logger_for(log_file)
+    logger.log(level, "%s%s", message, _format_log_fields(fields))
+
+
+def read_himawari_auto_log(lines: int = 200, log_file: str | Path | None = None) -> list[str]:
+    path = _log_path(log_file)
+    if not path.exists():
+        return []
+    safe_lines = max(1, min(int(lines or 200), 1000))
+    return [line.rstrip("\n") for line in path.read_text(encoding="utf-8", errors="replace").splitlines()[-safe_lines:]]
+
+
 def _summarize_result(result: dict[str, Any]) -> dict[str, Any]:
     errors = result.get("errors", [])
     return {
@@ -75,7 +141,6 @@ def _summarize_result(result: dict[str, Any]) -> dict[str, Any]:
         "error_count": len(errors),
         "error_samples": errors[:3],
         "removed_part_count": len(result.get("removed_part_files", [])),
-        "removed_raw_count": len(result.get("removed_raw_dirs", [])),
         "removed_expired_count": len(result.get("removed_expired", [])),
         "phase": result.get("phase"),
         "stopped": result.get("stopped"),
@@ -151,6 +216,17 @@ def update_himawari_progress(event: dict[str, Any]) -> None:
             worker.update(update)
         _update_active_items(event)
         _STATE.update(update)
+    write_himawari_log(
+        event.get("detail") or "Himawari 自动处理状态更新",
+        worker=worker_name,
+        stage=update["stage"],
+        phase=update["current_phase"],
+        scene_id=update["current_scene"],
+        file=update["current_file"],
+        band=update["current_band"],
+        queue_done=update["queue_done"],
+        queue_total=update["queue_total"],
+    )
 
 
 def _active_items(key: str) -> list[dict[str, Any]]:
@@ -237,21 +313,12 @@ def _max_workers_env(env: dict[str, str]) -> int:
 
 
 def _file_workers_env(env: dict[str, str]) -> int:
-    return max(1, min(_int_env(env, "HIMAWARI_FILE_WORKERS", 4), 4))
+    return max(1, min(_int_env(env, "HIMAWARI_FILE_WORKERS", 8), 12))
 
 
 def _bands_env(env: dict[str, str]) -> list[str] | None:
-    value = env.get("HIMAWARI_BANDS", "")
-    bands = [item.strip().upper() for item in value.split(",") if item.strip()]
     target = list(himawari_adapter.HIMAWARI_TARGET_BANDS)
-    if not bands:
-        return target
-    selected = [item for item in bands if item in target]
-    return selected or target
-
-
-def _quick_bands_env(env: dict[str, str]) -> list[str] | None:
-    return _bands_env(env)
+    return target
 
 
 def _credentials_ready(env: dict[str, str]) -> bool:
@@ -269,7 +336,6 @@ def _config(env: dict[str, str], queue: str) -> dict[str, Any]:
         "max_workers": _max_workers_env(env),
         "queue": queue,
         "bands": _bands_env(env),
-        "quick_bands": _bands_env(env),
         "file_workers": _file_workers_env(env),
         "host": env.get("HIMAWARI_FTP_HOST", "").strip() or None,
         "user": env.get("HIMAWARI_FTP_USER", "").strip() or None,
@@ -287,6 +353,7 @@ async def run_himawari_auto_download_once(
     if not _credentials_ready(env):
         message = "请设置 HIMAWARI_FTP_USER 和 HIMAWARI_FTP_PASSWORD。"
         _STATE.update({"state": "waiting_credentials", "running": False, "stage": "waiting_credentials", "last_error": message})
+        write_himawari_log("自动下载未启动", level=logging.WARNING, stage="waiting_credentials", detail=message)
         print(f"[Himawari] 自动下载未启动：{message}")
         return None
     queue = queue.lower()
@@ -309,6 +376,16 @@ async def run_himawari_auto_download_once(
     }
     worker.update(reset_fields)
     _STATE.update({**reset_fields, "last_started_at": started_at})
+    write_himawari_log(
+        "自动下载轮次开始",
+        worker=queue,
+        stage="starting",
+        phase=queue,
+        max_jobs=config["max_jobs_per_run"],
+        max_workers=config["max_workers"],
+        file_workers=config["file_workers"],
+        bands=",".join(config["bands"] or []),
+    )
 
     def progress(event: dict[str, Any]) -> None:
         update_himawari_progress({"worker": queue, **event})
@@ -319,6 +396,7 @@ async def run_himawari_auto_download_once(
         finished_at = _utc_iso()
         worker.update({"state": "error", "running": False, "stage": "error", "last_finished_at": finished_at, "last_error": str(exc)})
         _STATE.update({"state": "error", "running": _any_worker_running(), "stage": "error", "last_finished_at": finished_at, "last_error": str(exc)})
+        write_himawari_log("自动下载轮次异常", level=logging.ERROR, worker=queue, stage="error", error=str(exc))
         raise
     summary = _summarize_result(result)
     finished_at = _utc_iso()
@@ -347,6 +425,17 @@ async def run_himawari_auto_download_once(
         f"跳过 {summary['skipped_count']}，"
         f"错误 {summary['error_count']}"
     )
+    write_himawari_log(
+        "自动下载轮次完成",
+        worker=queue,
+        stage="completed",
+        downloaded=summary["downloaded_count"],
+        processed_raw=summary["processed_raw_count"],
+        skipped=summary["skipped_count"],
+        errors=summary["error_count"],
+        removed_part=summary["removed_part_count"],
+        removed_expired=summary["removed_expired_count"],
+    )
     return result
 
 
@@ -372,6 +461,7 @@ async def himawari_auto_download_worker_loop(
             worker = _STATE["workers"].setdefault(queue, _worker_state())
             worker.update({"state": "error", "running": False, "stage": "error", "last_finished_at": finished_at, "last_error": str(exc)})
             _STATE.update({"state": "error", "running": _any_worker_running(), "stage": "error", "last_finished_at": finished_at, "last_error": str(exc)})
+            write_himawari_log("自动下载循环异常", level=logging.ERROR, worker=queue, stage="error", error=str(exc))
             print(f"[Himawari] 自动下载异常：{exc}")
         interval_seconds = _worker_interval_seconds(env, queue)
         next_run = datetime.now(timezone.utc) + timedelta(seconds=interval_seconds)
@@ -398,6 +488,7 @@ def start_himawari_auto_download(
     env = environ or os.environ
     if not auto_download_enabled(env):
         _STATE.update({"state": "disabled", "running": False})
+        write_himawari_log("自动下载已关闭", stage="disabled")
         print("[Himawari] 自动下载已关闭：HIMAWARI_AUTO_DOWNLOAD=0。")
         return None
     _STATE["workers"] = {"download": _worker_state()}
@@ -412,9 +503,11 @@ def start_himawari_auto_download(
     cleanup_result = {}
     if removed_raw:
         cleanup_result["removed_raw_count"] = len(removed_raw)
+        write_himawari_log("启动前清理 raw 原始目录", stage="startup_cleanup", removed_raw=len(removed_raw))
         print(f"[Himawari] 启动前清理 raw 原始目录：{len(removed_raw)}")
     if removed_expired:
         cleanup_result["removed_expired_count"] = len(removed_expired)
+        write_himawari_log("启动前清理过期自动结果", stage="startup_cleanup", removed_expired=len(removed_expired))
         print(f"[Himawari] 启动前清理过期自动结果：{len(removed_expired)}")
     if cleanup_result:
         _STATE["last_result"] = cleanup_result
