@@ -116,6 +116,9 @@ def detect_intent(text: str) -> str:
         return "query"
     if any(k in text for k in ["删除", "清理", "硬删除", "软删除"]):
         return "delete_guard"
+    if any(k in zh for k in ["双源", "全部数据源", "所有数据源", "对比", "比较"]) or ("GFS" in text.upper() and ("ECMWF" in text.upper() or "EC" in text.upper())):
+        return "compare_sources"
+
     if any(k in zh for k in ["生成图表", "图表", "出图", "展示图", "显示图", "画图"]) or "/生成图表" in t or "chart" in t or "image" in t:
         return "chart"
 
@@ -381,6 +384,89 @@ async def handle_download(text: str) -> AsyncGenerator[str, None]:
     yield done_event()
 
 
+
+async def handle_compare_sources(text: str) -> AsyncGenerator[str, None]:
+    sources = ["GFS", "ECMWF"]
+
+    yield text_event("正在同时检查 GFS 和 ECMWF 数据状态...\n")
+    yield tool_event("compare_sources", "启动双源状态检查", 10, "GFS + ECMWF")
+
+    rows = []
+    for i, source in enumerate(sources, start=1):
+        yield tool_event("compare_sources", f"检查 {source}", 10 + i * 30)
+
+        display = await fetch_display(source)
+        audit = audit_assets(source)
+
+        if display.get("ok"):
+            info = display.get("info") or {}
+            rows.append({
+                "source": source,
+                "ok": True,
+                "status": info.get("status"),
+                "format": info.get("image_format"),
+                "webp": info.get("webp_count"),
+                "png": info.get("png_count"),
+                "times": info.get("time_count"),
+                "image_url": info.get("image_url"),
+                "grib2": audit["counts"]["grib2"],
+                "meta_json": audit["counts"]["meta_json"],
+                "float32": audit["counts"]["float32"],
+            })
+        else:
+            rows.append({
+                "source": source,
+                "ok": False,
+                "status": "error",
+                "format": "unknown",
+                "webp": 0,
+                "png": 0,
+                "times": 0,
+                "image_url": "",
+                "grib2": audit["counts"]["grib2"],
+                "meta_json": audit["counts"]["meta_json"],
+                "float32": audit["counts"]["float32"],
+                "error": display.get("summary"),
+            })
+
+    yield tool_event("compare_sources", "双源检查完成", 100, "GFS + ECMWF", status="done")
+
+    lines = []
+    lines.append("| 数据源 | 接口 | 主展示 | WEBP | PNG | 时次 | GRIB2 | meta.json | float32 |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+
+    for r in rows:
+        ok_text = "正常" if r["ok"] else "异常"
+        lines.append(
+            f"| {r['source']} | {ok_text} | {r['format']} | {r['webp']} | {r['png']} | {r['times']} | {r['grib2']} | {r['meta_json']} | {r['float32']} |"
+        )
+
+    summary = "\n".join(lines)
+
+    all_ok = all(r["ok"] for r in rows)
+    all_webp = all(str(r["format"]).lower() == "webp" for r in rows if r["ok"])
+
+    conclusion = []
+    if all_ok:
+        conclusion.append("GFS 和 ECMWF 展示接口均正常。")
+    else:
+        conclusion.append("至少一个数据源展示接口异常，需要检查 8002 主后端。")
+
+    if all_webp:
+        conclusion.append("两个数据源当前主展示均为 WEBP。")
+    else:
+        conclusion.append("至少一个数据源主展示格式不是 WEBP 或未能识别。")
+
+    yield text_event(
+        "## GFS / ECMWF 双源状态对比\n\n"
+        + summary
+        + "\n\n## 结论\n"
+        + "\n".join(f"- {x}" for x in conclusion)
+    )
+
+    yield done_event()
+
+
 async def handle_chart(text: str) -> AsyncGenerator[str, None]:
     source = normalize_source(text)
     yield text_event(f"正在生成 {source} 当前预报图层展示...\n")
@@ -502,6 +588,9 @@ async def chat(req: AgentChatRequest):
                 async for item in handle_diagnose(text): yield item
             elif intent == "check_format":
                 async for item in handle_check_format(text): yield item
+            elif intent == "compare_sources":
+                async for item in handle_compare_sources(text):
+                    yield item
             elif intent == "chart":
                 async for item in handle_chart(text):
                     yield item
