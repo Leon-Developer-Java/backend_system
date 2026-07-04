@@ -2,12 +2,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-import matplotlib
 import numpy as np
 import xarray as xr
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+from PIL import Image
 
 from adapters.base import build_dataset_id, write_meta
 
@@ -18,6 +15,17 @@ TIME_NAMES = ("valid_time", "time")
 LEVEL_NAMES = ("pressure_level", "level", "isobaricInhPa", "plev")
 PREFERRED_VARIABLES = ("t2m", "tp", "sp", "u10", "v10", "ssrd")
 NODATA = -999999.0
+WEBP_ALPHA = 200
+COLOR_STOPS = np.asarray(
+    [
+        [37, 99, 235],
+        [8, 145, 178],
+        [22, 163, 74],
+        [250, 204, 21],
+        [220, 38, 38],
+    ],
+    dtype=np.float32,
+)
 
 VARIABLE_LABELS: dict[str, str] = {
     "t2m": "2 metre temperature",
@@ -186,29 +194,30 @@ def _public_data_path(path: Path) -> str:
     return normalized[idx:] if idx >= 0 else normalized
 
 
-def _generate_png(data: np.ndarray, lon: np.ndarray, lat: np.ndarray, output_path: Path, label: str, unit: str) -> Path:
-    masked = np.ma.masked_where(data <= NODATA + 1, data)
-    extent = [float(lon.min()), float(lon.max()), float(lat.min()), float(lat.max())]
+def _rgba_from_grid(data: np.ndarray, stats: dict[str, float]) -> np.ndarray:
+    valid_mask = np.isfinite(data) & (data > NODATA + 1)
+    min_value = float(stats.get("min", 0.0))
+    max_value = float(stats.get("max", 1.0))
+    span = max(max_value - min_value, 0.000001)
+    normalized = np.clip((data.astype(np.float32) - min_value) / span, 0.0, 1.0)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    img = ax.imshow(masked, origin="upper", extent=extent, cmap="viridis", aspect="auto")
-    ax.set_xlabel("longitude")
-    ax.set_ylabel("latitude")
-    ax.set_xlim(extent[0], extent[1])
-    ax.set_ylim(extent[2], extent[3])
-    ax.grid(True, linestyle="--", alpha=0.25)
-    cbar = plt.colorbar(img, ax=ax, shrink=0.7, pad=0.05)
-    cbar.set_label(f"{label} ({unit})" if unit else label)
+    scaled = normalized * (len(COLOR_STOPS) - 1)
+    low = np.floor(scaled).astype(np.int16)
+    low = np.clip(low, 0, len(COLOR_STOPS) - 2)
+    high = low + 1
+    local = (scaled - low)[..., None]
+    rgb = COLOR_STOPS[low] + (COLOR_STOPS[high] - COLOR_STOPS[low]) * local
 
+    rgba = np.zeros((*data.shape, 4), dtype=np.uint8)
+    rgba[..., :3] = np.clip(rgb, 0, 255).astype(np.uint8)
+    rgba[..., 3] = np.where(valid_mask, WEBP_ALPHA, 0).astype(np.uint8)
+    return rgba
+
+
+def _generate_webp(data: np.ndarray, output_path: Path, stats: dict[str, float]) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(str(output_path), dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    return output_path
-
-
-def _write_float32_grid(source_file: Path, var_name: str, step_index: int, data: np.ndarray) -> Path:
-    output_path = source_file.with_name(f"{source_file.name}_{var_name}_step{step_index:03d}.float32")
-    output_path.write_bytes(np.asarray(data, dtype="<f4").tobytes(order="C"))
+    image = Image.fromarray(_rgba_from_grid(data, stats), mode="RGBA")
+    image.save(str(output_path), format="WEBP", quality=88, method=6)
     return output_path
 
 
@@ -226,21 +235,17 @@ def _build_variable_meta(
     width = int(ds.sizes[_lat_lon_names(ds)[1]])
     height = int(ds.sizes[_lat_lon_names(ds)[0]])
 
-    grid_urls: list[str] = []
+    webp_urls: list[str] = []
     step_stats: list[dict[str, float]] = []
-    png_urls: list[str] = []
 
     for step_index in range(step_count):
-        data, lat, lon = _grid_values(ds, var_name, step_index)
+        data, _, _ = _grid_values(ds, var_name, step_index)
         stats = _stats_from_array(data)
-        grid_path = _write_float32_grid(source_file, var_name, step_index, data)
-        grid_urls.append(_public_data_path(grid_path))
         step_stats.append(stats)
 
-        if step_index == 0:
-            png_path = source_file.with_name(f"{source_file.stem}_{var_name}.png")
-            _generate_png(data, lon, lat, png_path, label, unit)
-            png_urls.append(_public_data_path(png_path))
+        webp_path = source_file.with_name(f"{source_file.stem}_{var_name}_step{step_index:03d}.webp")
+        _generate_webp(data, webp_path, stats)
+        webp_urls.append(_public_data_path(webp_path))
 
     combined = {
         "min": round(float(min(item["min"] for item in step_stats)), 6),
@@ -266,8 +271,8 @@ def _build_variable_meta(
         "description": label,
         "wavelength": None,
         "float32": {
-            "path": grid_urls[0] if grid_urls else None,
-            "paths": grid_urls,
+            "path": None,
+            "paths": [],
             "dtype": "float32",
             "byte_order": "little",
             "width": width,
@@ -280,7 +285,14 @@ def _build_variable_meta(
             "lat_coord": _lat_lon_names(ds)[0],
             "lon_coord": _lat_lon_names(ds)[1],
         },
-        "png": png_urls[0] if png_urls else None,
+        "webp": {
+            "path": webp_urls[0] if webp_urls else None,
+            "paths": webp_urls,
+            "width": width,
+            "height": height,
+            "alpha": WEBP_ALPHA / 255,
+        },
+        "png": webp_urls[0] if webp_urls else None,
     }
 
     layer_meta = {
@@ -290,8 +302,11 @@ def _build_variable_meta(
         "width": width,
         "height": height,
         "extent": bbox,
-        "grid_urls": grid_urls,
-        "png_urls": png_urls,
+        "grid_urls": [],
+        "float32_urls": [],
+        "webp_urls": webp_urls,
+        "image_urls": webp_urls,
+        "png_urls": webp_urls,
         "times": times[:step_count],
         "stats": step_stats,
         "nodata": NODATA,
@@ -330,7 +345,7 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
         default_stats = (default_layer.get("stats") or [{}])[0]
         default_label = default_layer.get("label") or default_var or "ERA5"
         default_unit = default_layer.get("unit") or ""
-        default_png = (default_layer.get("png_urls") or [None])[0]
+        default_webp = (default_layer.get("webp_urls") or default_layer.get("image_urls") or [None])[0]
 
         level_list = _levels(ds)
         weather_info: dict[str, Any] = {
@@ -361,7 +376,12 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
         }
 
         meta_file = source_file.with_name(f"{source_file.name}.meta.json")
-        png_files = [item.get("png") for item in variables if item.get("png")]
+        webp_files = [
+            path
+            for layer in variable_layers.values()
+            for path in (layer.get("webp_urls") or [])
+            if path
+        ]
         meta: dict[str, Any] = {
             "schema_version": "1.0",
             "dataset_id": build_dataset_id(source_file),
@@ -369,8 +389,10 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
             "file_format": "NC",
             "source_file": source_file.as_posix(),
             "meta_file": meta_file.as_posix(),
-            "png_files": png_files,
-            "default_png": default_png,
+            "webp_files": webp_files,
+            "default_webp": default_webp,
+            "png_files": webp_files,
+            "default_png": default_webp,
             "default_variable": default_var,
             "times": times,
             "levels": level_list,
