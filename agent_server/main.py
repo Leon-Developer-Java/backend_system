@@ -52,6 +52,29 @@ def text_event(value: str) -> str:
 def done_event() -> str:
     return ndjson({"type": "done"})
 
+
+def image_event(url: str, caption: str = "") -> str:
+    return ndjson({
+        "type": "image",
+        "url": url,
+        "src": url,
+        "caption": caption,
+        "alt": caption,
+        "urls": [url],
+        "images": [url],
+    })
+
+
+def make_backend_asset_url(url: str) -> str:
+    url = str(url or "").strip()
+    if not url:
+        return ""
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    if url.startswith("/"):
+        return WEATHER_BACKEND + url
+    return WEATHER_BACKEND + "/" + url
+
 def error_event(message: str) -> str:
     return ndjson({"type": "error", "message": message})
 
@@ -74,6 +97,7 @@ def normalize_source(value: str | None) -> str:
 
 def detect_intent(text: str) -> str:
     t = text.strip().lower()
+    zh = text
     if any(k in text for k in ["帮助", "怎么用", "能做什么", "指令"]) or t in {"help", "/help"}:
         return "help"
     if any(k in text for k in ["下载", "更新", "拉取"]) or any(k in t for k in ["download", "update"]):
@@ -92,6 +116,12 @@ def detect_intent(text: str) -> str:
         return "query"
     if any(k in text for k in ["删除", "清理", "硬删除", "软删除"]):
         return "delete_guard"
+    if any(k in zh for k in ["生成图表", "图表", "出图", "展示图", "显示图", "画图"]) or "/生成图表" in t or "chart" in t or "image" in t:
+        return "chart"
+
+    if any(k in zh for k in ["调用模型", "运行模型", "跑模型", "模型推理"]) or "/调用模型" in t:
+        return "call_model"
+
     return "chat"
 
 def parse_lead_params(text: str, source: str) -> dict[str, Any]:
@@ -350,6 +380,81 @@ async def handle_download(text: str) -> AsyncGenerator[str, None]:
         yield text_event(f"⚠️ {source} 下载解析失败。\n\n退出码：{rc}\n\n日志尾部：\n```text\n{tail}\n```")
     yield done_event()
 
+
+async def handle_chart(text: str) -> AsyncGenerator[str, None]:
+    source = normalize_source(text)
+    yield text_event(f"正在生成 {source} 当前预报图层展示...\n")
+    yield tool_event("collect_display", f"读取 /api/display/{source}", 30)
+
+    result = await fetch_display(source)
+
+    if not result["ok"]:
+        yield tool_event("collect_display", "接口异常", 100, result["summary"], status="error")
+        yield text_event(f"⚠️ 无法生成图表：{result['summary']}")
+        yield done_event()
+        return
+
+    info = result["info"]
+    raw_url = info.get("image_url") or ""
+    image_url = make_backend_asset_url(raw_url)
+
+    yield tool_event(
+        "collect_display",
+        "图层资源读取完成",
+        70,
+        f"format={info['image_format']}, url={raw_url}",
+        status="done",
+    )
+
+    if not image_url:
+        yield tool_event("render_image", "图像地址缺失", 100, "后端未返回 image_url/webp_url", status="error")
+        yield text_event(
+            f"⚠️ {source} 后端没有返回可展示图像地址。\n\n"
+            f"请检查 `/api/display/{source}` 返回中是否包含 `image_url` 或 `webp_url`。"
+        )
+        yield done_event()
+        return
+
+    yield tool_event("render_image", "生成图表完成", 100, image_url, status="done")
+
+    yield text_event(
+        f"{source} 当前图层已生成。\n\n"
+        f"- 展示格式：{info['image_format']}\n"
+        f"- WEBP 数量：{info['webp_count']}\n"
+        f"- PNG 兜底数量：{info['png_count']}\n"
+        f"- 图像地址：`{image_url}`\n"
+    )
+
+    yield image_event(image_url, f"{source} 当前预报图层")
+    yield done_event()
+
+
+async def handle_call_model(text: str) -> AsyncGenerator[str, None]:
+    source = normalize_source(text)
+
+    yield text_event(
+        f"已收到 {source} 模型调用请求。\n\n"
+        "当前版本已经接入数据查询、显示诊断、资源审计、图表生成和下载解析。\n"
+        "真实模型推理接口还没有在 8002 主后端注册，所以我暂时不会伪造模型结果。\n"
+    )
+
+    yield tool_event("model_registry", "检查模型调用能力", 60, "pending backend model API")
+
+    yield text_event(
+        "下一步需要在 8002 主后端补一个模型接口，例如：\n\n"
+        "`POST /api/model/run`\n\n"
+        "建议请求参数：\n"
+        "- source: GFS / ECMWF\n"
+        "- variable: t2m / tp / sp / d2m\n"
+        "- lead_time: 0 / 3 / 6 / ...\n"
+        "- model_name: forecast_correction / risk_warning / nowcast\n\n"
+        "等这个接口有了，我就可以把 `/调用模型` 真正接成自动工具调用。"
+    )
+
+    yield tool_event("model_registry", "模型接口尚未接入", 100, "需要后端新增 /api/model/run", status="done")
+    yield done_event()
+
+
 async def handle_delete_guard(text: str) -> AsyncGenerator[str, None]:
     yield text_event("删除/清理属于高风险操作，当前智能体不会直接自动执行。\n\n建议流程：\n1. 先说：`审计 ECMWF 资源完整性`\n2. 确认要删除的数据集和目录\n3. 后续版本可加入确认码，例如 `DELETE_ECMWF_20260702`\n\n当前版本只提供诊断、查询、下载解析和报告生成，不执行自动删除。")
     yield done_event()
@@ -383,10 +488,10 @@ def tools() -> dict[str, Any]:
 @app.post("/api/agent/chat")
 async def chat(req: AgentChatRequest):
     text = last_user_text(req.messages)
-    intent = detect_intent(text)
 
     async def event_stream() -> AsyncGenerator[str, None]:
         try:
+            intent = detect_intent(text)
             if intent == "help":
                 async for item in handle_help(): yield item
             elif intent == "download":
@@ -397,6 +502,12 @@ async def chat(req: AgentChatRequest):
                 async for item in handle_diagnose(text): yield item
             elif intent == "check_format":
                 async for item in handle_check_format(text): yield item
+            elif intent == "chart":
+                async for item in handle_chart(text):
+                    yield item
+            elif intent == "call_model":
+                async for item in handle_call_model(text):
+                    yield item
             elif intent == "report":
                 async for item in handle_report(text): yield item
             elif intent == "query":
