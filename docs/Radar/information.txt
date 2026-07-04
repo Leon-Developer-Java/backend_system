@@ -1,0 +1,13 @@
+# 格式：变量名|英文标签|中文说明|英文说明
+# 说明：
+# 1. 第一列是程序匹配用的雷达变量名。
+# 2. 第二列用于界面或元数据中的英文标签。
+# 3. 第三列用于中文解释说明，尽量面向非专业用户。
+# 4. 第四列用于英文解释说明，前端会放在中文说明下方，不单独开列。
+
+observation.base_ref_cor_log|Reflectivity|反射率表示雷达接收到的降水回波强弱，数值越大通常说明雨滴、冰雹或强对流云体越明显，可用于快速判断降水强度和强回波位置。|Reflectivity indicates the strength of radar echoes from precipitation particles. Higher values usually suggest heavier precipitation, hail, or stronger convective cores.
+observation.prdt_crf_raw_log|Composite reflectivity|组合反射率把不同高度层中的最强回波投影到平面上，适合从整体上查看强降水和强对流区域，比单一高度层更容易发现潜在强天气核心。|Composite reflectivity projects the strongest echo from the vertical column onto a map, making it useful for locating intense precipitation and convective cores.
+observation.base_vel_raw_lin|Radial velocity|径向速度表示目标沿雷达视线方向靠近或远离雷达的速度，可用于识别风场变化、辐合辐散、旋转结构等。正负值代表相对雷达的不同运动方向。|Radial velocity shows motion toward or away from the radar along the radar beam. It is useful for identifying wind shifts, convergence, divergence, and rotation.
+observation.prdt_qpr_mix_lin|Quantitative precipitation estimate|定量降水估计表示雷达根据回波强度等信息估算的降水率，单位通常为毫米每小时，数值越大表示短时降水越强。|Quantitative precipitation estimate represents radar-derived rainfall rate, usually in millimeters per hour. Higher values indicate heavier short-term precipitation.
+observation.prdt_etp_raw_lin|Echo top height|回波顶高表示雷达能够探测到的有效回波最高高度，可反映云体和对流发展高度。数值越高，通常说明对流发展越深厚。|Echo top height is the highest altitude at which radar detects meaningful echoes. Higher values often indicate deeper and stronger convective development.
+observation.prdt_mlt_hgt_pol|Melting layer height|融化层高度表示冰雪粒子开始融化为雨滴附近的高度，也常被理解为雨雪相态转换层。它有助于判断降水相态、亮带位置和不同高度层回波差异。|Melting layer height indicates the altitude near which frozen particles begin melting into raindrops. It helps interpret precipitation type, bright-band signatures, and vertical echo structure.

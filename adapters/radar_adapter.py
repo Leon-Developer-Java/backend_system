@@ -7,7 +7,6 @@ import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
 
 import numpy as np
 import xarray as xr
@@ -16,6 +15,9 @@ from PIL import Image, ImageDraw
 from adapters.base import build_dataset_id, write_meta
 
 
+DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
+DATA_DIR = DATA_ROOT / "Radar"
+INFO_FILE = Path(__file__).resolve().parents[1] / "docs" / "Radar" / "information.txt"
 DEFAULT_RENDER_VAR = "observation.base_ref_cor_log"
 FALLBACK_RENDER_VAR = "observation.prdt_crf_raw_log"
 
@@ -80,10 +82,95 @@ VELOCITY_COLORS = np.array(
     dtype=np.uint8,
 )
 
+QPR_THRESHOLDS = np.array(
+    [0.1, 1, 2.5, 5, 10, 25, 50, 100],
+    dtype=np.float32,
+)
+QPR_COLORS = np.array(
+    [
+        (198, 233, 255, 150),
+        (91, 192, 235, 175),
+        (62, 180, 137, 200),
+        (166, 217, 106, 220),
+        (255, 238, 101, 230),
+        (253, 174, 97, 238),
+        (215, 48, 39, 245),
+        (145, 0, 145, 250),
+    ],
+    dtype=np.uint8,
+)
+
+ETP_THRESHOLDS = np.array(
+    [0, 2, 4, 6, 8, 10, 12, 14, 16, 18],
+    dtype=np.float32,
+)
+ETP_COLORS = np.array(
+    [
+        (230, 245, 255, 130),
+        (171, 217, 233, 165),
+        (116, 173, 209, 190),
+        (69, 117, 180, 210),
+        (253, 224, 144, 220),
+        (253, 174, 97, 230),
+        (244, 109, 67, 238),
+        (215, 48, 39, 245),
+        (165, 0, 38, 248),
+        (92, 0, 110, 250),
+    ],
+    dtype=np.uint8,
+)
+
+MLT_THRESHOLDS = np.array(
+    [0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000],
+    dtype=np.float32,
+)
+MLT_COLORS = np.array(
+    [
+        (68, 1, 84, 150),
+        (72, 35, 116, 170),
+        (64, 67, 135, 190),
+        (52, 94, 141, 205),
+        (41, 120, 142, 218),
+        (32, 144, 140, 228),
+        (34, 167, 132, 235),
+        (68, 190, 112, 240),
+        (121, 209, 81, 245),
+        (189, 223, 38, 248),
+        (253, 231, 37, 250),
+    ],
+    dtype=np.uint8,
+)
+
+RADAR_PRODUCT_INFO = {
+    "observation.base_ref_cor_log": {"code": "DBZH", "name_cn": "反射率", "name_en": "Reflectivity", "unit": "dBZ"},
+    "observation.prdt_crf_raw_log": {"code": "CRF", "name_cn": "组合反射率", "name_en": "Composite reflectivity", "unit": "dBZ"},
+    "observation.base_vel_raw_lin": {"code": "VRAD", "name_cn": "径向速度", "name_en": "Radial velocity", "unit": "m/s"},
+    "observation.prdt_qpr_mix_lin": {"code": "QPR", "name_cn": "定量降水估计", "name_en": "Quantitative precipitation estimate", "unit": "mm/h"},
+    "observation.prdt_etp_raw_lin": {"code": "ETP", "name_cn": "回波顶高", "name_en": "Echo top height", "unit": "km"},
+    "observation.prdt_mlt_hgt_pol": {"code": "MLT", "name_cn": "融化层高度", "name_en": "Melting layer height", "unit": "m"},
+    "observation.base_zdr_cor_log": {"code": "ZDR", "name_cn": "差分反射率", "name_en": "Differential reflectivity", "unit": "dB"},
+    "observation.base_rhv_flt_lin": {"code": "RHV", "name_cn": "相关系数", "name_en": "Correlation coefficient", "unit": ""},
+    "observation.base_kdp_lsf_x_lin": {"code": "KDP", "name_cn": "差分传播相移率", "name_en": "Specific differential phase", "unit": "deg/km"},
+    "observation.prdt_hcl_flt_lin": {"code": "HCL", "name_cn": "水凝物分类", "name_en": "Hydrometeor classification", "unit": ""},
+    "observation.prdt_hcl_srf_lin": {"code": "HCL_SRF", "name_cn": "地面水凝物分类", "name_en": "Surface hydrometeor classification", "unit": ""},
+    "observation.prdt_ccl_raw_lin": {"code": "CCL", "name_cn": "云分类", "name_en": "Cloud classification", "unit": ""},
+}
+
 RADAR_SELECTABLE_PRODUCTS = [
     "observation.base_ref_cor_log",
+    "observation.prdt_crf_raw_log",
     "observation.base_vel_raw_lin",
+    "observation.prdt_qpr_mix_lin",
+    "observation.prdt_etp_raw_lin",
+    "observation.prdt_mlt_hgt_pol",
 ]
+
+RADAR_SINGLE_PRODUCT_LEVEL_LABELS = {
+    "observation.prdt_crf_raw_log": "单层产品",
+    "observation.prdt_qpr_mix_lin": "单层产品",
+    "observation.prdt_etp_raw_lin": "单层产品",
+    "observation.prdt_mlt_hgt_pol": "单层产品",
+}
 
 
 def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
@@ -93,18 +180,19 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
 
     started = time.perf_counter()
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
-    png_file = source_file.with_name(f"{source_file.stem}.png")
 
     try:
         with xr.open_dataset(source_file, decode_times=False) as dataset:
             render_name = _choose_render_variable(dataset)
             render_data, render_mode = _make_render_data(dataset[render_name])
+            default_level_key = _default_level_key(dataset[render_name], render_mode)
+            webp_file = _webp_output_path(source_file, render_name, default_level_key)
             lat_values, lon_values = _lat_lon_for_var(dataset, dataset[render_name])
             extent = _extent(dataset, lat_values, lon_values)
             stations = _stations(dataset)
 
-            _write_radar_png(
-                png_file=png_file,
+            _write_radar_webp(
+                output_file=webp_file,
                 values=render_data,
                 extent=extent,
                 stations=stations,
@@ -121,6 +209,8 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
             total_grid = int(render_data.size)
             coverage = valid_grid / total_grid if total_grid else 0.0
             product_code, product_name, unit = _product_info(render_name)
+            product_meta = _product_meta(render_name)
+            product_catalog = _product_catalog_for_dataset(dataset)
             generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
             render_description = (
                 "vertical maximum value from height layers"
@@ -138,9 +228,15 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 "render": {
                     "variable": render_name,
                     "code": product_code,
+                    "name": product_name,
+                    "name_en": product_meta["name_en"],
                     "mode": render_mode,
                     "description": render_description,
+                    "product_description": product_meta["description"],
+                    "product_description_en": product_meta["description_en"],
                 },
+                "product_catalog": product_catalog,
+                "description_file": INFO_FILE.as_posix(),
             }
             radar_extra = {
                 "radar_name": format_specific["radar_name"],
@@ -150,8 +246,12 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 "render": {
                     "variable": product_code,
                     "raw_name": render_name,
+                    "name": product_name,
+                    "name_en": product_meta["name_en"],
                     "mode": render_mode,
                     "description": render_description,
+                    "product_description": product_meta["description"],
+                    "product_description_en": product_meta["description_en"],
                 },
             }
 
@@ -159,7 +259,12 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 "file": source_file.name,
                 "source": "Radar",
                 "product": "CAP_FMT 组合雷达 NetCDF",
-                "element": f"{product_name} {product_code}",
+                "element": product_meta["label"],
+                "product_code": product_code,
+                "product_name": product_name,
+                "product_name_en": product_meta["name_en"],
+                "element_desc_zh": product_meta["description"],
+                "element_desc_en": product_meta["description_en"],
                 "time": observation_time["display"],
                 "level": _level_text(levels, render_mode),
                 "range": _range_text(extent),
@@ -188,7 +293,7 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 "trend": [],
                 "trend_times": [],
                 "extent": extent,
-                "png": png_file.as_posix(),
+                "webp_url": public_data_path(webp_file),
                 "meta_file": meta_file.as_posix(),
             }
 
@@ -210,9 +315,11 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 "file_format": "RADAR_NC_CAP_FMT",
                 "source_file": source_file.as_posix(),
                 "meta_file": meta_file.as_posix(),
-                "png_files": [png_file.as_posix()],
-                "default_png": png_file.as_posix(),
+                "webp_files": [public_data_path(webp_file)],
+                "default_webp": public_data_path(webp_file),
                 "default_variable": product_code,
+                "product_info": product_meta,
+                "product_catalog": product_catalog,
                 "variables": variables,
                 "composites": [],
                 "times": [observation_time["iso"]],
@@ -260,7 +367,7 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                     "render": {
                         "variable": render_name,
                         "mode": render_mode,
-                        "description": "30 个高度层取垂直最大值合成 PNG" if render_mode == "vertical_max" else "单层产品直接渲染",
+                        "description": "30 个高度层取垂直最大值合成 WEBP" if render_mode == "vertical_max" else "单层产品直接渲染",
                     },
                 },
                 "extra": {
@@ -299,7 +406,11 @@ def process_files(file_paths: list[str], data_type: str = "Radar") -> dict[str, 
     first = metas[0]
     times = [str(frame["time"]) for frame in frames if frame.get("time")]
     source_files = [str(frame["source_file"]) for frame in frames if frame.get("source_file")]
-    png_files = [str(frame["png"]) for frame in frames if frame.get("png")]
+    webp_files = [
+        str(frame["webp_url"] or frame["webp"])
+        for frame in frames
+        if frame.get("webp_url") or frame.get("webp")
+    ]
     bbox = _merge_bboxes([frame.get("extent") for frame in frames])
     generated_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -343,9 +454,11 @@ def process_files(file_paths: list[str], data_type: str = "Radar") -> dict[str, 
         "source_file": source_files[0] if source_files else "",
         "source_files": source_files,
         "meta_file": meta_file.as_posix(),
-        "png_files": png_files,
-        "default_png": png_files[0] if png_files else None,
+        "webp_files": webp_files,
+        "default_webp": webp_files[0] if webp_files else None,
         "default_variable": first.get("default_variable"),
+        "product_info": first.get("product_info"),
+        "product_catalog": first.get("product_catalog"),
         "variables": first.get("variables", []),
         "composites": [],
         "times": times,
@@ -381,7 +494,7 @@ def process_files(file_paths: list[str], data_type: str = "Radar") -> dict[str, 
     return combined
 
 
-def build_render_catalog(source_file: str | Path, cache_dir: str | Path | None = None) -> dict[str, Any]:
+def build_webp_catalog(source_file: str | Path, cache_dir: str | Path | None = None) -> dict[str, Any]:
     source_path = Path(source_file).resolve()
     if cache_dir is None:
         cache_path = source_path.parent / "_radar_renders" / source_path.stem
@@ -402,15 +515,16 @@ def build_render_catalog(source_file: str | Path, cache_dir: str | Path | None =
             extent = _extent(dataset, lat_values, lon_values)
             levels = _levels_for_var(dataset, data_array)
             product_code, product_name, unit = _product_info(variable_name)
+            product_meta = _product_meta(variable_name)
             values = np.asarray(data_array.values, dtype=np.float32)
             values = np.where(np.isfinite(values), values, np.nan)
 
             product_levels = []
-            for level_spec in _render_level_specs(values, levels):
-                png_file = cache_path / f"{source_path.stem}.{_safe_name(variable_name)}.{level_spec['key']}.png"
-                if _needs_render(png_file, source_path):
-                    _write_radar_png(
-                        png_file=png_file,
+            for level_spec in _render_level_specs(values, levels, variable_name):
+                webp_file = cache_path / f"{source_path.stem}.{_safe_name(variable_name)}.{level_spec['key']}.webp"
+                if _needs_render(webp_file, source_path):
+                    _write_radar_webp(
+                        output_file=webp_file,
                         values=level_spec["values"],
                         extent=extent,
                         stations=stations,
@@ -423,9 +537,11 @@ def build_render_catalog(source_file: str | Path, cache_dir: str | Path | None =
                         "label": level_spec["label"],
                         "mode": level_spec["mode"],
                         "level": level_spec["level"],
-                        "png": png_file.as_posix(),
+                        "webp": webp_file.as_posix(),
+                        "webp_url": public_data_path(webp_file),
                         "extent": extent,
                         "stats": _stats(level_spec["values"]),
+                        "legend": product_meta["legend"],
                     }
                 )
 
@@ -434,8 +550,13 @@ def build_render_catalog(source_file: str | Path, cache_dir: str | Path | None =
                     "key": variable_name,
                     "code": product_code,
                     "name": product_name,
-                    "label": f"{product_name} {product_code}",
+                    "name_cn": product_meta["name_cn"],
+                    "name_en": product_meta["name_en"],
+                    "label": product_meta["label"],
                     "unit": unit,
+                    "description": product_meta["description"],
+                    "description_en": product_meta["description_en"],
+                    "legend": product_meta["legend"],
                     "extent": extent,
                     "levels": product_levels,
                 }
@@ -445,94 +566,6 @@ def build_render_catalog(source_file: str | Path, cache_dir: str | Path | None =
         "source_file": source_path.as_posix(),
         "cache_dir": cache_path.as_posix(),
         "products": products,
-    }
-
-
-def build_grid_catalog(source_file: str | Path) -> dict[str, Any]:
-    source_path = Path(source_file).resolve()
-
-    with xr.open_dataset(source_path, decode_times=False) as dataset:
-        observation_time = _observation_time(dataset, source_path)
-        products = []
-
-        for variable_name in RADAR_SELECTABLE_PRODUCTS:
-            if variable_name not in dataset.data_vars:
-                continue
-
-            data_array = dataset[variable_name]
-            lat_values, lon_values = _lat_lon_for_var(dataset, data_array)
-            extent = _extent(dataset, lat_values, lon_values)
-            levels = _levels_for_var(dataset, data_array)
-            product_code, product_name, unit = _product_info(variable_name)
-
-            products.append(
-                {
-                    "key": variable_name,
-                    "code": product_code,
-                    "name": product_name,
-                    "label": f"{product_name} {product_code}",
-                    "unit": unit,
-                    "extent": extent,
-                    "grid": _grid_shape(data_array),
-                    "levels": _grid_level_options(data_array, levels),
-                    "missing": -9999.0,
-                }
-            )
-
-    return {
-        "source_file": source_path.as_posix(),
-        "file": source_path.name,
-        "time": observation_time,
-        "products": products,
-    }
-
-
-def read_grid_values(
-    source_file: str | Path,
-    variable_name: str,
-    level_key: str,
-    missing_value: float = -9999.0,
-) -> dict[str, Any]:
-    source_path = Path(source_file).resolve()
-
-    with xr.open_dataset(source_path, decode_times=False) as dataset:
-        if variable_name not in dataset.data_vars:
-            raise ValueError(f"雷达变量不存在：{variable_name}")
-
-        data_array = dataset[variable_name]
-        lat_values, lon_values = _lat_lon_for_var(dataset, data_array)
-        extent = _extent(dataset, lat_values, lon_values)
-        levels = _levels_for_var(dataset, data_array)
-        values = np.asarray(data_array.values, dtype=np.float32)
-        values = np.where(np.isfinite(values), values, np.nan)
-        grid_values, level_label, mode, level_value = _select_grid_level(values, levels, level_key)
-        stats = _stats(grid_values)
-        product_code, product_name, unit = _product_info(variable_name)
-
-    clean_values = np.where(np.isfinite(grid_values), grid_values, missing_value).astype("<f4", copy=False)
-
-    return {
-        "file": source_path.name,
-        "product": {
-            "key": variable_name,
-            "code": product_code,
-            "name": product_name,
-            "label": f"{product_name} {product_code}",
-            "unit": unit,
-        },
-        "level": {
-            "key": level_key,
-            "label": level_label,
-            "mode": mode,
-            "level": level_value,
-        },
-        "extent": extent,
-        "grid": {"nx": int(clean_values.shape[1]), "ny": int(clean_values.shape[0])},
-        "stats": stats,
-        "missing": missing_value,
-        "dtype": "float32",
-        "byte_order": "little",
-        "bytes": clean_values.tobytes(order="C"),
     }
 
 
@@ -564,14 +597,14 @@ def _make_render_data(data_array: xr.DataArray) -> tuple[np.ndarray, str]:
     raise ValueError(f"变量 {data_array.name} 的维度 {values.shape} 暂不支持渲染。")
 
 
-def _write_radar_png(
-    png_file: Path,
+def _write_radar_webp(
+    output_file: Path,
     values: np.ndarray,
     extent: list[float],
     stations: list[dict[str, Any]],
     variable_name: str = DEFAULT_RENDER_VAR,
 ) -> None:
-    png_file.parent.mkdir(parents=True, exist_ok=True)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
     image_values = np.flipud(values)
     rgba = _colorize_values(image_values, variable_name)
 
@@ -589,28 +622,24 @@ def _write_radar_png(
         if 0 <= x < width and 0 <= y < height:
             draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill=(255, 255, 255, 240), outline=(20, 20, 20, 240), width=1)
 
-    image.save(png_file)
+    image.save(output_file, format="WEBP", lossless=True, method=6)
 
 
 def _colorize_values(values: np.ndarray, variable_name: str) -> np.ndarray:
     rgba = np.zeros((values.shape[0], values.shape[1], 4), dtype=np.uint8)
+    thresholds, colors = _color_scale_for_product(variable_name)
     product_code, _, _ = _product_info(variable_name)
 
-    if product_code == "VRAD":
-        valid = np.isfinite(values)
-        color_index = np.digitize(values[valid], VELOCITY_THRESHOLDS, right=False) - 1
-        color_index = np.clip(color_index, 0, len(VELOCITY_COLORS) - 1)
-        rgba[valid] = VELOCITY_COLORS[color_index]
-        return rgba
-
-    valid = np.isfinite(values) & (values >= RADAR_THRESHOLDS[0])
-    color_index = np.digitize(values[valid], RADAR_THRESHOLDS, right=False) - 1
-    color_index = np.clip(color_index, 0, len(RADAR_COLORS) - 1)
-    rgba[valid] = RADAR_COLORS[color_index]
+    valid = np.isfinite(values)
+    if product_code != "VRAD":
+        valid &= values >= thresholds[0]
+    color_index = np.digitize(values[valid], thresholds, right=False) - 1
+    color_index = np.clip(color_index, 0, len(colors) - 1)
+    rgba[valid] = colors[color_index]
     return rgba
 
 
-def _render_level_specs(values: np.ndarray, levels: list[float]) -> list[dict[str, Any]]:
+def _render_level_specs(values: np.ndarray, levels: list[float], variable_name: str | None = None) -> list[dict[str, Any]]:
     if values.ndim == 3 and values.shape[0] > 1:
         specs: list[dict[str, Any]] = []
         with warnings.catch_warnings():
@@ -642,7 +671,7 @@ def _render_level_specs(values: np.ndarray, levels: list[float]) -> list[dict[st
         return [
             {
                 "key": "level-0",
-                "label": f"{level:g} m" if level is not None else "单层",
+                "label": _single_level_label(variable_name, level),
                 "mode": "single_level",
                 "level": level,
                 "values": values[0],
@@ -653,7 +682,7 @@ def _render_level_specs(values: np.ndarray, levels: list[float]) -> list[dict[st
         return [
             {
                 "key": "surface",
-                "label": "单层",
+                "label": _single_level_label(variable_name, None),
                 "mode": "single_level",
                 "level": None,
                 "values": values,
@@ -661,6 +690,14 @@ def _render_level_specs(values: np.ndarray, levels: list[float]) -> list[dict[st
         ]
 
     raise ValueError(f"变量维度 {values.shape} 暂不支持渲染。")
+
+
+def _single_level_label(variable_name: str | None, level: float | None) -> str:
+    if variable_name in RADAR_SINGLE_PRODUCT_LEVEL_LABELS:
+        return RADAR_SINGLE_PRODUCT_LEVEL_LABELS[variable_name]
+    if level is not None:
+        return f"{level:g} m"
+    return "单层"
 
 
 def _grid_shape(data_array: xr.DataArray) -> dict[str, int]:
@@ -746,8 +783,34 @@ def _select_grid_level(
     raise ValueError(f"变量维度 {values.shape} 不支持高度层 {level_key}。")
 
 
-def _needs_render(png_file: Path, source_file: Path) -> bool:
-    return not png_file.exists() or png_file.stat().st_mtime < source_file.stat().st_mtime
+def _needs_render(output_file: Path, source_file: Path) -> bool:
+    return not output_file.exists() or output_file.stat().st_mtime < source_file.stat().st_mtime
+
+
+def public_data_path(path: Path) -> str:
+    resolved = path.resolve()
+    try:
+        relative = resolved.relative_to(DATA_ROOT.resolve())
+    except ValueError:
+        return resolved.as_posix()
+    return f"/data/{relative.as_posix()}"
+
+
+def _webp_output_path(source_file: Path, variable_name: str, level_key: str) -> Path:
+    cache_dir = source_file.parent / "_radar_renders" / source_file.stem
+    return cache_dir / f"{source_file.stem}.{_safe_name(variable_name)}.{_safe_name(level_key)}.webp"
+
+
+def _webp_url(source_file: Path, variable_name: str, level_key: str = "max") -> str:
+    return public_data_path(_webp_output_path(source_file, variable_name, level_key))
+
+
+def _default_level_key(data_array: xr.DataArray, render_mode: str) -> str:
+    if render_mode == "vertical_max":
+        return "max"
+    if data_array.ndim == 3:
+        return "level-0"
+    return "surface"
 
 
 def _safe_name(value: str) -> str:
@@ -759,11 +822,11 @@ def _frame_from_meta(meta: dict[str, Any], index: int) -> dict[str, Any]:
     weather_info = dict(meta.get("weather_info", {}))
     times = meta.get("times") if isinstance(meta.get("times"), list) else []
     time_value = str(times[0]) if times else str(weather_info.get("time") or "")
-    png = meta.get("default_png")
-    if not png and isinstance(meta.get("png_files"), list) and meta["png_files"]:
-        png = meta["png_files"][0]
-    if not png:
-        png = weather_info.get("png")
+    webp = meta.get("default_webp") or meta.get("webp_url") or meta.get("webp")
+    if not webp and isinstance(meta.get("webp_files"), list) and meta["webp_files"]:
+        webp = meta["webp_files"][0]
+    if not webp:
+        webp = weather_info.get("webp_url") or weather_info.get("webp")
 
     return {
         "index": index,
@@ -773,8 +836,9 @@ def _frame_from_meta(meta: dict[str, Any], index: int) -> dict[str, Any]:
         "time": time_value,
         "time_label": weather_info.get("time") or time_value,
         "extent": meta.get("bbox") or meta.get("extent") or weather_info.get("extent"),
-        "png": png,
-        "default_png": png,
+        "webp": webp,
+        "webp_url": webp,
+        "default_webp": webp,
         "weather_info": weather_info,
     }
 
@@ -802,17 +866,6 @@ def _merge_bboxes(extents: list[Any]) -> list[float] | None:
         _round_float(max(item[2] for item in values)),
         _round_float(max(item[3] for item in values)),
     ]
-
-
-def _grid_url(source_file: Path, variable_name: str, level_key: str = "max") -> str:
-    query = urlencode(
-        {
-            "file": source_file.name,
-            "product": variable_name,
-            "level": level_key,
-        }
-    )
-    return f"/api/radar/grid?{query}"
 
 
 def _lat_lon_for_var(dataset: xr.Dataset, data_array: xr.DataArray) -> tuple[np.ndarray, np.ndarray]:
@@ -890,6 +943,7 @@ def _variables(dataset: xr.Dataset, source_file: Path) -> list[dict[str, Any]]:
         if not name.startswith("observation."):
             continue
         product_code, product_name, unit = _product_info(name)
+        product_meta = _product_meta(name)
         stat = _stats(np.asarray(data_array.values, dtype=np.float32))
         variables.append(
             {
@@ -897,7 +951,8 @@ def _variables(dataset: xr.Dataset, source_file: Path) -> list[dict[str, Any]]:
                 "short_name": product_code,
                 "raw_name": name,
                 "long_name": product_name,
-                "name_cn": product_name,
+                "name_cn": product_meta["name_cn"],
+                "name_en": product_meta["name_en"],
                 "unit": unit,
                 "display_unit": None,
                 "units": unit,
@@ -906,22 +961,157 @@ def _variables(dataset: xr.Dataset, source_file: Path) -> list[dict[str, Any]]:
                 "shape": [int(item) for item in data_array.shape],
                 "level": None,
                 "missing": "NaN",
-                "description": None,
+                "description": product_meta["description"] or None,
+                "description_en": product_meta["description_en"] or None,
                 "wavelength": None,
-                "float32": _grid_url(source_file, name),
+                "webp": _webp_url(source_file, name, "max"),
+                "webp_url": _webp_url(source_file, name, "max"),
                 "netcdf": source_file.as_posix(),
-                "png": None,
                 "category": "雷达产品",
-                "definition": "",
+                "definition": product_meta["description"],
                 "applications": ["强对流监测", "短临预报", "降水估测"],
+                "legend": product_meta["legend"],
                 "stats": stat,
             }
         )
     return variables
 
 
+_PRODUCT_DOCS_CACHE: dict[str, dict[str, str]] | None = None
+
+
 def _product_info(name: str) -> tuple[str, str, str]:
-    return RADAR_PRODUCT_INFO.get(name, (name.split(".")[-1], name.split(".")[-1], ""))
+    meta = _product_meta(name)
+    return meta["code"], meta["name_cn"], meta["unit"]
+
+
+def _product_meta(name: str) -> dict[str, Any]:
+    raw = RADAR_PRODUCT_INFO.get(name)
+    if isinstance(raw, tuple):
+        code, name_cn, unit = raw
+        base = {"code": code, "name_cn": name_cn, "name_en": code, "unit": unit}
+    elif isinstance(raw, dict):
+        base = dict(raw)
+    else:
+        code = name.split(".")[-1]
+        base = {"code": code, "name_cn": code, "name_en": code, "unit": ""}
+
+    docs = _product_docs()
+    doc = docs.get(name) or docs.get(base["code"])
+    if doc:
+        base["name_en"] = doc.get("label") or base.get("name_en") or base["code"]
+        base["description"] = doc.get("desc_zh") or ""
+        base["description_en"] = doc.get("desc_en") or ""
+    else:
+        base.setdefault("description", "")
+        base.setdefault("description_en", "")
+
+    base["key"] = name
+    base["raw_name"] = name
+    base["name"] = base["name_cn"]
+    base["label"] = _product_label(base["name_cn"], base.get("unit", ""))
+    base["legend"] = _legend_for_product(name)
+    return base
+
+
+def _product_label(name_cn: str, unit: str | None) -> str:
+    unit_text = str(unit or "").strip()
+    return f"{name_cn}（{unit_text}）" if unit_text else name_cn
+
+
+def _product_docs() -> dict[str, dict[str, str]]:
+    global _PRODUCT_DOCS_CACHE
+    if _PRODUCT_DOCS_CACHE is not None:
+        return _PRODUCT_DOCS_CACHE
+
+    docs: dict[str, dict[str, str]] = {}
+    if INFO_FILE.exists():
+        for line in INFO_FILE.read_text(encoding="utf-8").splitlines():
+            text = line.strip()
+            if not text or text.startswith("#"):
+                continue
+            parts = [part.strip() for part in text.split("|", 3)]
+            if len(parts) != 4:
+                continue
+            key, label, desc_zh, desc_en = parts
+            docs[key] = {"label": label, "desc_zh": desc_zh, "desc_en": desc_en}
+    _PRODUCT_DOCS_CACHE = docs
+    return docs
+
+
+def _product_catalog_for_dataset(dataset: xr.Dataset) -> list[dict[str, Any]]:
+    catalog = []
+    for name in dataset.data_vars:
+        if not name.startswith("observation."):
+            continue
+        item = _product_meta(name)
+        catalog.append(
+            {
+                "key": name,
+                "code": item["code"],
+                "name_cn": item["name_cn"],
+                "name_en": item["name_en"],
+                "unit": item["unit"],
+                "label": item["label"],
+                "description": item["description"],
+                "description_en": item["description_en"],
+                "selectable": name in RADAR_SELECTABLE_PRODUCTS,
+                "legend": item["legend"],
+            }
+        )
+    return catalog
+
+
+def _color_scale_for_product(variable_name: str) -> tuple[np.ndarray, np.ndarray]:
+    product_code = _product_meta_without_legend(variable_name)["code"]
+    if product_code == "VRAD":
+        return VELOCITY_THRESHOLDS, VELOCITY_COLORS
+    if product_code == "QPR":
+        return QPR_THRESHOLDS, QPR_COLORS
+    if product_code == "ETP":
+        return ETP_THRESHOLDS, ETP_COLORS
+    if product_code == "MLT":
+        return MLT_THRESHOLDS, MLT_COLORS
+    return RADAR_THRESHOLDS, RADAR_COLORS
+
+
+def _product_meta_without_legend(name: str) -> dict[str, Any]:
+    raw = RADAR_PRODUCT_INFO.get(name)
+    if isinstance(raw, tuple):
+        code, name_cn, unit = raw
+        return {"code": code, "name_cn": name_cn, "unit": unit}
+    if isinstance(raw, dict):
+        return dict(raw)
+    code = name.split(".")[-1]
+    return {"code": code, "name_cn": code, "unit": ""}
+
+
+def _legend_for_product(variable_name: str) -> dict[str, Any]:
+    base = _product_meta_without_legend(variable_name)
+    thresholds, colors = _color_scale_for_product(variable_name)
+    code = base["code"]
+    ticks_by_code = {
+        "VRAD": ["-30", "-20", "-10", "0", "10", "20", "30"],
+        "QPR": ["0.1", "1", "2.5", "5", "10", "25", "50", "100"],
+        "ETP": ["0", "2", "4", "6", "8", "10", "12", "14", "16", "18"],
+        "MLT": ["0", "1000", "2000", "3000", "4000", "5000"],
+    }
+    return {
+        "title": _product_label(base["name_cn"], base.get("unit", "")),
+        "unit": base.get("unit", ""),
+        "colors": _colors_to_hex(colors),
+        "ticks": ticks_by_code.get(code, [_format_tick(item) for item in thresholds.tolist()]),
+        "thresholds": [_round_float(item) for item in thresholds.tolist()],
+    }
+
+
+def _colors_to_hex(colors: np.ndarray) -> list[str]:
+    return [f"#{int(r):02x}{int(g):02x}{int(b):02x}" for r, g, b, _ in colors.tolist()]
+
+
+def _format_tick(value: float) -> str:
+    numeric = float(value)
+    return f"{numeric:g}"
 
 
 def _observation_time(dataset: xr.Dataset, source_file: Path) -> dict[str, str]:
