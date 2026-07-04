@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, Query, Response, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -98,9 +98,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 关键：让前端可以访问后端生成的 PNG：
+# 关键：让前端可以访问后端生成的静态图片：
 # http://127.0.0.1:8002/data/GFS/xxx.png
-# http://127.0.0.1:8002/data/GFS/wait_process/xxx.png
+# http://127.0.0.1:8002/data/Radar/xxx.webp
 app.mount("/data", StaticFiles(directory=str(DATA_DIR)), name="data")
 
 
@@ -289,32 +289,13 @@ def display_data(
 
     if raw_key == "HIMAWARI":
         return ok(service.get_display_data(scene_id=scene_id))
+    if business_type.upper() == "RADAR":
+        return ok(service.get_display_data(time_index=time_index))
 
     if raw_key in {"GFS", "ECMWF"}:
         return ok(gfs_service.get_display_data(data_type=normalized_key))
 
     return ok(service.get_display_data())
-
-
-@app.get("/api/radar/grid")
-def radar_grid(
-    file: str | None = Query(default=None),
-    product: str = Query(...),
-    level: str = Query(default="max"),
-) -> Response:
-    try:
-        grid = radar_service.get_grid_data(file, product, level)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    headers = {
-        "X-Radar-Nx": str(grid["grid"]["nx"]),
-        "X-Radar-Ny": str(grid["grid"]["ny"]),
-        "X-Radar-Extent": ",".join(str(item) for item in grid["extent"]),
-        "X-Radar-Missing": str(grid["missing"]),
-        "X-Radar-Dtype": grid["dtype"],
-    }
-    return Response(content=grid["bytes"], media_type="application/octet-stream", headers=headers)
 
 
 if __name__ == "__main__":
