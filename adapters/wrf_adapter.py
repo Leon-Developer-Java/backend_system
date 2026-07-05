@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import re
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -43,6 +46,77 @@ SKIP_NAMES = {
     "XLAT_V",
     "XLONG_V",
     "CLAT",
+}
+
+DOCS_DIR = Path(__file__).resolve().parents[1] / "docs" / "WRF"
+INFORMATION_FILE = DOCS_DIR / "information.txt"
+
+VARIABLE_INFORMATION = {
+    "PM2_5_DRY": (
+        "PM2.5 dry mass concentration",
+        "PM2.5干质量浓度，表示近地面细颗粒物质量浓度，可用于空气质量和污染过程分析。",
+        "Dry mass concentration of fine particulate matter with aerodynamic diameter below 2.5 micrometres, used for air-quality and pollution analysis.",
+    ),
+    "PM10": (
+        "PM10 mass concentration",
+        "PM10颗粒物浓度，表示可吸入颗粒物质量浓度，适合与PM2.5联合判断污染程度。",
+        "Mass concentration of inhalable particulate matter with aerodynamic diameter below 10 micrometres.",
+    ),
+    "AOD2D_OUT": (
+        "Aerosol optical depth",
+        "气溶胶光学厚度，表示整层大气中气溶胶对太阳辐射的消光程度，数值越大通常说明大气越浑浊。",
+        "Aerosol optical depth, indicating column-integrated aerosol extinction of solar radiation.",
+    ),
+    "T2": (
+        "2 metre temperature",
+        "2米气温，表示距离地面约2米高度处的空气温度，是近地面热力状况的重要指标。",
+        "Air temperature at about 2 metres above the surface, describing near-surface thermal conditions.",
+    ),
+    "U10": (
+        "10 metre U wind component",
+        "10米东西向风分量，正值通常表示向东的风分量，负值表示向西的风分量。",
+        "East-west wind component at 10 metres above the surface; positive values usually indicate eastward flow.",
+    ),
+    "V10": (
+        "10 metre V wind component",
+        "10米南北向风分量，正值通常表示向北的风分量，负值表示向南的风分量。",
+        "North-south wind component at 10 metres above the surface; positive values usually indicate northward flow.",
+    ),
+    "PSFC": (
+        "Surface pressure",
+        "地面气压，表示模式地表附近的大气压力，可用于分析天气系统和气压场变化。",
+        "Surface pressure, representing atmospheric pressure near the model surface.",
+    ),
+    "PBLH": (
+        "Planetary boundary layer height",
+        "边界层高度，表示大气边界层顶部高度，是判断污染扩散条件和近地层混合能力的重要变量。",
+        "Planetary boundary layer height, used to assess near-surface mixing and pollutant dispersion conditions.",
+    ),
+    "RAINC": (
+        "Accumulated convective precipitation",
+        "累积对流降水，表示由对流过程产生的累积降水量。",
+        "Accumulated precipitation produced by convective parameterization processes.",
+    ),
+    "RAINNC": (
+        "Accumulated non-convective precipitation",
+        "累积非对流降水，表示由非对流云微物理过程产生的累积降水量。",
+        "Accumulated precipitation produced by non-convective cloud microphysics processes.",
+    ),
+    "XLAT": (
+        "Latitude",
+        "纬度，表示每个模式格点对应的地理纬度坐标。",
+        "Latitude coordinate of each model grid point.",
+    ),
+    "XLONG": (
+        "Longitude",
+        "经度，表示每个模式格点对应的地理经度坐标。",
+        "Longitude coordinate of each model grid point.",
+    ),
+    "Times": (
+        "Valid time",
+        "有效时间，表示当前WRF输出文件对应的模拟或预报时刻。",
+        "Valid time of the WRF model output.",
+    ),
 }
 
 
@@ -156,12 +230,6 @@ def _render_overlay(data: np.ndarray, image_cls: Any, colormaps: Any, cmap_name:
     return image_cls.fromarray(np.flipud(rgba), mode="RGBA")
 
 
-def _write_binary_grid(data: np.ndarray, bin_path: Path) -> None:
-    arr = np.asarray(data, dtype="<f4")
-    arr = np.where(np.isfinite(arr), arr, np.float32(np.nan)).astype("<f4", copy=False)
-    arr.tofile(bin_path)
-
-
 def _domain_from_file(source_file: Path, ds: Any) -> str:
     name = source_file.name.lower()
     if "wrfout_d01" in name:
@@ -184,16 +252,118 @@ def _stats(data: np.ndarray) -> dict[str, float | None]:
     }
 
 
+def _safe_info_text(value: Any) -> str:
+    return str(value or "").replace("\r", " ").replace("\n", " ").replace("|", "/").strip()
+
+
+def _variable_information(ds: Any) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    for name, var in ds.variables.items():
+        desc = _safe_info_text(getattr(var, "description", ""))
+        units = _safe_info_text(getattr(var, "units", ""))
+        dims = ", ".join(str(item) for item in getattr(var, "dimensions", ()))
+        english_label, zh_desc, en_desc = VARIABLE_INFORMATION.get(
+            name,
+            (
+                desc or name,
+                f"WRF模式输出变量，原始英文说明为“{desc or name}”。"
+                f"{f'单位为{units}。' if units else ''}"
+                f"{f'维度为{dims}。' if dims else ''}",
+                desc or f"WRF model output variable {name}.",
+            ),
+        )
+        rows.append(
+            {
+                "name": _safe_info_text(name),
+                "english_label": _safe_info_text(english_label),
+                "chinese_description": _safe_info_text(zh_desc),
+                "english_description": _safe_info_text(en_desc),
+                "units": units,
+                "dimensions": dims,
+            }
+        )
+    return rows
+
+
+def _write_information_txt(rows: list[dict[str, str]]) -> None:
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "# 格式：变量名|英文标签|中文说明|英文说明",
+        "# 说明：",
+        "# 1. 第一列必须是程序匹配用的WRF变量名。",
+        "# 2. 第二列用于界面展示的英文标签。",
+        "# 3. 第三列用于中文说明，优先使用业务解释；未维护的变量根据WRF原始说明、单位和维度自动生成。",
+        "# 4. 第四列用于英文说明。",
+        "",
+    ]
+    lines.extend(
+        "|".join(
+            [
+                item["name"],
+                item["english_label"],
+                item["chinese_description"],
+                item["english_description"],
+            ]
+        )
+        for item in rows
+    )
+    INFORMATION_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _cached_meta_if_ready(source_file: Path) -> dict[str, Any] | None:
+    meta_file = source_file.with_name(f"{source_file.name}.meta.json")
+    if not meta_file.exists():
+        return None
+    try:
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    webp_files = meta.get("webp_files")
+    if not isinstance(webp_files, list) or not webp_files:
+        return None
+    if any(not Path(str(item)).exists() for item in webp_files):
+        return None
+    return meta
+
+
+def _canonical_uploaded_source(source_file: Path) -> Path:
+    match = re.match(r"^(wrfout_d\d{2}_\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2})_\d+$", source_file.name)
+    if not match:
+        return source_file
+
+    canonical = source_file.with_name(match.group(1))
+    if not canonical.exists():
+        return source_file
+
+    try:
+        source_file.unlink()
+    except OSError:
+        pass
+    return canonical
+
+
 def process_file(file_path: str, data_type: str = "WRF") -> dict:
     Dataset, Image, colormaps = _load_runtime()
 
-    source_file = Path(file_path).resolve()
+    source_file = _canonical_uploaded_source(Path(file_path).resolve())
+    cached_meta = _cached_meta_if_ready(source_file)
+    if cached_meta is not None:
+        return cached_meta
+
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
-    png_dir = source_file.parent / f"{source_file.name}.pngs"
-    png_dir.mkdir(parents=True, exist_ok=True)
+    legacy_png_dir = source_file.parent / f"{source_file.name}.pngs"
+    if legacy_png_dir.exists():
+        shutil.rmtree(legacy_png_dir)
+    webp_dir = source_file.parent / f"{source_file.name}.webps"
+    if webp_dir.exists():
+        shutil.rmtree(webp_dir)
+    webp_dir.mkdir(parents=True, exist_ok=True)
 
     with Dataset(source_file) as ds:
         lat, lon = _lat_lon(ds)
+        variable_information = _variable_information(ds)
+        _write_information_txt(variable_information)
         bbox = {
             "west": float(np.nanmin(lon)),
             "south": float(np.nanmin(lat)),
@@ -218,8 +388,7 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
             ][:8]
 
         variables: list[dict[str, Any]] = []
-        png_files: list[str] = []
-        bin_files: list[dict[str, Any]] = []
+        webp_files: list[str] = []
         primary_stats = {"min": None, "max": None, "mean": None}
         primary_unit = ""
         primary_element = "WRF 变量"
@@ -240,27 +409,9 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
             )
 
             image = _render_overlay(data, Image, colormaps)
-            png_path = png_dir / f"{time_label.replace(':', '_')}_{var_id}.png"
-            image.save(png_path)
-            png_files.append(png_path.as_posix())
-            bin_path = png_dir / f"{time_label.replace(':', '_')}_{var_id}.f32"
-            _write_binary_grid(data, bin_path)
-            lo, hi = _robust_range(data)
-            bin_files.append(
-                {
-                    "path": bin_path.as_posix(),
-                    "variable": var_id,
-                    "time": time_label,
-                    "domain": domain,
-                    "dtype": "float32",
-                    "endian": "little",
-                    "width": int(data.shape[1]),
-                    "height": int(data.shape[0]),
-                    "min": lo,
-                    "max": hi,
-                    "missing": "NaN",
-                }
-            )
+            webp_path = webp_dir / f"{time_label.replace(':', '_')}_{var_id}.webp"
+            image.save(webp_path, format="WEBP", lossless=True, quality=90, method=6)
+            webp_files.append(webp_path.as_posix())
 
             if name == display_variables[0]:
                 primary_stats = stat
@@ -286,7 +437,7 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
             "variables": str(len(display_variables)),
             "steps": "1",
             "status": "已解析",
-            "quality": "已生成透明 PNG overlay",
+            "quality": "已生成透明 WebP overlay",
             "max": primary_stats["max"],
             "min": primary_stats["min"],
             "mean": primary_stats["mean"],
@@ -302,9 +453,9 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
             "file_format": "NC",
             "source_file": source_file.as_posix(),
             "meta_file": meta_file.as_posix(),
-            "png_files": png_files,
-            "bin_files": bin_files,
+            "webp_files": webp_files,
             "variables": variables,
+            "variable_information": variable_information,
             "times": [time_label],
             "levels": ["surface_or_level_0"],
             "bbox": bbox,
@@ -315,8 +466,8 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
                 "domain": domain,
                 "dx": dx,
                 "dy": dy,
-                "png_dir": png_dir.as_posix(),
-                "note": "WRF adapter 已完成 NetCDF 解析，并生成前端地图叠加用透明 PNG。",
+                "webp_dir": webp_dir.as_posix(),
+                "note": "WRF adapter 已完成 NetCDF 解析，并生成前端地图叠加用透明 WebP。",
             },
         }
 
@@ -334,16 +485,14 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
 
     first = metas[0]
     all_times: list[str] = []
-    all_png_files: list[str] = []
-    all_bin_files: list[dict[str, Any]] = []
+    all_webp_files: list[str] = []
     source_files: list[str] = []
     bboxes = []
 
     for meta in metas:
         source_files.append(meta.get("source_file", ""))
         all_times.extend(str(item) for item in meta.get("times", []))
-        all_png_files.extend(str(item) for item in meta.get("png_files", []))
-        all_bin_files.extend(item for item in meta.get("bin_files", []) if isinstance(item, dict))
+        all_webp_files.extend(str(item) for item in meta.get("webp_files", []))
         if isinstance(meta.get("bbox"), dict):
             bboxes.append(meta["bbox"])
 
@@ -376,9 +525,9 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
         "source_file": source_files[0],
         "source_files": source_files,
         "meta_file": meta_file.as_posix(),
-        "png_files": all_png_files,
-        "bin_files": all_bin_files,
+        "webp_files": all_webp_files,
         "variables": first.get("variables", []),
+        "variable_information": first.get("variable_information", []),
         "times": all_times,
         "levels": first.get("levels", ["surface_or_level_0"]),
         "bbox": bbox,
