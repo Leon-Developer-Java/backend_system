@@ -304,6 +304,24 @@ def display_data(
     return ok(service.get_display_data())
 
 
+@app.post("/api/wrf/rescan")
+def wrf_rescan() -> dict[str, Any]:
+    results = []
+    for raw_file in BUSINESS_DIRS["WRF"].glob("wrfout_d*"):
+        if raw_file.suffix or not raw_file.is_file():
+            continue
+        try:
+            meta = wrf_adapter.process_file(str(raw_file))
+            results.append({
+                "file": raw_file.name,
+                "status": "ok",
+                "webp_count": len(meta.get("webp_files", [])),
+            })
+        except Exception as exc:
+            results.append({"file": raw_file.name, "status": "error", "error": str(exc)})
+    return ok({"processed": len(results), "results": results})
+
+
 if __name__ == "__main__":
     import uvicorn
 

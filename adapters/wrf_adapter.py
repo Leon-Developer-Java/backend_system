@@ -51,6 +51,20 @@ SKIP_NAMES = {
 DOCS_DIR = Path(__file__).resolve().parents[1] / "docs" / "WRF"
 INFORMATION_FILE = DOCS_DIR / "information.txt"
 
+_BACKEND_DIR = Path(__file__).resolve().parents[1]
+
+
+def _to_relative(path: Path) -> str:
+    try:
+        return path.relative_to(_BACKEND_DIR).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _resolve_path(path_str: str) -> Path:
+    p = Path(path_str)
+    return p if p.is_absolute() else _BACKEND_DIR / p
+
 VARIABLE_INFORMATION = {
     "PM2_5_DRY": (
         "PM2.5 dry mass concentration",
@@ -322,7 +336,7 @@ def _cached_meta_if_ready(source_file: Path) -> dict[str, Any] | None:
     webp_files = meta.get("webp_files")
     if not isinstance(webp_files, list) or not webp_files:
         return None
-    if any(not Path(str(item)).exists() for item in webp_files):
+    if any(not _resolve_path(str(item)).exists() for item in webp_files):
         return None
     return meta
 
@@ -411,7 +425,7 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
             image = _render_overlay(data, Image, colormaps)
             webp_path = webp_dir / f"{time_label.replace(':', '_')}_{var_id}.webp"
             image.save(webp_path, format="WEBP", lossless=True, quality=90, method=6)
-            webp_files.append(webp_path.as_posix())
+            webp_files.append(_to_relative(webp_path))
 
             if name == display_variables[0]:
                 primary_stats = stat
@@ -466,7 +480,7 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
                 "domain": domain,
                 "dx": dx,
                 "dy": dy,
-                "webp_dir": webp_dir.as_posix(),
+                "webp_dir": _to_relative(webp_dir),
                 "note": "WRF adapter 已完成 NetCDF 解析，并生成前端地图叠加用透明 WebP。",
             },
         }

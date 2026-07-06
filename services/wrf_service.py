@@ -7,19 +7,21 @@ DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "WRF"
 
 
 def get_display_data() -> dict[str, Any]:
-    # 前端点击 WRF 类型时调用该函数，读取 WRF 目录下的 meta.json 和 PNG。
     meta_files = sorted(DATA_DIR.glob("*.meta.json"), key=lambda item: item.stat().st_mtime, reverse=True)
-    png_files = sorted(DATA_DIR.glob("*.png"), key=lambda item: item.stat().st_mtime, reverse=True)
 
     meta_json = None
     if meta_files:
         with meta_files[0].open("r", encoding="utf-8") as file:
             meta_json = json.load(file)
 
+    webp_files: list[str] = []
+    if meta_json:
+        webp_files = [str(item).replace("\\", "/") for item in meta_json.get("webp_files", [])]
+
     return {
         "business_type": "WRF",
         "meta_file": str(meta_files[0]).replace("\\", "/") if meta_files else None,
         "meta_json": meta_json,
-        "png": str(png_files[0]).replace("\\", "/") if png_files else None,
-        "png_files": [str(path).replace("\\", "/") for path in png_files],
+        "webp": webp_files[0] if webp_files else None,
+        "webp_files": webp_files,
     }

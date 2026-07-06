@@ -229,3 +229,234 @@ LANDMASK|LAND MASK (1 FOR LAND, 0 FOR WATER)|WRF模式输出变量，原始英�
 LAKEMASK|LAKE MASK (1 FOR LAND, 0 FOR WATER)|WRF模式输出变量，原始英文说明为“LAKE MASK (1 FOR LAND, 0 FOR WATER)”。维度为Time, south_north, west_east。|LAKE MASK (1 FOR LAND, 0 FOR WATER)
 SST|SEA SURFACE TEMPERATURE|WRF模式输出变量，原始英文说明为“SEA SURFACE TEMPERATURE”。单位为K。维度为Time, south_north, west_east。|SEA SURFACE TEMPERATURE
 SST_INPUT|SEA SURFACE TEMPERATURE FROM WRFLOWINPUT FILE|WRF模式输出变量，原始英文说明为“SEA SURFACE TEMPERATURE FROM WRFLOWINPUT FILE”。单位为K。维度为Time, south_north, west_east。|SEA SURFACE TEMPERATURE FROM WRFLOWINPUT FILE
+# 格式：变量名|英文标签|中文说明|英文说明
+# 说明：
+# 1. 第一列必须是程序匹配用的WRF变量名。
+# 2. 第二列用于界面展示的英文标签。
+# 3. 第三列用于中文说明，优先使用业务解释；未维护的变量根据WRF原始说明、单位和维度自动生成。
+# 4. 第四列用于英文说明。
+
+Times|Valid time|有效时间，表示当前WRF输出文件对应的模拟或预报时刻。|Valid time of the WRF model output.
+AOD_OUT|Aerosol Optical Depth|WRF模式输出变量，原始英文说明为“Aerosol Optical Depth”。维度为Time, bottom_top, south_north, west_east。|Aerosol Optical Depth
+AOD2D_OUT|Aerosol optical depth|气溶胶光学厚度，表示整层大气中气溶胶对太阳辐射的消光程度，数值越大通常说明大气越浑浊。|Aerosol optical depth, indicating column-integrated aerosol extinction of solar radiation.
+ATOP2D_OUT|Aerosol Optical Depth, top|WRF模式输出变量，原始英文说明为“Aerosol Optical Depth, top”。维度为Time, south_north, west_east。|Aerosol Optical Depth, top
+ICN_DIAG|Some chem thing, ICN_DIAG|WRF模式输出变量，原始英文说明为“Some chem thing, ICN_DIAG”。维度为Time, bottom_top, south_north, west_east。|Some chem thing, ICN_DIAG
+NC_DIAG|Some chem thing, NC_DIAG|WRF模式输出变量，原始英文说明为“Some chem thing, NC_DIAG”。维度为Time, bottom_top, south_north, west_east。|Some chem thing, NC_DIAG
+CLDFRA2|CLOUD FRACTION|WRF模式输出变量，原始英文说明为“CLOUD FRACTION”。单位为-。维度为Time, bottom_top, south_north, west_east。|CLOUD FRACTION
+UST_T|Threshold Friction Velocity|WRF模式输出变量，原始英文说明为“Threshold Friction Velocity”。单位为m s-1。维度为Time, south_north, west_east。|Threshold Friction Velocity
+ROUGH_COR|roughness elements correction|WRF模式输出变量，原始英文说明为“roughness elements correction”。维度为Time, south_north, west_east。|roughness elements correction
+SMOIS_COR|soil moisture correction|WRF模式输出变量，原始英文说明为“soil moisture correction”。维度为Time, south_north, west_east。|soil moisture correction
+DRYDEPVEL|dust dry deposition velocity|WRF模式输出变量，原始英文说明为“dust dry deposition velocity”。单位为m/s。维度为Time, south_north, west_east。|dust dry deposition velocity
+DRY_DEP_LEN|dry deposition velocity|WRF模式输出变量，原始英文说明为“dry deposition velocity”。单位为cm/s。维度为Time, bio_emissions_dimension_stag, south_north, west_east。|dry deposition velocity
+EBIO_ISO|Actual biog emiss|WRF模式输出变量，原始英文说明为“Actual biog emiss”。单位为mol km^-2 hr^-1。维度为Time, south_north, west_east。|Actual biog emiss
+EBIO_API|Actual biog emiss|WRF模式输出变量，原始英文说明为“Actual biog emiss”。单位为mol km^-2 hr^-1。维度为Time, south_north, west_east。|Actual biog emiss
+LAI_VEGMASK|MODIS LAI vegetation mask for this date; 0=no dust produced (vegetation)|WRF模式输出变量，原始英文说明为“MODIS LAI vegetation mask for this date; 0=no dust produced (vegetation)”。单位为none。维度为Time, south_north, west_east。|MODIS LAI vegetation mask for this date; 0=no dust produced (vegetation)
+dvel_o3|O3 deposition velocity|WRF模式输出变量，原始英文说明为“O3 deposition velocity”。单位为cm/s。维度为Time, klevs_for_dvel, south_north, west_east。|O3 deposition velocity
+PM2_5_DRY|PM2.5 dry mass concentration|PM2.5干质量浓度，表示近地面细颗粒物质量浓度，可用于空气质量和污染过程分析。|Dry mass concentration of fine particulate matter with aerodynamic diameter below 2.5 micrometres, used for air-quality and pollution analysis.
+PM10|PM10 mass concentration|PM10颗粒物浓度，表示可吸入颗粒物质量浓度，适合与PM2.5联合判断污染程度。|Mass concentration of inhalable particulate matter with aerodynamic diameter below 10 micrometres.
+DMS_0|dms oceanic concentrations|WRF模式输出变量，原始英文说明为“dms oceanic concentrations”。单位为nM/L。维度为Time, south_north, west_east。|dms oceanic concentrations
+SNU|2nd moment Aitken mode|WRF模式输出变量，原始英文说明为“2nd moment Aitken mode”。单位为m2 m-3。维度为Time, bottom_top, south_north, west_east。|2nd moment Aitken mode
+SAC|2nd moment Aitken mode|WRF模式输出变量，原始英文说明为“2nd moment Aitken mode”。单位为m2 m-3。维度为Time, bottom_top, south_north, west_east。|2nd moment Aitken mode
+PV|Potential Vorticity|WRF模式输出变量，原始英文说明为“Potential Vorticity”。单位为pvu。维度为Time, bottom_top, south_north, west_east。|Potential Vorticity
+GAMN2O5|n2o5 uptake by aerosol|WRF模式输出变量，原始英文说明为“n2o5 uptake by aerosol”。单位为numerical value。维度为Time, bottom_top, south_north, west_east。|n2o5 uptake by aerosol
+CN2O5|n2o5 velocity|WRF模式输出变量，原始英文说明为“n2o5 velocity”。单位为m/s。维度为Time, bottom_top, south_north, west_east。|n2o5 velocity
+KN2O5|n2o5 het reaction rate|WRF模式输出变量，原始英文说明为“n2o5 het reaction rate”。单位为s-1。维度为Time, bottom_top, south_north, west_east。|n2o5 het reaction rate
+YCLNO2|clno2 yield from n2o5 het|WRF模式输出变量，原始英文说明为“clno2 yield from n2o5 het”。单位为numerical value。维度为Time, bottom_top, south_north, west_east。|clno2 yield from n2o5 het
+XLAT|Latitude|纬度，表示每个模式格点对应的地理纬度坐标。|Latitude coordinate of each model grid point.
+XLONG|Longitude|经度，表示每个模式格点对应的地理经度坐标。|Longitude coordinate of each model grid point.
+LU_INDEX|LAND USE CATEGORY|WRF模式输出变量，原始英文说明为“LAND USE CATEGORY”。维度为Time, south_north, west_east。|LAND USE CATEGORY
+ZNU|eta values on half (mass) levels|WRF模式输出变量，原始英文说明为“eta values on half (mass) levels”。维度为Time, bottom_top。|eta values on half (mass) levels
+ZNW|eta values on full (w) levels|WRF模式输出变量，原始英文说明为“eta values on full (w) levels”。维度为Time, bottom_top_stag。|eta values on full (w) levels
+ZS|DEPTHS OF CENTERS OF SOIL LAYERS|WRF模式输出变量，原始英文说明为“DEPTHS OF CENTERS OF SOIL LAYERS”。单位为m。维度为Time, soil_layers_stag。|DEPTHS OF CENTERS OF SOIL LAYERS
+DZS|THICKNESSES OF SOIL LAYERS|WRF模式输出变量，原始英文说明为“THICKNESSES OF SOIL LAYERS”。单位为m。维度为Time, soil_layers_stag。|THICKNESSES OF SOIL LAYERS
+VAR_SSO|variance of subgrid-scale orography|WRF模式输出变量，原始英文说明为“variance of subgrid-scale orography”。单位为m2。维度为Time, south_north, west_east。|variance of subgrid-scale orography
+BATHYMETRY_FLAG|Flag for bathymetry in the global attributes for metgrid data|WRF模式输出变量，原始英文说明为“Flag for bathymetry in the global attributes for metgrid data”。单位为-。维度为Time。|Flag for bathymetry in the global attributes for metgrid data
+U|x-wind component|WRF模式输出变量，原始英文说明为“x-wind component”。单位为m s-1。维度为Time, bottom_top, south_north, west_east_stag。|x-wind component
+V|y-wind component|WRF模式输出变量，原始英文说明为“y-wind component”。单位为m s-1。维度为Time, bottom_top, south_north_stag, west_east。|y-wind component
+W|z-wind component|WRF模式输出变量，原始英文说明为“z-wind component”。单位为m s-1。维度为Time, bottom_top_stag, south_north, west_east。|z-wind component
+PH|perturbation geopotential|WRF模式输出变量，原始英文说明为“perturbation geopotential”。单位为m2 s-2。维度为Time, bottom_top_stag, south_north, west_east。|perturbation geopotential
+PHB|base-state geopotential|WRF模式输出变量，原始英文说明为“base-state geopotential”。单位为m2 s-2。维度为Time, bottom_top_stag, south_north, west_east。|base-state geopotential
+T|perturbation potential temperature theta-t0|WRF模式输出变量，原始英文说明为“perturbation potential temperature theta-t0”。单位为K。维度为Time, bottom_top, south_north, west_east。|perturbation potential temperature theta-t0
+THM|either 1) pert moist pot temp=(1+Rv/Rd Qv)*(theta)-T0, or 2) pert dry pot temp=t|WRF模式输出变量，原始英文说明为“either 1) pert moist pot temp=(1+Rv/Rd Qv)*(theta)-T0, or 2) pert dry pot temp=t”。单位为K。维度为Time, bottom_top, south_north, west_east。|either 1) pert moist pot temp=(1+Rv/Rd Qv)*(theta)-T0, or 2) pert dry pot temp=t
+HFX_FORCE|SCM ideal surface sensible heat flux|WRF模式输出变量，原始英文说明为“SCM ideal surface sensible heat flux”。单位为W m-2。维度为Time。|SCM ideal surface sensible heat flux
+LH_FORCE|SCM ideal surface latent heat flux|WRF模式输出变量，原始英文说明为“SCM ideal surface latent heat flux”。单位为W m-2。维度为Time。|SCM ideal surface latent heat flux
+TSK_FORCE|SCM ideal surface skin temperature|WRF模式输出变量，原始英文说明为“SCM ideal surface skin temperature”。单位为W m-2。维度为Time。|SCM ideal surface skin temperature
+HFX_FORCE_TEND|SCM ideal surface sensible heat flux tendency|WRF模式输出变量，原始英文说明为“SCM ideal surface sensible heat flux tendency”。单位为W m-2 s-1。维度为Time。|SCM ideal surface sensible heat flux tendency
+LH_FORCE_TEND|SCM ideal surface latent heat flux tendency|WRF模式输出变量，原始英文说明为“SCM ideal surface latent heat flux tendency”。单位为W m-2 s-1。维度为Time。|SCM ideal surface latent heat flux tendency
+TSK_FORCE_TEND|SCM ideal surface skin temperature tendency|WRF模式输出变量，原始英文说明为“SCM ideal surface skin temperature tendency”。单位为W m-2 s-1。维度为Time。|SCM ideal surface skin temperature tendency
+MU|perturbation dry air mass in column|WRF模式输出变量，原始英文说明为“perturbation dry air mass in column”。单位为Pa。维度为Time, south_north, west_east。|perturbation dry air mass in column
+MUB|base state dry air mass in column|WRF模式输出变量，原始英文说明为“base state dry air mass in column”。单位为Pa。维度为Time, south_north, west_east。|base state dry air mass in column
+NEST_POS|-|WRF模式输出变量，原始英文说明为“-”。单位为-。维度为Time, south_north, west_east。|-
+P|perturbation pressure|WRF模式输出变量，原始英文说明为“perturbation pressure”。单位为Pa。维度为Time, bottom_top, south_north, west_east。|perturbation pressure
+PB|BASE STATE PRESSURE|WRF模式输出变量，原始英文说明为“BASE STATE PRESSURE”。单位为Pa。维度为Time, bottom_top, south_north, west_east。|BASE STATE PRESSURE
+FNM|upper weight for vertical stretching|WRF模式输出变量，原始英文说明为“upper weight for vertical stretching”。维度为Time, bottom_top。|upper weight for vertical stretching
+FNP|lower weight for vertical stretching|WRF模式输出变量，原始英文说明为“lower weight for vertical stretching”。维度为Time, bottom_top。|lower weight for vertical stretching
+RDNW|inverse d(eta) values between full (w) levels|WRF模式输出变量，原始英文说明为“inverse d(eta) values between full (w) levels”。维度为Time, bottom_top。|inverse d(eta) values between full (w) levels
+RDN|inverse d(eta) values between half (mass) levels|WRF模式输出变量，原始英文说明为“inverse d(eta) values between half (mass) levels”。维度为Time, bottom_top。|inverse d(eta) values between half (mass) levels
+DNW|d(eta) values between full (w) levels|WRF模式输出变量，原始英文说明为“d(eta) values between full (w) levels”。维度为Time, bottom_top。|d(eta) values between full (w) levels
+DN|d(eta) values between half (mass) levels|WRF模式输出变量，原始英文说明为“d(eta) values between half (mass) levels”。维度为Time, bottom_top。|d(eta) values between half (mass) levels
+CFN|extrapolation constant|WRF模式输出变量，原始英文说明为“extrapolation constant”。维度为Time。|extrapolation constant
+CFN1|extrapolation constant|WRF模式输出变量，原始英文说明为“extrapolation constant”。维度为Time。|extrapolation constant
+THIS_IS_AN_IDEAL_RUN|T/F flag: this is an ARW ideal simulation|WRF模式输出变量，原始英文说明为“T/F flag: this is an ARW ideal simulation”。单位为-。维度为Time。|T/F flag: this is an ARW ideal simulation
+P_HYD|hydrostatic pressure|WRF模式输出变量，原始英文说明为“hydrostatic pressure”。单位为Pa。维度为Time, bottom_top, south_north, west_east。|hydrostatic pressure
+Q2|QV at 2 M|WRF模式输出变量，原始英文说明为“QV at 2 M”。单位为kg kg-1。维度为Time, south_north, west_east。|QV at 2 M
+T2|2 metre temperature|2米气温，表示距离地面约2米高度处的空气温度，是近地面热力状况的重要指标。|Air temperature at about 2 metres above the surface, describing near-surface thermal conditions.
+TH2|POT TEMP at 2 M|WRF模式输出变量，原始英文说明为“POT TEMP at 2 M”。单位为K。维度为Time, south_north, west_east。|POT TEMP at 2 M
+PSFC|Surface pressure|地面气压，表示模式地表附近的大气压力，可用于分析天气系统和气压场变化。|Surface pressure, representing atmospheric pressure near the model surface.
+U10|10 metre U wind component|10米东西向风分量，正值通常表示向东的风分量，负值表示向西的风分量。|East-west wind component at 10 metres above the surface; positive values usually indicate eastward flow.
+V10|10 metre V wind component|10米南北向风分量，正值通常表示向北的风分量，负值表示向南的风分量。|North-south wind component at 10 metres above the surface; positive values usually indicate northward flow.
+RDX|INVERSE X GRID LENGTH|WRF模式输出变量，原始英文说明为“INVERSE X GRID LENGTH”。单位为m-1。维度为Time。|INVERSE X GRID LENGTH
+RDY|INVERSE Y GRID LENGTH|WRF模式输出变量，原始英文说明为“INVERSE Y GRID LENGTH”。单位为m-1。维度为Time。|INVERSE Y GRID LENGTH
+AREA2D|Horizontal grid cell area, using dx, dy, and map factors|WRF模式输出变量，原始英文说明为“Horizontal grid cell area, using dx, dy, and map factors”。单位为m2。维度为Time, south_north, west_east。|Horizontal grid cell area, using dx, dy, and map factors
+DX2D|Horizontal grid distance: sqrt(area2d)|WRF模式输出变量，原始英文说明为“Horizontal grid distance: sqrt(area2d)”。单位为m。维度为Time, south_north, west_east。|Horizontal grid distance: sqrt(area2d)
+RESM|TIME WEIGHT CONSTANT FOR SMALL STEPS|WRF模式输出变量，原始英文说明为“TIME WEIGHT CONSTANT FOR SMALL STEPS”。维度为Time。|TIME WEIGHT CONSTANT FOR SMALL STEPS
+ZETATOP|ZETA AT MODEL TOP|WRF模式输出变量，原始英文说明为“ZETA AT MODEL TOP”。维度为Time。|ZETA AT MODEL TOP
+CF1|2nd order extrapolation constant|WRF模式输出变量，原始英文说明为“2nd order extrapolation constant”。维度为Time。|2nd order extrapolation constant
+CF2|2nd order extrapolation constant|WRF模式输出变量，原始英文说明为“2nd order extrapolation constant”。维度为Time。|2nd order extrapolation constant
+CF3|2nd order extrapolation constant|WRF模式输出变量，原始英文说明为“2nd order extrapolation constant”。维度为Time。|2nd order extrapolation constant
+ITIMESTEP|ITIMESTEP|WRF模式输出变量，原始英文说明为“ITIMESTEP”。维度为Time。|WRF model output variable ITIMESTEP.
+XTIME|minutes since 2025-07-16 00:00:00|WRF模式输出变量，原始英文说明为“minutes since 2025-07-16 00:00:00”。单位为minutes since 2025-07-16 00:00:00。维度为Time。|minutes since 2025-07-16 00:00:00
+QVAPOR|Water vapor mixing ratio|WRF模式输出变量，原始英文说明为“Water vapor mixing ratio”。单位为kg kg-1。维度为Time, bottom_top, south_north, west_east。|Water vapor mixing ratio
+QCLOUD|Cloud water mixing ratio|WRF模式输出变量，原始英文说明为“Cloud water mixing ratio”。单位为kg kg-1。维度为Time, bottom_top, south_north, west_east。|Cloud water mixing ratio
+QRAIN|Rain water mixing ratio|WRF模式输出变量，原始英文说明为“Rain water mixing ratio”。单位为kg kg-1。维度为Time, bottom_top, south_north, west_east。|Rain water mixing ratio
+QICE|Ice mixing ratio|WRF模式输出变量，原始英文说明为“Ice mixing ratio”。单位为kg kg-1。维度为Time, bottom_top, south_north, west_east。|Ice mixing ratio
+QSNOW|Snow mixing ratio|WRF模式输出变量，原始英文说明为“Snow mixing ratio”。单位为kg kg-1。维度为Time, bottom_top, south_north, west_east。|Snow mixing ratio
+QGRAUP|Graupel mixing ratio|WRF模式输出变量，原始英文说明为“Graupel mixing ratio”。单位为kg kg-1。维度为Time, bottom_top, south_north, west_east。|Graupel mixing ratio
+QNICE|Ice Number concentration|WRF模式输出变量，原始英文说明为“Ice Number concentration”。单位为kg-1。维度为Time, bottom_top, south_north, west_east。|Ice Number concentration
+QNRAIN|Rain Number concentration|WRF模式输出变量，原始英文说明为“Rain Number concentration”。单位为kg(-1)。维度为Time, bottom_top, south_north, west_east。|Rain Number concentration
+SHDMAX|ANNUAL MAX VEG FRACTION|WRF模式输出变量，原始英文说明为“ANNUAL MAX VEG FRACTION”。维度为Time, south_north, west_east。|ANNUAL MAX VEG FRACTION
+SHDMIN|ANNUAL MIN VEG FRACTION|WRF模式输出变量，原始英文说明为“ANNUAL MIN VEG FRACTION”。维度为Time, south_north, west_east。|ANNUAL MIN VEG FRACTION
+SNOALB|ANNUAL MAX SNOW ALBEDO IN FRACTION|WRF模式输出变量，原始英文说明为“ANNUAL MAX SNOW ALBEDO IN FRACTION”。维度为Time, south_north, west_east。|ANNUAL MAX SNOW ALBEDO IN FRACTION
+TSLB|SOIL TEMPERATURE|WRF模式输出变量，原始英文说明为“SOIL TEMPERATURE”。单位为K。维度为Time, soil_layers_stag, south_north, west_east。|SOIL TEMPERATURE
+SMOIS|SOIL MOISTURE|WRF模式输出变量，原始英文说明为“SOIL MOISTURE”。单位为m3 m-3。维度为Time, soil_layers_stag, south_north, west_east。|SOIL MOISTURE
+SH2O|SOIL LIQUID WATER|WRF模式输出变量，原始英文说明为“SOIL LIQUID WATER”。单位为m3 m-3。维度为Time, soil_layers_stag, south_north, west_east。|SOIL LIQUID WATER
+SMCREL|RELATIVE SOIL MOISTURE|WRF模式输出变量，原始英文说明为“RELATIVE SOIL MOISTURE”。维度为Time, soil_layers_stag, south_north, west_east。|RELATIVE SOIL MOISTURE
+SEAICE|SEA ICE FLAG|WRF模式输出变量，原始英文说明为“SEA ICE FLAG”。维度为Time, south_north, west_east。|SEA ICE FLAG
+XICEM|SEA ICE FLAG (PREVIOUS STEP)|WRF模式输出变量，原始英文说明为“SEA ICE FLAG (PREVIOUS STEP)”。维度为Time, south_north, west_east。|SEA ICE FLAG (PREVIOUS STEP)
+SFROFF|SURFACE RUNOFF|WRF模式输出变量，原始英文说明为“SURFACE RUNOFF”。单位为mm。维度为Time, south_north, west_east。|SURFACE RUNOFF
+UDROFF|UNDERGROUND RUNOFF|WRF模式输出变量，原始英文说明为“UNDERGROUND RUNOFF”。单位为mm。维度为Time, south_north, west_east。|UNDERGROUND RUNOFF
+IVGTYP|DOMINANT VEGETATION CATEGORY|WRF模式输出变量，原始英文说明为“DOMINANT VEGETATION CATEGORY”。维度为Time, south_north, west_east。|DOMINANT VEGETATION CATEGORY
+ISLTYP|DOMINANT SOIL CATEGORY|WRF模式输出变量，原始英文说明为“DOMINANT SOIL CATEGORY”。维度为Time, south_north, west_east。|DOMINANT SOIL CATEGORY
+VEGFRA|VEGETATION FRACTION|WRF模式输出变量，原始英文说明为“VEGETATION FRACTION”。维度为Time, south_north, west_east。|VEGETATION FRACTION
+GRDFLX|GROUND HEAT FLUX|WRF模式输出变量，原始英文说明为“GROUND HEAT FLUX”。单位为W m-2。维度为Time, south_north, west_east。|GROUND HEAT FLUX
+ACGRDFLX|ACCUMULATED GROUND HEAT FLUX|WRF模式输出变量，原始英文说明为“ACCUMULATED GROUND HEAT FLUX”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED GROUND HEAT FLUX
+ACSNOM|ACCUMULATED MELTED SNOW|WRF模式输出变量，原始英文说明为“ACCUMULATED MELTED SNOW”。单位为kg m-2。维度为Time, south_north, west_east。|ACCUMULATED MELTED SNOW
+SNOW|SNOW WATER EQUIVALENT|WRF模式输出变量，原始英文说明为“SNOW WATER EQUIVALENT”。单位为kg m-2。维度为Time, south_north, west_east。|SNOW WATER EQUIVALENT
+SNOWH|PHYSICAL SNOW DEPTH|WRF模式输出变量，原始英文说明为“PHYSICAL SNOW DEPTH”。单位为m。维度为Time, south_north, west_east。|PHYSICAL SNOW DEPTH
+CANWAT|CANOPY WATER|WRF模式输出变量，原始英文说明为“CANOPY WATER”。单位为kg m-2。维度为Time, south_north, west_east。|CANOPY WATER
+SSTSK|SKIN SEA SURFACE TEMPERATURE|WRF模式输出变量，原始英文说明为“SKIN SEA SURFACE TEMPERATURE”。单位为K。维度为Time, south_north, west_east。|SKIN SEA SURFACE TEMPERATURE
+WATER_DEPTH|global water depth|WRF模式输出变量，原始英文说明为“global water depth”。单位为m。维度为Time, south_north, west_east。|global water depth
+COSZEN|COS of SOLAR ZENITH ANGLE|WRF模式输出变量，原始英文说明为“COS of SOLAR ZENITH ANGLE”。单位为dimensionless。维度为Time, south_north, west_east。|COS of SOLAR ZENITH ANGLE
+LAI|LEAF AREA INDEX|WRF模式输出变量，原始英文说明为“LEAF AREA INDEX”。单位为m-2/m-2。维度为Time, south_north, west_east。|LEAF AREA INDEX
+VAR|STANDARD DEVIATION OF SUBGRID-SCALE OROGRAPHY|WRF模式输出变量，原始英文说明为“STANDARD DEVIATION OF SUBGRID-SCALE OROGRAPHY”。单位为m。维度为Time, south_north, west_east。|STANDARD DEVIATION OF SUBGRID-SCALE OROGRAPHY
+O3_GFS_DU|Total ozone from GFS|WRF模式输出变量，原始英文说明为“Total ozone from GFS”。单位为Dobson Units。维度为Time, south_north, west_east。|Total ozone from GFS
+MAPFAC_M|Map scale factor on mass grid|WRF模式输出变量，原始英文说明为“Map scale factor on mass grid”。维度为Time, south_north, west_east。|Map scale factor on mass grid
+MAPFAC_U|Map scale factor on u-grid|WRF模式输出变量，原始英文说明为“Map scale factor on u-grid”。维度为Time, south_north, west_east_stag。|Map scale factor on u-grid
+MAPFAC_V|Map scale factor on v-grid|WRF模式输出变量，原始英文说明为“Map scale factor on v-grid”。维度为Time, south_north_stag, west_east。|Map scale factor on v-grid
+MAPFAC_MX|Map scale factor on mass grid, x direction|WRF模式输出变量，原始英文说明为“Map scale factor on mass grid, x direction”。维度为Time, south_north, west_east。|Map scale factor on mass grid, x direction
+MAPFAC_MY|Map scale factor on mass grid, y direction|WRF模式输出变量，原始英文说明为“Map scale factor on mass grid, y direction”。维度为Time, south_north, west_east。|Map scale factor on mass grid, y direction
+MAPFAC_UX|Map scale factor on u-grid, x direction|WRF模式输出变量，原始英文说明为“Map scale factor on u-grid, x direction”。维度为Time, south_north, west_east_stag。|Map scale factor on u-grid, x direction
+MAPFAC_UY|Map scale factor on u-grid, y direction|WRF模式输出变量，原始英文说明为“Map scale factor on u-grid, y direction”。维度为Time, south_north, west_east_stag。|Map scale factor on u-grid, y direction
+MAPFAC_VX|Map scale factor on v-grid, x direction|WRF模式输出变量，原始英文说明为“Map scale factor on v-grid, x direction”。维度为Time, south_north_stag, west_east。|Map scale factor on v-grid, x direction
+MF_VX_INV|Inverse map scale factor on v-grid, x direction|WRF模式输出变量，原始英文说明为“Inverse map scale factor on v-grid, x direction”。维度为Time, south_north_stag, west_east。|Inverse map scale factor on v-grid, x direction
+MAPFAC_VY|Map scale factor on v-grid, y direction|WRF模式输出变量，原始英文说明为“Map scale factor on v-grid, y direction”。维度为Time, south_north_stag, west_east。|Map scale factor on v-grid, y direction
+F|Coriolis sine latitude term|WRF模式输出变量，原始英文说明为“Coriolis sine latitude term”。单位为s-1。维度为Time, south_north, west_east。|Coriolis sine latitude term
+E|Coriolis cosine latitude term|WRF模式输出变量，原始英文说明为“Coriolis cosine latitude term”。单位为s-1。维度为Time, south_north, west_east。|Coriolis cosine latitude term
+SINALPHA|Local sine of map rotation|WRF模式输出变量，原始英文说明为“Local sine of map rotation”。维度为Time, south_north, west_east。|Local sine of map rotation
+COSALPHA|Local cosine of map rotation|WRF模式输出变量，原始英文说明为“Local cosine of map rotation”。维度为Time, south_north, west_east。|Local cosine of map rotation
+HGT|Terrain Height|WRF模式输出变量，原始英文说明为“Terrain Height”。单位为m。维度为Time, south_north, west_east。|Terrain Height
+TSK|SURFACE SKIN TEMPERATURE|WRF模式输出变量，原始英文说明为“SURFACE SKIN TEMPERATURE”。单位为K。维度为Time, south_north, west_east。|SURFACE SKIN TEMPERATURE
+P_TOP|PRESSURE TOP OF THE MODEL|WRF模式输出变量，原始英文说明为“PRESSURE TOP OF THE MODEL”。单位为Pa。维度为Time。|PRESSURE TOP OF THE MODEL
+GOT_VAR_SSO|whether VAR_SSO was included in WPS output (beginning V3.4)|WRF模式输出变量，原始英文说明为“whether VAR_SSO was included in WPS output (beginning V3.4)”。维度为Time。|whether VAR_SSO was included in WPS output (beginning V3.4)
+T00|BASE STATE TEMPERATURE|WRF模式输出变量，原始英文说明为“BASE STATE TEMPERATURE”。单位为K。维度为Time。|BASE STATE TEMPERATURE
+P00|BASE STATE PRESSURE|WRF模式输出变量，原始英文说明为“BASE STATE PRESSURE”。单位为Pa。维度为Time。|BASE STATE PRESSURE
+TLP|BASE STATE LAPSE RATE|WRF模式输出变量，原始英文说明为“BASE STATE LAPSE RATE”。维度为Time。|BASE STATE LAPSE RATE
+TISO|TEMP AT WHICH THE BASE T TURNS CONST|WRF模式输出变量，原始英文说明为“TEMP AT WHICH THE BASE T TURNS CONST”。单位为K。维度为Time。|TEMP AT WHICH THE BASE T TURNS CONST
+TLP_STRAT|BASE STATE LAPSE RATE (DT/D(LN(P)) IN STRATOSPHERE|WRF模式输出变量，原始英文说明为“BASE STATE LAPSE RATE (DT/D(LN(P)) IN STRATOSPHERE”。单位为K。维度为Time。|BASE STATE LAPSE RATE (DT/D(LN(P)) IN STRATOSPHERE
+P_STRAT|BASE STATE PRESSURE AT BOTTOM OF STRATOSPHERE|WRF模式输出变量，原始英文说明为“BASE STATE PRESSURE AT BOTTOM OF STRATOSPHERE”。单位为Pa。维度为Time。|BASE STATE PRESSURE AT BOTTOM OF STRATOSPHERE
+MAX_MSFTX|Max map factor in domain|WRF模式输出变量，原始英文说明为“Max map factor in domain”。维度为Time。|Max map factor in domain
+MAX_MSFTY|Max map factor in domain|WRF模式输出变量，原始英文说明为“Max map factor in domain”。维度为Time。|Max map factor in domain
+RAINC|Accumulated convective precipitation|累积对流降水，表示由对流过程产生的累积降水量。|Accumulated precipitation produced by convective parameterization processes.
+RAINSH|ACCUMULATED SHALLOW CUMULUS PRECIPITATION|WRF模式输出变量，原始英文说明为“ACCUMULATED SHALLOW CUMULUS PRECIPITATION”。单位为mm。维度为Time, south_north, west_east。|ACCUMULATED SHALLOW CUMULUS PRECIPITATION
+RAINNC|Accumulated non-convective precipitation|累积非对流降水，表示由非对流云微物理过程产生的累积降水量。|Accumulated precipitation produced by non-convective cloud microphysics processes.
+SNOWNC|ACCUMULATED TOTAL GRID SCALE SNOW AND ICE|WRF模式输出变量，原始英文说明为“ACCUMULATED TOTAL GRID SCALE SNOW AND ICE”。单位为mm。维度为Time, south_north, west_east。|ACCUMULATED TOTAL GRID SCALE SNOW AND ICE
+GRAUPELNC|ACCUMULATED TOTAL GRID SCALE GRAUPEL|WRF模式输出变量，原始英文说明为“ACCUMULATED TOTAL GRID SCALE GRAUPEL”。单位为mm。维度为Time, south_north, west_east。|ACCUMULATED TOTAL GRID SCALE GRAUPEL
+HAILNC|ACCUMULATED TOTAL GRID SCALE HAIL|WRF模式输出变量，原始英文说明为“ACCUMULATED TOTAL GRID SCALE HAIL”。单位为mm。维度为Time, south_north, west_east。|ACCUMULATED TOTAL GRID SCALE HAIL
+CLDFRA|CLOUD FRACTION|WRF模式输出变量，原始英文说明为“CLOUD FRACTION”。维度为Time, bottom_top, south_north, west_east。|CLOUD FRACTION
+SWDOWN|DOWNWARD SHORT WAVE FLUX AT GROUND SURFACE|WRF模式输出变量，原始英文说明为“DOWNWARD SHORT WAVE FLUX AT GROUND SURFACE”。单位为W m-2。维度为Time, south_north, west_east。|DOWNWARD SHORT WAVE FLUX AT GROUND SURFACE
+GLW|DOWNWARD LONG WAVE FLUX AT GROUND SURFACE|WRF模式输出变量，原始英文说明为“DOWNWARD LONG WAVE FLUX AT GROUND SURFACE”。单位为W m-2。维度为Time, south_north, west_east。|DOWNWARD LONG WAVE FLUX AT GROUND SURFACE
+SWNORM|NORMAL SHORT WAVE FLUX AT GROUND SURFACE (SLOPE-DEPENDENT)|WRF模式输出变量，原始英文说明为“NORMAL SHORT WAVE FLUX AT GROUND SURFACE (SLOPE-DEPENDENT)”。单位为W m-2。维度为Time, south_north, west_east。|NORMAL SHORT WAVE FLUX AT GROUND SURFACE (SLOPE-DEPENDENT)
+ACSWUPT|ACCUMULATED UPWELLING SHORTWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“ACCUMULATED UPWELLING SHORTWAVE FLUX AT TOP”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED UPWELLING SHORTWAVE FLUX AT TOP
+ACSWUPTC|ACCUMULATED UPWELLING CLEAR SKY SHORTWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“ACCUMULATED UPWELLING CLEAR SKY SHORTWAVE FLUX AT TOP”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED UPWELLING CLEAR SKY SHORTWAVE FLUX AT TOP
+ACSWDNT|ACCUMULATED DOWNWELLING SHORTWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“ACCUMULATED DOWNWELLING SHORTWAVE FLUX AT TOP”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED DOWNWELLING SHORTWAVE FLUX AT TOP
+ACSWDNTC|ACCUMULATED DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“ACCUMULATED DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT TOP”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT TOP
+ACSWUPB|ACCUMULATED UPWELLING SHORTWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“ACCUMULATED UPWELLING SHORTWAVE FLUX AT BOTTOM”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED UPWELLING SHORTWAVE FLUX AT BOTTOM
+ACSWUPBC|ACCUMULATED UPWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“ACCUMULATED UPWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED UPWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM
+ACSWDNB|ACCUMULATED DOWNWELLING SHORTWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“ACCUMULATED DOWNWELLING SHORTWAVE FLUX AT BOTTOM”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED DOWNWELLING SHORTWAVE FLUX AT BOTTOM
+ACSWDNBC|ACCUMULATED DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“ACCUMULATED DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM
+ACLWUPT|ACCUMULATED UPWELLING LONGWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“ACCUMULATED UPWELLING LONGWAVE FLUX AT TOP”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED UPWELLING LONGWAVE FLUX AT TOP
+ACLWUPTC|ACCUMULATED UPWELLING CLEAR SKY LONGWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“ACCUMULATED UPWELLING CLEAR SKY LONGWAVE FLUX AT TOP”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED UPWELLING CLEAR SKY LONGWAVE FLUX AT TOP
+ACLWDNT|ACCUMULATED DOWNWELLING LONGWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“ACCUMULATED DOWNWELLING LONGWAVE FLUX AT TOP”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED DOWNWELLING LONGWAVE FLUX AT TOP
+ACLWDNTC|ACCUMULATED DOWNWELLING CLEAR SKY LONGWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“ACCUMULATED DOWNWELLING CLEAR SKY LONGWAVE FLUX AT TOP”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED DOWNWELLING CLEAR SKY LONGWAVE FLUX AT TOP
+ACLWUPB|ACCUMULATED UPWELLING LONGWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“ACCUMULATED UPWELLING LONGWAVE FLUX AT BOTTOM”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED UPWELLING LONGWAVE FLUX AT BOTTOM
+ACLWUPBC|ACCUMULATED UPWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“ACCUMULATED UPWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED UPWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM
+ACLWDNB|ACCUMULATED DOWNWELLING LONGWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“ACCUMULATED DOWNWELLING LONGWAVE FLUX AT BOTTOM”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED DOWNWELLING LONGWAVE FLUX AT BOTTOM
+ACLWDNBC|ACCUMULATED DOWNWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“ACCUMULATED DOWNWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED DOWNWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM
+SWUPT|INSTANTANEOUS UPWELLING SHORTWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“INSTANTANEOUS UPWELLING SHORTWAVE FLUX AT TOP”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS UPWELLING SHORTWAVE FLUX AT TOP
+SWUPTC|INSTANTANEOUS UPWELLING CLEAR SKY SHORTWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“INSTANTANEOUS UPWELLING CLEAR SKY SHORTWAVE FLUX AT TOP”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS UPWELLING CLEAR SKY SHORTWAVE FLUX AT TOP
+SWDNT|INSTANTANEOUS DOWNWELLING SHORTWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“INSTANTANEOUS DOWNWELLING SHORTWAVE FLUX AT TOP”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS DOWNWELLING SHORTWAVE FLUX AT TOP
+SWDNTC|INSTANTANEOUS DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“INSTANTANEOUS DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT TOP”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT TOP
+SWUPB|INSTANTANEOUS UPWELLING SHORTWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“INSTANTANEOUS UPWELLING SHORTWAVE FLUX AT BOTTOM”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS UPWELLING SHORTWAVE FLUX AT BOTTOM
+SWUPBC|INSTANTANEOUS UPWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“INSTANTANEOUS UPWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS UPWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM
+SWDNB|INSTANTANEOUS DOWNWELLING SHORTWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“INSTANTANEOUS DOWNWELLING SHORTWAVE FLUX AT BOTTOM”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS DOWNWELLING SHORTWAVE FLUX AT BOTTOM
+SWDNBC|INSTANTANEOUS DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“INSTANTANEOUS DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS DOWNWELLING CLEAR SKY SHORTWAVE FLUX AT BOTTOM
+LWUPT|INSTANTANEOUS UPWELLING LONGWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“INSTANTANEOUS UPWELLING LONGWAVE FLUX AT TOP”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS UPWELLING LONGWAVE FLUX AT TOP
+LWUPTC|INSTANTANEOUS UPWELLING CLEAR SKY LONGWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“INSTANTANEOUS UPWELLING CLEAR SKY LONGWAVE FLUX AT TOP”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS UPWELLING CLEAR SKY LONGWAVE FLUX AT TOP
+LWDNT|INSTANTANEOUS DOWNWELLING LONGWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“INSTANTANEOUS DOWNWELLING LONGWAVE FLUX AT TOP”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS DOWNWELLING LONGWAVE FLUX AT TOP
+LWDNTC|INSTANTANEOUS DOWNWELLING CLEAR SKY LONGWAVE FLUX AT TOP|WRF模式输出变量，原始英文说明为“INSTANTANEOUS DOWNWELLING CLEAR SKY LONGWAVE FLUX AT TOP”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS DOWNWELLING CLEAR SKY LONGWAVE FLUX AT TOP
+LWUPB|INSTANTANEOUS UPWELLING LONGWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“INSTANTANEOUS UPWELLING LONGWAVE FLUX AT BOTTOM”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS UPWELLING LONGWAVE FLUX AT BOTTOM
+LWUPBC|INSTANTANEOUS UPWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“INSTANTANEOUS UPWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS UPWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM
+LWDNB|INSTANTANEOUS DOWNWELLING LONGWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“INSTANTANEOUS DOWNWELLING LONGWAVE FLUX AT BOTTOM”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS DOWNWELLING LONGWAVE FLUX AT BOTTOM
+LWDNBC|INSTANTANEOUS DOWNWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM|WRF模式输出变量，原始英文说明为“INSTANTANEOUS DOWNWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM”。单位为W m-2。维度为Time, south_north, west_east。|INSTANTANEOUS DOWNWELLING CLEAR SKY LONGWAVE FLUX AT BOTTOM
+OLR|TOA OUTGOING LONG WAVE|WRF模式输出变量，原始英文说明为“TOA OUTGOING LONG WAVE”。单位为W m-2。维度为Time, south_north, west_east。|TOA OUTGOING LONG WAVE
+XLAT_U|LATITUDE, SOUTH IS NEGATIVE|WRF模式输出变量，原始英文说明为“LATITUDE, SOUTH IS NEGATIVE”。单位为degree_north。维度为Time, south_north, west_east_stag。|LATITUDE, SOUTH IS NEGATIVE
+XLONG_U|LONGITUDE, WEST IS NEGATIVE|WRF模式输出变量，原始英文说明为“LONGITUDE, WEST IS NEGATIVE”。单位为degree_east。维度为Time, south_north, west_east_stag。|LONGITUDE, WEST IS NEGATIVE
+XLAT_V|LATITUDE, SOUTH IS NEGATIVE|WRF模式输出变量，原始英文说明为“LATITUDE, SOUTH IS NEGATIVE”。单位为degree_north。维度为Time, south_north_stag, west_east。|LATITUDE, SOUTH IS NEGATIVE
+XLONG_V|LONGITUDE, WEST IS NEGATIVE|WRF模式输出变量，原始英文说明为“LONGITUDE, WEST IS NEGATIVE”。单位为degree_east。维度为Time, south_north_stag, west_east。|LONGITUDE, WEST IS NEGATIVE
+ALBEDO|ALBEDO|WRF模式输出变量，原始英文说明为“ALBEDO”。单位为-。维度为Time, south_north, west_east。|ALBEDO
+CLAT|COMPUTATIONAL GRID LATITUDE, SOUTH IS NEGATIVE|WRF模式输出变量，原始英文说明为“COMPUTATIONAL GRID LATITUDE, SOUTH IS NEGATIVE”。单位为degree_north。维度为Time, south_north, west_east。|COMPUTATIONAL GRID LATITUDE, SOUTH IS NEGATIVE
+ALBBCK|BACKGROUND ALBEDO|WRF模式输出变量，原始英文说明为“BACKGROUND ALBEDO”。维度为Time, south_north, west_east。|BACKGROUND ALBEDO
+EMISS|SURFACE EMISSIVITY|WRF模式输出变量，原始英文说明为“SURFACE EMISSIVITY”。维度为Time, south_north, west_east。|SURFACE EMISSIVITY
+NOAHRES|RESIDUAL OF THE NOAH SURFACE ENERGY BUDGET|WRF模式输出变量，原始英文说明为“RESIDUAL OF THE NOAH SURFACE ENERGY BUDGET”。单位为W m{-2}。维度为Time, south_north, west_east。|RESIDUAL OF THE NOAH SURFACE ENERGY BUDGET
+TMN|SOIL TEMPERATURE AT LOWER BOUNDARY|WRF模式输出变量，原始英文说明为“SOIL TEMPERATURE AT LOWER BOUNDARY”。单位为K。维度为Time, south_north, west_east。|SOIL TEMPERATURE AT LOWER BOUNDARY
+XLAND|LAND MASK (1 FOR LAND, 2 FOR WATER)|WRF模式输出变量，原始英文说明为“LAND MASK (1 FOR LAND, 2 FOR WATER)”。维度为Time, south_north, west_east。|LAND MASK (1 FOR LAND, 2 FOR WATER)
+UST|U* IN SIMILARITY THEORY|WRF模式输出变量，原始英文说明为“U* IN SIMILARITY THEORY”。单位为m s-1。维度为Time, south_north, west_east。|U* IN SIMILARITY THEORY
+PBLH|Planetary boundary layer height|边界层高度，表示大气边界层顶部高度，是判断污染扩散条件和近地层混合能力的重要变量。|Planetary boundary layer height, used to assess near-surface mixing and pollutant dispersion conditions.
+HFX|UPWARD HEAT FLUX AT THE SURFACE|WRF模式输出变量，原始英文说明为“UPWARD HEAT FLUX AT THE SURFACE”。单位为W m-2。维度为Time, south_north, west_east。|UPWARD HEAT FLUX AT THE SURFACE
+QFX|UPWARD MOISTURE FLUX AT THE SURFACE|WRF模式输出变量，原始英文说明为“UPWARD MOISTURE FLUX AT THE SURFACE”。单位为kg m-2 s-1。维度为Time, south_north, west_east。|UPWARD MOISTURE FLUX AT THE SURFACE
+LH|LATENT HEAT FLUX AT THE SURFACE|WRF模式输出变量，原始英文说明为“LATENT HEAT FLUX AT THE SURFACE”。单位为W m-2。维度为Time, south_north, west_east。|LATENT HEAT FLUX AT THE SURFACE
+ACHFX|ACCUMULATED UPWARD HEAT FLUX AT THE SURFACE|WRF模式输出变量，原始英文说明为“ACCUMULATED UPWARD HEAT FLUX AT THE SURFACE”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED UPWARD HEAT FLUX AT THE SURFACE
+ACLHF|ACCUMULATED UPWARD LATENT HEAT FLUX AT THE SURFACE|WRF模式输出变量，原始英文说明为“ACCUMULATED UPWARD LATENT HEAT FLUX AT THE SURFACE”。单位为J m-2。维度为Time, south_north, west_east。|ACCUMULATED UPWARD LATENT HEAT FLUX AT THE SURFACE
+SNOWC|FLAG INDICATING SNOW COVERAGE (1 FOR SNOW COVER)|WRF模式输出变量，原始英文说明为“FLAG INDICATING SNOW COVERAGE (1 FOR SNOW COVER)”。维度为Time, south_north, west_east。|FLAG INDICATING SNOW COVERAGE (1 FOR SNOW COVER)
+SR|fraction of frozen precipitation|WRF模式输出变量，原始英文说明为“fraction of frozen precipitation”。单位为-。维度为Time, south_north, west_east。|fraction of frozen precipitation
+SAVE_TOPO_FROM_REAL|1=original topo from real/0=topo modified by WRF|WRF模式输出变量，原始英文说明为“1=original topo from real/0=topo modified by WRF”。单位为flag。维度为Time。|1=original topo from real/0=topo modified by WRF
+ISEEDARR_SPPT|Array to hold seed for restart, SPPT|WRF模式输出变量，原始英文说明为“Array to hold seed for restart, SPPT”。维度为Time, seed_dim_stag。|Array to hold seed for restart, SPPT
+ISEEDARR_SKEBS|Array to hold seed for restart, SKEBS|WRF模式输出变量，原始英文说明为“Array to hold seed for restart, SKEBS”。维度为Time, seed_dim_stag。|Array to hold seed for restart, SKEBS
+ISEEDARR_RAND_PERTURB|Array to hold seed for restart, RAND_PERT|WRF模式输出变量，原始英文说明为“Array to hold seed for restart, RAND_PERT”。维度为Time, seed_dim_stag。|Array to hold seed for restart, RAND_PERT
+ISEEDARRAY_SPP_CONV|Array to hold seed for restart, RAND_PERT2|WRF模式输出变量，原始英文说明为“Array to hold seed for restart, RAND_PERT2”。维度为Time, seed_dim_stag。|Array to hold seed for restart, RAND_PERT2
+ISEEDARRAY_SPP_PBL|Array to hold seed for restart, RAND_PERT3|WRF模式输出变量，原始英文说明为“Array to hold seed for restart, RAND_PERT3”。维度为Time, seed_dim_stag。|Array to hold seed for restart, RAND_PERT3
+ISEEDARRAY_SPP_LSM|Array to hold seed for restart, RAND_PERT4|WRF模式输出变量，原始英文说明为“Array to hold seed for restart, RAND_PERT4”。维度为Time, seed_dim_stag。|Array to hold seed for restart, RAND_PERT4
+C1H|half levels, c1h = d bf / d eta, using znw|WRF模式输出变量，原始英文说明为“half levels, c1h = d bf / d eta, using znw”。单位为Dimensionless。维度为Time, bottom_top。|half levels, c1h = d bf / d eta, using znw
+C2H|half levels, c2h = (1-c1h)*(p0-pt)|WRF模式输出变量，原始英文说明为“half levels, c2h = (1-c1h)*(p0-pt)”。单位为Pa。维度为Time, bottom_top。|half levels, c2h = (1-c1h)*(p0-pt)
+C1F|full levels, c1f = d bf / d eta, using znu|WRF模式输出变量，原始英文说明为“full levels, c1f = d bf / d eta, using znu”。单位为Dimensionless。维度为Time, bottom_top_stag。|full levels, c1f = d bf / d eta, using znu
+C2F|full levels, c2f = (1-c1f)*(p0-pt)|WRF模式输出变量，原始英文说明为“full levels, c2f = (1-c1f)*(p0-pt)”。单位为Pa。维度为Time, bottom_top_stag。|full levels, c2f = (1-c1f)*(p0-pt)
+C3H|half levels, c3h = bh|WRF模式输出变量，原始英文说明为“half levels, c3h = bh”。单位为Dimensionless。维度为Time, bottom_top。|half levels, c3h = bh
+C4H|half levels, c4h = (eta-bh)*(p0-pt), using znu|WRF模式输出变量，原始英文说明为“half levels, c4h = (eta-bh)*(p0-pt), using znu”。单位为Pa。维度为Time, bottom_top。|half levels, c4h = (eta-bh)*(p0-pt), using znu
+C3F|full levels, c3f = bf|WRF模式输出变量，原始英文说明为“full levels, c3f = bf”。单位为Dimensionless。维度为Time, bottom_top_stag。|full levels, c3f = bf
+C4F|full levels, c4f = (eta-bf)*(p0-pt), using znw|WRF模式输出变量，原始英文说明为“full levels, c4f = (eta-bf)*(p0-pt), using znw”。单位为Pa。维度为Time, bottom_top_stag。|full levels, c4f = (eta-bf)*(p0-pt), using znw
+PCB|base state dry air mass in column|WRF模式输出变量，原始英文说明为“base state dry air mass in column”。单位为Pa。维度为Time, south_north, west_east。|base state dry air mass in column
+PC|perturbation dry air mass in column|WRF模式输出变量，原始英文说明为“perturbation dry air mass in column”。单位为Pa。维度为Time, south_north, west_east。|perturbation dry air mass in column
+LANDMASK|LAND MASK (1 FOR LAND, 0 FOR WATER)|WRF模式输出变量，原始英文说明为“LAND MASK (1 FOR LAND, 0 FOR WATER)”。维度为Time, south_north, west_east。|LAND MASK (1 FOR LAND, 0 FOR WATER)
+LAKEMASK|LAKE MASK (1 FOR LAND, 0 FOR WATER)|WRF模式输出变量，原始英文说明为“LAKE MASK (1 FOR LAND, 0 FOR WATER)”。维度为Time, south_north, west_east。|LAKE MASK (1 FOR LAND, 0 FOR WATER)
+SST|SEA SURFACE TEMPERATURE|WRF模式输出变量，原始英文说明为“SEA SURFACE TEMPERATURE”。单位为K。维度为Time, south_north, west_east。|SEA SURFACE TEMPERATURE
+SST_INPUT|SEA SURFACE TEMPERATURE FROM WRFLOWINPUT FILE|WRF模式输出变量，原始英文说明为“SEA SURFACE TEMPERATURE FROM WRFLOWINPUT FILE”。单位为K。维度为Time, south_north, west_east。|SEA SURFACE TEMPERATURE FROM WRFLOWINPUT FILE
