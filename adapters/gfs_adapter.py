@@ -173,6 +173,38 @@ def _convert_values(
     return arr, units or "未知", "未转换", var_type
 
 
+
+def _normalize_lon_0360_to_180(
+    arr: np.ndarray,
+    lon: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Convert longitude from 0~360 to -180~180 and reorder data columns.
+
+    This is required for web map overlay alignment. Only changing extent is wrong;
+    the array columns must be reordered with the same longitude order.
+    """
+    lon = np.asarray(lon, dtype=float)
+
+    if lon.size >= 2 and np.nanmin(lon) >= 0.0 and np.nanmax(lon) > 180.0:
+        lon_new = ((lon + 180.0) % 360.0) - 180.0
+        order = np.argsort(lon_new)
+
+        lon_new = lon_new[order]
+
+        if arr.ndim == 3:
+            arr = arr[:, :, order]
+        elif arr.ndim == 2:
+            arr = arr[:, order]
+        else:
+            raise ValueError(f"Unsupported array ndim for longitude normalization: {arr.ndim}")
+
+        return arr, lon_new
+
+    return arr, lon
+
+
+
 def _extract_array_lat_lon(ds: xr.Dataset, var_name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     lat_name, lon_name = _find_lat_lon_names(ds)
 
@@ -209,6 +241,10 @@ def _extract_array_lat_lon(ds: xr.Dataset, var_name: str) -> tuple[np.ndarray, n
     if lon.size >= 2 and lon[0] > lon[-1]:
         lon = lon[::-1]
         arr = arr[:, :, ::-1]
+
+    # GFS/NOMADS often uses 0~360 longitude, while web maps expect -180~180.
+    # Reorder array columns together with longitude values.
+    arr, lon = _normalize_lon_0360_to_180(arr, lon)
 
     return arr, lat, lon
 
@@ -640,6 +676,9 @@ def _binary_layer_summary(layer: dict[str, Any]) -> dict[str, Any]:
         "key": layer.get("key"),
         "label": layer.get("label"),
         "element": layer.get("element"),
+        "elementCode": layer.get("elementCode") or layer.get("key"),
+        "elementEnglish": layer.get("elementEnglish") or layer.get("englishLabel"),
+        "elementLongName": layer.get("elementLongName") or layer.get("long_name"),
         "dtype": "float32",
         "endian": "little",
         "missing": MISSING_VALUE,
@@ -1051,7 +1090,15 @@ def _build_variable_layers(path: Path, groups: list[xr.Dataset]) -> tuple[list[d
                     "englishLabel": english_label,
                     "productCategory": product_category,
                     "productType": product_category,
-                    "element": f"{label}（{var_name} / {long_name}）",
+                    # 前端主显示只用中文业务名，避免右侧面板过长。
+                    # 详细信息拆成独立字段：
+                    #   element        -> 2米气温
+                    #   elementEnglish -> 2 metre temperature
+                    #   elementCode    -> t2m
+                    "element": label,
+                    "elementCode": var_name,
+                    "elementEnglish": english_label,
+                    "elementLongName": long_name,
                     "long_name": long_name,
                     "shortName": short_name,
                     "rawUnit": units,
@@ -1138,6 +1185,10 @@ def _build_variable_layers(path: Path, groups: list[xr.Dataset]) -> tuple[list[d
             "key": var_name,
             "label": layer["label"],
             "element": layer["element"],
+            "elementCode": layer.get("elementCode"),
+            "elementEnglish": layer.get("elementEnglish"),
+            "elementLongName": layer.get("elementLongName"),
+            "englishLabel": layer.get("englishLabel"),
             "productCategory": layer.get("productCategory"),
             "unit": layer["unit"],
             "varType": layer["varType"],
@@ -1173,6 +1224,10 @@ def _build_weather_info_from_layer(
         "issueTime": layer.get("issue_time", "待解析"),
         "cycleTime": layer.get("cycle_time", "待解析"),
         "element": layer.get("element", "GRIB 变量"),
+        "elementCode": layer.get("elementCode") or layer.get("key"),
+        "elementEnglish": layer.get("elementEnglish") or layer.get("englishLabel"),
+        "elementLongName": layer.get("elementLongName") or layer.get("long_name"),
+        "englishLabel": layer.get("englishLabel"),
         "time": layer.get("time", "待解析"),
         "level": layer.get("level", "待解析"),
         "range": layer.get("range", "待解析"),
