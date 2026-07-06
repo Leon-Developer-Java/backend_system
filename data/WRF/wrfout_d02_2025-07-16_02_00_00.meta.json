@@ -2,19 +2,19 @@
   "dataset_id": "wrfout_d02_2025-07-16_02_00_00",
   "data_type": "WRF",
   "file_format": "NC",
-  "source_file": "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00",
-  "meta_file": "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.meta.json",
+  "source_file": "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_02_00_00",
+  "meta_file": "D:/weather_prediction_system/backend/data/WRF/wrfout_d02_2025-07-16_02_00_00.meta.json",
   "webp_files": [
-    "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_PM2_5_DRY.webp",
-    "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_PM10.webp",
-    "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_AOD2D_OUT.webp",
-    "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_T2.webp",
-    "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_U10.webp",
-    "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_V10.webp",
-    "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_PSFC.webp",
-    "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_PBLH.webp",
-    "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_RAINC.webp",
-    "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_RAINNC.webp"
+    "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_PM2_5_DRY.webp",
+    "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_PM10.webp",
+    "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_AOD2D_OUT.webp",
+    "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_T2.webp",
+    "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_U10.webp",
+    "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_V10.webp",
+    "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_PSFC.webp",
+    "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_PBLH.webp",
+    "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_RAINC.webp",
+    "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps/2025-07-16_02_00_00_RAINNC.webp"
   ],
   "variables": [
     {
@@ -1975,7 +1975,7 @@
     "min": 0.0,
     "mean": 0.0,
     "alert": "无",
-    "update": "2026-07-05T13:41:52.817699+00:00",
+    "update": "2026-07-06T02:54:24.525071+00:00",
     "bars": [
       0,
       0,
@@ -1987,11 +1987,11 @@
   },
   "extra": {
     "status": "parsed",
-    "generated_at": "2026-07-05T13:41:52.817699+00:00",
+    "generated_at": "2026-07-06T02:54:24.525071+00:00",
     "domain": "d02",
     "dx": 3000.0,
     "dy": 3000.0,
-    "webp_dir": "E:/doctor/Agent-sys/Code/backend_system/data/WRF/wrfout_d02_2025-07-16_02_00_00.webps",
+    "webp_dir": "data/WRF/wrfout_d02_2025-07-16_02_00_00.webps",
     "note": "WRF adapter 已完成 NetCDF 解析，并生成前端地图叠加用透明 WebP。"
   }
 }
