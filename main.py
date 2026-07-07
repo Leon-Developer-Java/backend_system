@@ -277,6 +277,7 @@ def display_data(
     variable: str | None = Query(default=None),
     level_index: int = Query(default=0, ge=0),
     time_index: int = Query(default=0, ge=0),
+    resolution: str | None = Query(default="native"),
     meta_file: str | None = Query(default=None),
     scene_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
@@ -288,7 +289,7 @@ def display_data(
         raise HTTPException(status_code=404, detail="不支持的数据类型。")
 
     if raw_key == "CMA":
-        return ok(service.get_display_data(variable=variable, level_index=level_index, time_index=time_index, meta_file=meta_file))
+        return ok(service.get_display_data(variable=variable, level_index=level_index, time_index=time_index, meta_file=meta_file, resolution=resolution))
 
     if raw_key == "ERA5":
         return ok(service.get_display_data(variable=variable, level_index=level_index))
