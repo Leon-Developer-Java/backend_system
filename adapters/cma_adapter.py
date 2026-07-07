@@ -20,6 +20,9 @@ DATA_DIR = DATA_ROOT / "CMA"
 INFO_FILE = Path(__file__).resolve().parents[1] / "docs" / "CMA" / "information.txt"
 DEFAULT_NC_VARIABLES = ("Tair_f_inst", "Rainf_tavg", "AvgSurfT_inst", "Wind_f_inst")
 DEFAULT_GRIB_VARIABLES = ("TMP", "SPFH", "UGRD", "VGRD")
+NATIVE_RESOLUTION_KEY = "native"
+DISPLAY_RESOLUTION_KM = {"3km": 3.0, "1km": 1.0}
+MAX_RESAMPLED_CELLS = 8_000_000
 
 
 def process_file(file_path: str, data_type: str = "CMA") -> dict[str, Any]:
@@ -52,6 +55,15 @@ def _process_files(paths: list[Path], data_type: str = "CMA") -> dict[str, Any]:
     variable_docs = load_information_map()
     frontend_meta = _build_frontend_meta(source_file, product, variable_docs)
     weather_info = _build_weather_info(frontend_meta, product, variable_docs)
+    resolution_options = build_resolution_options(
+        product["extent"],
+        product["grid_shape"][1],
+        product["grid_shape"][0],
+        product["resolution"],
+        product["resolution_label"],
+    )
+    weather_info["resolution_key"] = NATIVE_RESOLUTION_KEY
+    weather_info["resolution_options"] = resolution_options
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
     schema_variables = _schema_variables(product, variable_docs)
     webp_files = _render_primary_variable_webps(paths, product)
@@ -74,6 +86,7 @@ def _process_files(paths: list[Path], data_type: str = "CMA") -> dict[str, Any]:
         "webp_files": webp_files,
         "default_webp": webp_files[0] if webp_files else None,
         "default_variable": product["primary_variable"],
+        "resolution_options": resolution_options,
         "variables": schema_variables,
         "composites": [],
         "times": [_iso_time(value) for value in product["times"]],
@@ -94,6 +107,7 @@ def _process_files(paths: list[Path], data_type: str = "CMA") -> dict[str, Any]:
                 "primary_variable": product["primary_variable"],
                 "primary_unit": _clean_unit(product["primary_unit"]),
                 "description_file": INFO_FILE.as_posix(),
+                "resolutions": resolution_options,
             },
             "era5": {},
             "gfs": {},
@@ -119,7 +133,10 @@ def _inspect_nc_product(source_file: Path, files: list[Path] | None = None) -> d
         lat = np.array(dataset["lat"][:], dtype="float64")
         lon = np.array(dataset["lon"][:], dtype="float64")
         lat_min, lat_max = float(np.nanmin(lat)), float(np.nanmax(lat))
-        lon_min, lon_max = float(np.nanmin(lon)), float(np.nanmax(lon))
+        if _is_zero_to_360_lon(lon):
+            lon_min, lon_max = -180.0, 180.0
+        else:
+            lon_min, lon_max = float(np.nanmin(lon)), float(np.nanmax(lon))
         grid_shape = [int(lat.size), int(lon.size)]
 
         for name in dataset.keys():
@@ -561,6 +578,178 @@ def _format_resolution(resolution: dict[str, float | None]) -> str:
     return "待解析"
 
 
+def normalize_resolution_key(value: str | None) -> str:
+    key = str(value or NATIVE_RESOLUTION_KEY).strip().lower()
+    if key in {"", "origin", "original"}:
+        return NATIVE_RESOLUTION_KEY
+    if key in DISPLAY_RESOLUTION_KM or key == NATIVE_RESOLUTION_KEY:
+        return key
+    return NATIVE_RESOLUTION_KEY
+
+
+def build_resolution_options(
+    extent: list[float] | None,
+    width: int,
+    height: int,
+    native_resolution: dict[str, float | None] | None = None,
+    native_label: str | None = None,
+) -> list[dict[str, Any]]:
+    native_text = str(native_label or "").strip()
+    if not native_text or native_text.lower() == "unknown":
+        native_text = _format_resolution(native_resolution or {})
+
+    options = [
+        {
+            "key": NATIVE_RESOLUTION_KEY,
+            "label": f"原始 ({native_text})" if native_text else "原始",
+            "is_native": True,
+            "playable": True,
+            "width": int(width or 0),
+            "height": int(height or 0),
+            "source_resolution": native_text,
+            "resampling": "none",
+        }
+    ]
+
+    for key, km in DISPLAY_RESOLUTION_KM.items():
+        target_width, target_height, capped = _target_shape_for_resolution(extent, km, width, height)
+        options.append(
+            {
+                "key": key,
+                "label": f"{int(km)} km",
+                "is_native": False,
+                "playable": False,
+                "width": target_width,
+                "height": target_height,
+                "source_resolution": native_text,
+                "target_resolution_km": km,
+                "resampling": "bilinear",
+                "capped": capped,
+            }
+        )
+    return options
+
+
+def resample_grid(
+    data: np.ndarray,
+    extent: list[float],
+    resolution: str | None,
+    variable: str | None = None,
+) -> dict[str, Any]:
+    key = normalize_resolution_key(resolution)
+    source = np.array(data, dtype="float32")
+    if key == NATIVE_RESOLUTION_KEY:
+        return {
+            "data": source,
+            "resolution_key": key,
+            "resampling": "none",
+            "is_native_resolution": True,
+            "playable": True,
+            "warnings": [],
+        }
+
+    target_width, target_height, capped = _target_shape_for_resolution(
+        extent,
+        DISPLAY_RESOLUTION_KM[key],
+        source.shape[1],
+        source.shape[0],
+    )
+    method = "nearest" if _is_discrete_variable(variable) else "bilinear"
+    resized = _resize_grid(source, target_width, target_height, method)
+    warnings = []
+    if capped:
+        warnings.append(f"{key} grid was capped to {target_width} x {target_height} for display memory limits.")
+    return {
+        "data": resized,
+        "resolution_key": key,
+        "target_resolution_km": DISPLAY_RESOLUTION_KM[key],
+        "resampling": method,
+        "is_native_resolution": False,
+        "playable": False,
+        "warnings": warnings,
+    }
+
+
+def write_grid_webp(
+    source_file: Path | str,
+    data: np.ndarray,
+    variable: str,
+    level_index: int = 0,
+    resolution: str | None = None,
+    stats: dict[str, Any] | None = None,
+) -> Path:
+    path = Path(source_file).resolve()
+    output = _webp_output_path(path, variable, level_index, normalize_resolution_key(resolution))
+    output.parent.mkdir(parents=True, exist_ok=True)
+    scale_min, scale_max = _stats_range(stats)
+    image = Image.fromarray(_rgba_from_grid(data, scale_min=scale_min, scale_max=scale_max), mode="RGBA")
+    image.save(output, format="WEBP", lossless=True, method=6)
+    return output
+
+
+def grid_webp_path(
+    source_file: Path | str,
+    variable: str,
+    level_index: int = 0,
+    resolution: str | None = None,
+) -> Path:
+    return _webp_output_path(Path(source_file).resolve(), variable, level_index, normalize_resolution_key(resolution))
+
+
+def _target_shape_for_resolution(
+    extent: list[float] | None,
+    target_km: float,
+    fallback_width: int,
+    fallback_height: int,
+) -> tuple[int, int, bool]:
+    if not extent or len(extent) != 4:
+        return max(2, int(fallback_width or 2)), max(2, int(fallback_height or 2)), False
+
+    west, south, east, north = [float(item) for item in extent]
+    lat_mid = (south + north) / 2
+    width_km = max(abs(east - west) * _km_per_degree_lon(lat_mid), target_km)
+    height_km = max(abs(north - south) * 111.32, target_km)
+    target_width = max(2, int(round(width_km / target_km)) + 1)
+    target_height = max(2, int(round(height_km / target_km)) + 1)
+    cells = target_width * target_height
+    if cells <= MAX_RESAMPLED_CELLS:
+        return target_width, target_height, False
+
+    scale = (MAX_RESAMPLED_CELLS / cells) ** 0.5
+    return max(2, int(target_width * scale)), max(2, int(target_height * scale)), True
+
+
+def _km_per_degree_lon(latitude: float) -> float:
+    return max(1.0, 111.32 * abs(float(np.cos(np.deg2rad(latitude)))))
+
+
+def _is_discrete_variable(variable: str | None) -> bool:
+    text = str(variable or "").lower()
+    return any(token in text for token in ("mask", "cover", "type", "category", "class"))
+
+
+def _resize_grid(data: np.ndarray, width: int, height: int, method: str) -> np.ndarray:
+    if data.shape == (height, width):
+        return data.astype("float32", copy=False)
+    if method == "nearest":
+        rows = np.rint(np.linspace(0, data.shape[0] - 1, height)).astype(int)
+        cols = np.rint(np.linspace(0, data.shape[1] - 1, width)).astype(int)
+        return data[np.ix_(rows, cols)].astype("float32", copy=False)
+
+    resample_filter = Image.Resampling.BILINEAR if hasattr(Image, "Resampling") else Image.BILINEAR
+    finite = np.isfinite(data)
+    values = np.where(finite, data, 0).astype("float32")
+    weights = finite.astype("float32")
+    value_img = Image.fromarray(values, mode="F").resize((width, height), resample_filter)
+    weight_img = Image.fromarray(weights, mode="F").resize((width, height), resample_filter)
+    value_arr = np.array(value_img, dtype="float32")
+    weight_arr = np.array(weight_img, dtype="float32")
+    result = np.full((height, width), np.nan, dtype="float32")
+    mask = weight_arr > 1e-6
+    result[mask] = value_arr[mask] / weight_arr[mask]
+    return result
+
+
 def _clean_unit(value: Any) -> str:
     text = str(value or "").strip()
     if len(text) >= 2 and text.startswith("[") and text.endswith("]"):
@@ -722,6 +911,8 @@ def ensure_variable_webp(
     variable: str,
     level_index: int = 0,
     stats: dict[str, Any] | None = None,
+    resolution: str | None = None,
+    extent: list[float] | None = None,
 ) -> Path | None:
     path = Path(source_file).resolve()
     try:
@@ -729,12 +920,11 @@ def ensure_variable_webp(
     except Exception:
         return None
 
-    output = _webp_output_path(path, variable, level_index)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    scale_min, scale_max = _stats_range(stats)
-    image = Image.fromarray(_rgba_from_grid(data, scale_min=scale_min, scale_max=scale_max), mode="RGBA")
-    image.save(output, format="WEBP", lossless=True, method=6)
-    return output
+    resolution_key = normalize_resolution_key(resolution)
+    if resolution_key != NATIVE_RESOLUTION_KEY and extent:
+        data = resample_grid(data, extent, resolution_key, variable).get("data", data)
+
+    return write_grid_webp(path, data, variable, level_index, resolution_key, stats)
 
 
 def public_data_path(path: Path | str | None) -> str | None:
@@ -794,9 +984,16 @@ def _webp_url(file_name: str, variable: str, level_index: int = 0) -> str:
     return public_data_path(_webp_output_path(source_file, variable, level_index)) or ""
 
 
-def _webp_output_path(source_file: Path, variable: str, level_index: int = 0) -> Path:
+def _webp_output_path(
+    source_file: Path,
+    variable: str,
+    level_index: int = 0,
+    resolution: str | None = None,
+) -> Path:
     safe_name = NON_WORD_RE.sub("_", str(variable or "field")).strip("._") or "field"
-    return source_file.with_name(f"{source_file.name}.{safe_name}.L{level_index}.webp")
+    resolution_key = normalize_resolution_key(resolution)
+    suffix = "" if resolution_key == NATIVE_RESOLUTION_KEY else f".R{resolution_key}"
+    return source_file.with_name(f"{source_file.name}.{safe_name}.L{level_index}{suffix}.webp")
 
 
 def _read_render_grid(source_file: Path, variable: str, level_index: int) -> tuple[np.ndarray, str, str]:
@@ -851,7 +1048,16 @@ def _orient_nc_grid(dataset: h5py.File, data: np.ndarray) -> np.ndarray:
         lon = np.array(dataset["lon"][:], dtype="float64")
         if lon.ndim == 1 and lon.size > 1 and lon[0] > lon[-1]:
             oriented = np.fliplr(oriented)
+        elif _is_zero_to_360_lon(lon):
+            split = int(np.searchsorted(lon, 180.0))
+            oriented = np.concatenate([oriented[:, split:], oriented[:, :split]], axis=1)
     return oriented
+
+
+def _is_zero_to_360_lon(lon: np.ndarray) -> bool:
+    values = np.array(lon, dtype="float64").reshape(-1)
+    values = values[np.isfinite(values)]
+    return bool(values.size and np.nanmin(values) >= 0 and np.nanmax(values) > 180)
 
 
 def _rgba_from_grid(data: np.ndarray, scale_min: float | None = None, scale_max: float | None = None) -> np.ndarray:
