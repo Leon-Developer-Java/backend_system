@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 import xarray as xr
-from PIL import Image, ImageDraw
+from PIL import Image
 
 from adapters.base import build_dataset_id, write_meta
 
@@ -20,6 +20,7 @@ DATA_DIR = DATA_ROOT / "Radar"
 INFO_FILE = Path(__file__).resolve().parents[1] / "docs" / "Radar" / "information.txt"
 DEFAULT_RENDER_VAR = "observation.base_ref_cor_log"
 FALLBACK_RENDER_VAR = "observation.prdt_crf_raw_log"
+RADAR_RENDER_CACHE_DIR = "_radar_renders_v2"
 
 RADAR_PRODUCT_INFO = {
     "observation.base_ref_cor_log": ("DBZH", "反射率", "dBZ"),
@@ -497,7 +498,7 @@ def process_files(file_paths: list[str], data_type: str = "Radar") -> dict[str, 
 def build_webp_catalog(source_file: str | Path, cache_dir: str | Path | None = None) -> dict[str, Any]:
     source_path = Path(source_file).resolve()
     if cache_dir is None:
-        cache_path = source_path.parent / "_radar_renders" / source_path.stem
+        cache_path = source_path.parent / RADAR_RENDER_CACHE_DIR / source_path.stem
     else:
         cache_path = Path(cache_dir).resolve()
     cache_path.mkdir(parents=True, exist_ok=True)
@@ -609,19 +610,6 @@ def _write_radar_webp(
     rgba = _colorize_values(image_values, variable_name)
 
     image = Image.fromarray(rgba, mode="RGBA")
-    draw = ImageDraw.Draw(image)
-    west, south, east, north = extent
-    width, height = image.size
-    for station in stations:
-        lon = station.get("longitude")
-        lat = station.get("latitude")
-        if lon is None or lat is None or east == west or north == south:
-            continue
-        x = int(round((lon - west) / (east - west) * (width - 1)))
-        y = int(round((north - lat) / (north - south) * (height - 1)))
-        if 0 <= x < width and 0 <= y < height:
-            draw.ellipse((x - 4, y - 4, x + 4, y + 4), fill=(255, 255, 255, 240), outline=(20, 20, 20, 240), width=1)
-
     image.save(output_file, format="WEBP", lossless=True, method=6)
 
 
@@ -797,7 +785,7 @@ def public_data_path(path: Path) -> str:
 
 
 def _webp_output_path(source_file: Path, variable_name: str, level_key: str) -> Path:
-    cache_dir = source_file.parent / "_radar_renders" / source_file.stem
+    cache_dir = source_file.parent / RADAR_RENDER_CACHE_DIR / source_file.stem
     return cache_dir / f"{source_file.stem}.{_safe_name(variable_name)}.{_safe_name(level_key)}.webp"
 
 

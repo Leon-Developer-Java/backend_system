@@ -1,4 +1,5 @@
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,7 @@ from adapters import radar_adapter
 
 DATA_ROOT = Path(__file__).resolve().parents[1] / "data"
 DATA_DIR = DATA_ROOT / "Radar"
+DEFAULT_PRELOAD_FRAMES = 5
 
 
 def _as_posix(path: Path | None) -> str | None:
@@ -171,22 +173,120 @@ def _meta_has_source(meta_json: dict[str, Any] | None) -> bool:
     return False
 
 
+def _merge_extents(extents: list[Any]) -> list[float] | None:
+    values: list[list[float]] = []
+    for extent in extents:
+        if isinstance(extent, dict):
+            candidate = [extent.get("west"), extent.get("south"), extent.get("east"), extent.get("north")]
+        else:
+            candidate = extent
+        if not isinstance(candidate, (list, tuple)) or len(candidate) != 4:
+            continue
+        try:
+            nums = [float(item) for item in candidate]
+        except (TypeError, ValueError):
+            continue
+        if all(math.isfinite(item) for item in nums) and nums[0] < nums[2] and nums[1] < nums[3]:
+            values.append(nums)
+    if not values:
+        return None
+    return [
+        round(min(item[0] for item in values), 6),
+        round(min(item[1] for item in values), 6),
+        round(max(item[2] for item in values), 6),
+        round(max(item[3] for item in values), 6),
+    ]
+
+
+def _synthetic_series_from_recent_metas(meta_files: list[Path], limit: int = DEFAULT_PRELOAD_FRAMES) -> tuple[Path, dict[str, Any]] | None:
+    selected: list[tuple[Path, dict[str, Any], dict[str, Any]]] = []
+    seen_times: set[str] = set()
+
+    for meta_file in meta_files:
+        meta_json = _load_meta(meta_file)
+        if not meta_json:
+            continue
+        frames = _frames_from_meta(meta_json)
+        if len(frames) != 1:
+            continue
+        frame = frames[0]
+        if not _frame_source(frame):
+            continue
+        time_key = str(frame.get("time") or frame.get("time_label") or frame.get("file") or "")
+        if not time_key or time_key in seen_times:
+            continue
+        seen_times.add(time_key)
+        selected.append((meta_file, meta_json, frame))
+        if len(selected) >= limit:
+            break
+
+    if len(selected) < 2:
+        return None
+
+    selected.sort(key=lambda item: item[2].get("time") or item[2].get("file") or "")
+    base_file, base_meta, _ = selected[0]
+    frames = []
+    for index, (_, _, frame) in enumerate(selected):
+        item = dict(frame)
+        item["index"] = index
+        frames.append(item)
+
+    times = [str(frame.get("time")) for frame in frames if frame.get("time")]
+    extent = _merge_extents([frame.get("extent") for frame in frames]) or base_meta.get("extent") or base_meta.get("bbox")
+    weather_info = dict(base_meta.get("weather_info", {}))
+    if times:
+        weather_info["time"] = f"{times[0]} - {times[-1]}"
+        weather_info["times"] = times
+    weather_info["step_count"] = len(frames)
+    weather_info["steps"] = str(len(frames))
+    weather_info["status"] = "loaded_recent_series"
+
+    series_meta = dict(base_meta)
+    series_meta.update(
+        {
+            "file": f"{len(frames)} radar files",
+            "source_file": frames[0].get("source_file"),
+            "source_files": [frame.get("source_file") for frame in frames if frame.get("source_file")],
+            "webp_files": [frame.get("webp_url") for frame in frames if frame.get("webp_url")],
+            "default_webp": frames[0].get("webp_url") or base_meta.get("default_webp"),
+            "times": times,
+            "extent": extent,
+            "bbox": extent,
+            "frames": frames,
+            "weather_info": weather_info,
+            "extra": {
+                **base_meta.get("extra", {}),
+                "status": "loaded_recent_series",
+            },
+        }
+    )
+    return base_file, series_meta
+
+
 def _select_meta_file() -> tuple[Path, dict[str, Any]] | None:
     meta_files = sorted(DATA_DIR.glob("*.meta.json"), key=lambda item: item.stat().st_mtime, reverse=True)
     display_fallback: tuple[Path, dict[str, Any]] | None = None
     newest: tuple[Path, dict[str, Any]] | None = None
+    source_fallback: tuple[Path, dict[str, Any]] | None = None
 
     for meta_file in meta_files:
         meta_json = _load_meta(meta_file)
         if not meta_json:
             continue
         newest = newest or (meta_file, meta_json)
-        if _meta_has_source(meta_json):
+        frames = _frames_from_meta(meta_json)
+        if _meta_has_source(meta_json) and len(frames) > 1:
             return meta_file, meta_json
-        if display_fallback is None and (_webp_from_item(meta_json) or _frames_from_meta(meta_json)):
+        if _meta_has_source(meta_json):
+            source_fallback = source_fallback or (meta_file, meta_json)
+        if display_fallback is None and (_webp_from_item(meta_json) or frames):
             display_fallback = (meta_file, meta_json)
 
-    return display_fallback or newest
+    recent_series = _synthetic_series_from_recent_metas(meta_files)
+    if recent_series:
+        return recent_series
+
+    return source_fallback or display_fallback or newest
 
 
 def _latest_source_file() -> Path | None:
