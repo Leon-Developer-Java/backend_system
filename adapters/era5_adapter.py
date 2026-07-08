@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import math
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,9 @@ LEVEL_NAMES = ("pressure_level", "level", "isobaricInhPa", "plev")
 PREFERRED_VARIABLES = ("t2m", "tp", "sp", "u10", "v10", "ssrd")
 NODATA = -999999.0
 WEBP_ALPHA = 200
+KM_PER_DEGREE_LAT = 111.32
+TARGET_RESOLUTIONS_KM = (1, 3)
+MAX_RESAMPLED_CELLS = 5_000_000
 COLOR_STOPS = np.asarray(
     [
         [37, 99, 235],
@@ -35,6 +39,12 @@ VARIABLE_LABELS: dict[str, str] = {
     "v10": "10 metre V wind component",
     "ssrd": "Surface solar radiation downwards",
 }
+
+
+class ResampleSkipped(ValueError):
+    def __init__(self, reason: str, detail: dict[str, Any]):
+        super().__init__(reason)
+        self.detail = detail
 
 
 def _open_dataset(file_path: str) -> xr.Dataset:
@@ -85,7 +95,9 @@ def _format_times(ds: xr.Dataset) -> list[str]:
     if not time_name:
         return ["static"]
     values = np.asarray(ds[time_name].values).reshape(-1)
-    return [np.datetime_as_string(item, unit="m") for item in values]
+    if np.issubdtype(values.dtype, np.datetime64):
+        return [np.datetime_as_string(item, unit="m") for item in values]
+    return [str(item) for item in values]
 
 
 def _renderable_variables(ds: xr.Dataset) -> list[str]:
@@ -151,15 +163,240 @@ def _grid_values(ds: xr.Dataset, var_name: str, time_index: int = 0) -> tuple[np
     return data, lat, lon
 
 
-def _stats_from_array(data: np.ndarray) -> dict[str, float]:
+def _native_resolution_km(lat: np.ndarray, lon: np.ndarray) -> float:
+    if len(lat) < 2 or len(lon) < 2:
+        return 0.0
+    lat_res_km = abs(float(lat[1] - lat[0])) * KM_PER_DEGREE_LAT
+    mid_lat = float((np.nanmin(lat) + np.nanmax(lat)) / 2)
+    lon_scale = max(math.cos(math.radians(mid_lat)), 0.05)
+    lon_res_km = abs(float(lon[1] - lon[0])) * KM_PER_DEGREE_LAT * lon_scale
+    return max(lat_res_km, lon_res_km)
+
+
+def _target_coords(lat: np.ndarray, lon: np.ndarray, target_km: int) -> tuple[np.ndarray, np.ndarray]:
+    south, north = float(np.nanmin(lat)), float(np.nanmax(lat))
+    west, east = float(np.nanmin(lon)), float(np.nanmax(lon))
+    mid_lat = (south + north) / 2
+    lon_scale = max(math.cos(math.radians(mid_lat)), 0.05)
+    lat_step = target_km / KM_PER_DEGREE_LAT
+    lon_step = target_km / (KM_PER_DEGREE_LAT * lon_scale)
+    lat_count = max(2, int(round((north - south) / lat_step)) + 1)
+    lon_count = max(2, int(round((east - west) / lon_step)) + 1)
+    return (
+        np.linspace(south, north, lat_count, dtype=np.float64),
+        np.linspace(west, east, lon_count, dtype=np.float64),
+    )
+
+
+def _resampled_grid_values(
+    ds: xr.Dataset,
+    var_name: str,
+    time_index: int,
+    target_km: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict[str, Any]]:
+    data_array = _select_grid_slice(ds, var_name, time_index)
+    lat_name, lon_name = _lat_lon_names(ds)
+    original_lat = data_array[lat_name].values.astype(np.float64)
+    original_lon = data_array[lon_name].values.astype(np.float64)
+    native_km = _native_resolution_km(original_lat, original_lon)
+    target_lat, target_lon = _target_coords(original_lat, original_lon, target_km)
+    cells = int(target_lat.size * target_lon.size)
+
+    detail = {
+        "target_km": target_km,
+        "native_km": round(float(native_km), 4),
+        "width": int(target_lon.size),
+        "height": int(target_lat.size),
+        "cells": cells,
+    }
+    if native_km and native_km <= target_km:
+        detail["skip_reason"] = "native_resolution_is_finer_or_equal"
+        raise ResampleSkipped(detail["skip_reason"], detail)
+    if cells > MAX_RESAMPLED_CELLS:
+        detail["skip_reason"] = "target_grid_too_large"
+        detail["max_cells"] = MAX_RESAMPLED_CELLS
+        raise ResampleSkipped(detail["skip_reason"], detail)
+
+    sorted_array = data_array.sortby(lat_name).sortby(lon_name)
+    resampled = sorted_array.interp(
+        {lat_name: target_lat, lon_name: target_lon},
+        method="linear",
+        kwargs={"fill_value": None},
+    )
+    data = resampled.transpose(lat_name, lon_name).values.astype(np.float32)
+    lat = resampled[lat_name].values.astype(np.float64)
+    lon = resampled[lon_name].values.astype(np.float64)
+    if lat[0] < lat[-1]:
+        data = np.flip(data, axis=0)
+        lat = np.flip(lat)
+    data = np.where(np.isfinite(data), data, NODATA).astype("<f4", copy=False)
+    return data, lat, lon, detail
+
+
+def _stats_from_array(data: np.ndarray) -> dict[str, float | int]:
     valid = data[np.isfinite(data) & (data > NODATA + 1)]
+    total_count = int(data.size)
+    valid_count = int(valid.size)
+    missing_count = total_count - valid_count
+    missing_ratio = round(missing_count / total_count, 6) if total_count else 1.0
     if valid.size == 0:
-        return {"min": 0.0, "max": 0.0, "mean": 0.0, "std": 0.0}
+        return {
+            "min": 0.0,
+            "max": 0.0,
+            "mean": 0.0,
+            "std": 0.0,
+            "valid_count": valid_count,
+            "missing_count": missing_count,
+            "total_count": total_count,
+            "missing_ratio": missing_ratio,
+        }
     return {
         "min": round(float(valid.min()), 6),
         "max": round(float(valid.max()), 6),
         "mean": round(float(valid.mean()), 6),
         "std": round(float(valid.std()), 6),
+        "valid_count": valid_count,
+        "missing_count": missing_count,
+        "total_count": total_count,
+        "missing_ratio": missing_ratio,
+    }
+
+
+def _quality_status(issue_count: int, warning_count: int) -> str:
+    if issue_count:
+        return "error"
+    if warning_count:
+        return "warning"
+    return "ok"
+
+
+def _variable_expected_range(var_name: str, unit: str) -> tuple[float | None, float | None] | None:
+    key = var_name.lower()
+    normalized_unit = unit.lower()
+    if key in {"t2m", "d2m", "temperature"} or "temperature" in key:
+        if "c" in normalized_unit and "k" not in normalized_unit:
+            return (-90.0, 70.0)
+        return (180.0, 340.0)
+    if key in {"tp", "cp", "lsp", "precipitation"} or "precip" in key:
+        return (0.0, None)
+    if key in {"sp", "msl", "pressure"} or "pressure" in key:
+        return (30000.0, 110000.0)
+    if key in {"u10", "v10", "u", "v"} or "wind" in key:
+        return (-150.0, 150.0)
+    if key in {"ssrd", "strd", "surface_radiation"} or "radiation" in key:
+        return (0.0, None)
+    return None
+
+
+def _variable_quality(
+    var_name: str,
+    unit: str,
+    stats: dict[str, float | int],
+) -> dict[str, Any]:
+    issues: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    missing_ratio = float(stats.get("missing_ratio") or 0.0)
+    valid_count = int(stats.get("valid_count") or 0)
+
+    if valid_count == 0:
+        issues.append({"code": "no_valid_value", "message": "No valid grid value found."})
+    elif missing_ratio > 0.5:
+        issues.append({
+            "code": "missing_ratio_too_high",
+            "message": "More than 50% of grid values are missing.",
+            "missing_ratio": missing_ratio,
+        })
+    elif missing_ratio > 0.1:
+        warnings.append({
+            "code": "missing_ratio_high",
+            "message": "More than 10% of grid values are missing.",
+            "missing_ratio": missing_ratio,
+        })
+
+    expected = _variable_expected_range(var_name, unit)
+    if expected and valid_count:
+        min_expected, max_expected = expected
+        min_value = float(stats.get("min") or 0.0)
+        max_value = float(stats.get("max") or 0.0)
+        if min_expected is not None and min_value < min_expected:
+            warnings.append({
+                "code": "below_expected_range",
+                "message": "Variable minimum is below the expected physical range.",
+                "min_value": min_value,
+                "expected_min": min_expected,
+            })
+        if max_expected is not None and max_value > max_expected:
+            warnings.append({
+                "code": "above_expected_range",
+                "message": "Variable maximum is above the expected physical range.",
+                "max_value": max_value,
+                "expected_max": max_expected,
+            })
+
+    return {
+        "status": _quality_status(len(issues), len(warnings)),
+        "issues": issues,
+        "warnings": warnings,
+    }
+
+
+def _dataset_quality(
+    bbox: list[float],
+    lat: np.ndarray,
+    lon: np.ndarray,
+    times: list[str],
+    variables: list[dict[str, Any]],
+) -> dict[str, Any]:
+    checks: list[dict[str, Any]] = []
+    issues: list[dict[str, Any]] = []
+    warnings: list[dict[str, Any]] = []
+    west, south, east, north = bbox
+
+    if south < -90 or north > 90 or south >= north:
+        issues.append({"code": "invalid_latitude_range", "bbox": bbox})
+    else:
+        checks.append({"name": "latitude_range", "status": "ok", "south": south, "north": north})
+
+    if west < -180 or east > 180 or west >= east:
+        issues.append({"code": "invalid_longitude_range", "bbox": bbox})
+    else:
+        checks.append({"name": "longitude_range", "status": "ok", "west": west, "east": east})
+
+    if len(lat) < 2 or len(lon) < 2:
+        issues.append({"code": "grid_too_small", "lat_count": int(len(lat)), "lon_count": int(len(lon))})
+    else:
+        checks.append({"name": "grid_size", "status": "ok", "lat_count": int(len(lat)), "lon_count": int(len(lon))})
+
+    if not times:
+        issues.append({"code": "missing_time_axis"})
+    elif len(times) != len(set(times)):
+        warnings.append({"code": "duplicate_time_steps"})
+    else:
+        checks.append({"name": "time_axis", "status": "ok", "time_count": len(times)})
+
+    variable_summary = {
+        item["name"]: item.get("quality", {"status": "unknown"})
+        for item in variables
+        if item.get("name")
+    }
+    for name, quality in variable_summary.items():
+        for issue in quality.get("issues") or []:
+            issues.append({"code": "variable_issue", "variable": name, "detail": issue})
+        for warning in quality.get("warnings") or []:
+            warnings.append({"code": "variable_warning", "variable": name, "detail": warning})
+
+    return {
+        "status": _quality_status(len(issues), len(warnings)),
+        "checks": checks,
+        "issues": issues,
+        "warnings": warnings,
+        "summary": {
+            "issue_count": len(issues),
+            "warning_count": len(warnings),
+            "variable_count": len(variables),
+            "time_count": len(times),
+        },
+        "variables": variable_summary,
     }
 
 
@@ -185,6 +422,25 @@ def _levels(ds: xr.Dataset) -> list[str]:
             text = f"{float(value):g}" if np.issubdtype(np.asarray(value).dtype, np.number) else str(value)
             values.append(f"{text}{unit}")
     return values or ["surface"]
+
+
+def _selected_level(ds: xr.Dataset, data_array: xr.DataArray) -> str:
+    lat_name, lon_name = _lat_lon_names(ds)
+    time_name = _time_name(ds)
+    for dim in data_array.dims:
+        if dim in {lat_name, lon_name, time_name}:
+            continue
+        if dim not in ds.coords and dim not in ds.variables:
+            continue
+        coord = ds[dim]
+        values = np.asarray(coord.values).reshape(-1)
+        if values.size == 0:
+            continue
+        value = values[0]
+        text = f"{float(value):g}" if np.issubdtype(np.asarray(value).dtype, np.number) else str(value)
+        unit = str(coord.attrs.get("units") or "")
+        return f"{dim}={text}{unit}"
+    return "surface"
 
 
 def _public_data_path(path: Path) -> str:
@@ -236,7 +492,9 @@ def _build_variable_meta(
     height = int(ds.sizes[_lat_lon_names(ds)[0]])
 
     webp_urls: list[str] = []
-    step_stats: list[dict[str, float]] = []
+    step_stats: list[dict[str, float | int]] = []
+    resolution_layers: dict[str, Any] = {}
+    resolution_status: dict[str, Any] = {}
 
     for step_index in range(step_count):
         data, _, _ = _grid_values(ds, var_name, step_index)
@@ -247,12 +505,82 @@ def _build_variable_meta(
         _generate_webp(data, webp_path, stats)
         webp_urls.append(_public_data_path(webp_path))
 
+    native_layer = {
+        "key": "native",
+        "label": "native",
+        "target_km": None,
+        "width": width,
+        "height": height,
+        "extent": bbox,
+        "webp_urls": webp_urls,
+        "image_urls": webp_urls,
+        "png_urls": webp_urls,
+        "times": times[:step_count],
+        "stats": step_stats,
+        "nodata": NODATA,
+        "resolution": "native",
+        "resolution_km": None,
+    }
+    resolution_layers["native"] = native_layer
+
+    for target_km in TARGET_RESOLUTIONS_KM:
+        key = f"{target_km}km"
+        target_urls: list[str] = []
+        target_stats: list[dict[str, float | int]] = []
+        target_detail: dict[str, Any] | None = None
+        try:
+            for step_index in range(step_count):
+                data, _, _, detail = _resampled_grid_values(ds, var_name, step_index, target_km)
+                target_detail = detail
+                stats = _stats_from_array(data)
+                target_stats.append(stats)
+                webp_path = source_file.with_name(
+                    f"{source_file.stem}_{var_name}_{key}_step{step_index:03d}.webp"
+                )
+                _generate_webp(data, webp_path, stats)
+                target_urls.append(_public_data_path(webp_path))
+        except ResampleSkipped as exc:
+            resolution_status[key] = {
+                "status": "skipped",
+                "reason": str(exc),
+                "detail": exc.detail,
+            }
+            continue
+
+        if target_urls and target_detail:
+            resolution_layers[key] = {
+                "key": key,
+                "label": key,
+                "target_km": target_km,
+                "width": int(target_detail["width"]),
+                "height": int(target_detail["height"]),
+                "extent": bbox,
+                "webp_urls": target_urls,
+                "image_urls": target_urls,
+                "png_urls": target_urls,
+                "times": times[:step_count],
+                "stats": target_stats,
+                "nodata": NODATA,
+                "resolution": key,
+                "resolution_km": target_km,
+                "native_resolution_km": target_detail.get("native_km"),
+            }
+            resolution_status[key] = {"status": "generated", "detail": target_detail}
+
     combined = {
         "min": round(float(min(item["min"] for item in step_stats)), 6),
         "max": round(float(max(item["max"] for item in step_stats)), 6),
         "mean": round(float(np.mean([item["mean"] for item in step_stats])), 6),
         "std": round(float(np.mean([item["std"] for item in step_stats])), 6),
+        "valid_count": int(sum(int(item.get("valid_count", 0)) for item in step_stats)),
+        "missing_count": int(sum(int(item.get("missing_count", 0)) for item in step_stats)),
+        "total_count": int(sum(int(item.get("total_count", 0)) for item in step_stats)),
     }
+    combined["missing_ratio"] = round(
+        float(combined["missing_count"]) / float(combined["total_count"]),
+        6,
+    ) if combined["total_count"] else 1.0
+    quality = _variable_quality(var_name, unit, combined)
 
     variable_meta = {
         "name": var_name,
@@ -264,9 +592,10 @@ def _build_variable_meta(
         "display_unit": unit,
         "shape": [int(value) for value in data_array.shape],
         "dims": list(data_array.dims),
-        "level": "surface",
+        "level": _selected_level(ds, data_array),
         "missing": NODATA,
         "stats": combined,
+        "quality": quality,
         "category": "era5",
         "description": label,
         "wavelength": None,
@@ -292,6 +621,10 @@ def _build_variable_meta(
             "height": height,
             "alpha": WEBP_ALPHA / 255,
         },
+        "available_resolutions": list(resolution_layers.keys()),
+        "resolution_layers": resolution_layers,
+        "resolution_status": resolution_status,
+        "quality": quality,
         "png": webp_urls[0] if webp_urls else None,
     }
 
@@ -310,6 +643,11 @@ def _build_variable_meta(
         "times": times[:step_count],
         "stats": step_stats,
         "nodata": NODATA,
+        "resolution": "native",
+        "available_resolutions": list(resolution_layers.keys()),
+        "resolution_layers": resolution_layers,
+        "resolution_status": resolution_status,
+        "quality": quality,
     }
     return variable_meta, layer_meta
 
@@ -346,6 +684,7 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
         default_label = default_layer.get("label") or default_var or "ERA5"
         default_unit = default_layer.get("unit") or ""
         default_webp = (default_layer.get("webp_urls") or default_layer.get("image_urls") or [None])[0]
+        quality_report = _dataset_quality(bbox, lat, lon, times, variables)
 
         level_list = _levels(ds)
         weather_info: dict[str, Any] = {
@@ -356,6 +695,7 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
             "level": " / ".join(level_list[:3]),
             "range": f"{west:.1f}E-{east:.1f}E, {south:.1f}N-{north:.1f}N",
             "resolution": f"{lat_res:.3f} x {lon_res:.3f} deg",
+            "available_resolutions": list(default_layer.get("available_resolutions") or ["native"]),
             "grid": grid_str,
             "validGrid": str(int(len(lon) * len(lat))),
             "coverage": "latitude/longitude grid",
@@ -365,7 +705,9 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
             "steps": str(len(times)),
             "step_count": len(times),
             "status": "parsed",
-            "quality": "good" if var_names else "no renderable variable",
+            "quality": quality_report["status"],
+            "quality_issue_count": quality_report["summary"]["issue_count"],
+            "quality_warning_count": quality_report["summary"]["warning_count"],
             "max": f"{float(default_stats.get('max', 0.0)):.4f}",
             "min": f"{float(default_stats.get('min', 0.0)):.4f}",
             "mean": f"{float(default_stats.get('mean', 0.0)):.4f}",
@@ -379,7 +721,8 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
         webp_files = [
             path
             for layer in variable_layers.values()
-            for path in (layer.get("webp_urls") or [])
+            for res_layer in (layer.get("resolution_layers") or {"native": layer}).values()
+            for path in (res_layer.get("webp_urls") or [])
             if path
         ]
         meta: dict[str, Any] = {
@@ -398,6 +741,7 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
             "levels": level_list,
             "bbox": bbox,
             "extent": bbox,
+            "quality_report": quality_report,
             "variables": variables,
             "variable_options": [
                 {
@@ -408,6 +752,11 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
                 for item in variables
             ],
             "variable_layers": variable_layers,
+            "available_resolutions": sorted({
+                key
+                for layer in variable_layers.values()
+                for key in (layer.get("available_resolutions") or ["native"])
+            }, key=lambda item: (item != "native", item)),
             "composites": [],
             "weather_info": weather_info,
             "extra": {
@@ -419,9 +768,17 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
                     "lon_coord": lon_name,
                     "time_coord": _time_name(ds),
                     "preferred_variables": list(PREFERRED_VARIABLES),
+                    "quality_report": quality_report,
                 },
             },
         }
+
+        try:
+            from services.era5_store import sync_meta
+
+            meta["extra"]["era5"]["db_sync"] = sync_meta(meta)
+        except Exception as exc:
+            meta["extra"]["era5"]["db_sync_error"] = str(exc)
 
         write_meta(meta_file, meta)
         return meta

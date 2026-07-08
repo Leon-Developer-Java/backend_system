@@ -20,6 +20,7 @@ from adapters import (
 from services import (
     cma_service,
     era5_service,
+    era5_store,
     gfs_service,
     himawari_service,
     radar_service,
@@ -303,6 +304,56 @@ def display_data(
         return ok(gfs_service.get_display_data(data_type=normalized_key))
 
     return ok(service.get_display_data())
+
+
+@app.get("/api/ERA5/datasets")
+def era5_datasets(
+    keyword: str | None = Query(default=None),
+    variable: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    time_start: str | None = Query(default=None),
+    time_end: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, Any]:
+    return ok(
+        era5_store.list_datasets(
+            keyword=keyword,
+            variable=variable,
+            status=status,
+            time_start=time_start,
+            time_end=time_end,
+            limit=limit,
+            offset=offset,
+        )
+    )
+
+
+@app.get("/api/ERA5/datasets/{dataset_id}")
+def era5_dataset_detail(dataset_id: str) -> dict[str, Any]:
+    dataset = era5_store.get_dataset(dataset_id)
+    if dataset is None:
+        raise HTTPException(status_code=404, detail="ERA5 dataset not found.")
+    return ok(dataset)
+
+
+@app.get("/api/ERA5/datasets/{dataset_id}/assets")
+def era5_dataset_assets(
+    dataset_id: str,
+    variable: str | None = Query(default=None),
+    resolution: str | None = Query(default=None),
+    limit: int = Query(default=500, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, Any]:
+    return ok(
+        era5_store.list_assets(
+            dataset_id,
+            variable=variable,
+            resolution=resolution,
+            limit=limit,
+            offset=offset,
+        )
+    )
 
 
 @app.post("/api/wrf/rescan")

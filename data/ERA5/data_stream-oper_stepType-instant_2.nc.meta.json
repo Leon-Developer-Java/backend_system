@@ -1,0 +1,1645 @@
+{
+  "schema_version": "1.0",
+  "dataset_id": "data_stream-oper_stepType-instant_2_nc",
+  "data_type": "ERA5",
+  "file_format": "NC",
+  "source_file": "C:/study/project/era5/agent/backend_system/data/ERA5/data_stream-oper_stepType-instant_2.nc",
+  "meta_file": "C:/study/project/era5/agent/backend_system/data/ERA5/data_stream-oper_stepType-instant_2.nc.meta.json",
+  "webp_files": [
+    "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+  ],
+  "default_webp": "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+  "png_files": [
+    "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+    "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+  ],
+  "default_png": "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+  "default_variable": "t2m",
+  "times": [
+    "2025-07-01T08:00",
+    "2025-07-01T09:00",
+    "2025-07-01T10:00"
+  ],
+  "levels": [
+    "surface"
+  ],
+  "bbox": [
+    -180.0,
+    -90.0,
+    179.75,
+    90.0
+  ],
+  "extent": [
+    -180.0,
+    -90.0,
+    179.75,
+    90.0
+  ],
+  "quality_report": {
+    "status": "ok",
+    "checks": [
+      {
+        "name": "latitude_range",
+        "status": "ok",
+        "south": -90.0,
+        "north": 90.0
+      },
+      {
+        "name": "longitude_range",
+        "status": "ok",
+        "west": -180.0,
+        "east": 179.75
+      },
+      {
+        "name": "grid_size",
+        "status": "ok",
+        "lat_count": 721,
+        "lon_count": 1440
+      },
+      {
+        "name": "time_axis",
+        "status": "ok",
+        "time_count": 3
+      }
+    ],
+    "issues": [],
+    "warnings": [],
+    "summary": {
+      "issue_count": 0,
+      "warning_count": 0,
+      "variable_count": 4,
+      "time_count": 3
+    },
+    "variables": {
+      "t2m": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      },
+      "sp": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      },
+      "u10": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      },
+      "v10": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      }
+    }
+  },
+  "variables": [
+    {
+      "name": "t2m",
+      "long_name": "2 metre temperature",
+      "short_name": "t2m",
+      "raw_name": "t2m",
+      "name_cn": "2 metre temperature",
+      "unit": "K",
+      "display_unit": "K",
+      "shape": [
+        3,
+        721,
+        1440
+      ],
+      "dims": [
+        "valid_time",
+        "latitude",
+        "longitude"
+      ],
+      "level": "surface",
+      "missing": -999999.0,
+      "stats": {
+        "min": 204.807129,
+        "max": 323.755493,
+        "mean": 281.412313,
+        "std": 21.89079,
+        "valid_count": 3114720,
+        "missing_count": 0,
+        "total_count": 3114720,
+        "missing_ratio": 0.0
+      },
+      "quality": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      },
+      "category": "era5",
+      "description": "2 metre temperature",
+      "wavelength": null,
+      "float32": {
+        "path": null,
+        "paths": [],
+        "dtype": "float32",
+        "byte_order": "little",
+        "width": 1440,
+        "height": 721,
+        "nodata": -999999.0
+      },
+      "netcdf": {
+        "variable": "t2m",
+        "time_coord": "valid_time",
+        "lat_coord": "latitude",
+        "lon_coord": "longitude"
+      },
+      "webp": {
+        "path": "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+        "paths": [
+          "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+          "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+          "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp"
+        ],
+        "width": 1440,
+        "height": 721,
+        "alpha": 0.7843137254901961
+      },
+      "available_resolutions": [
+        "native"
+      ],
+      "resolution_layers": {
+        "native": {
+          "key": "native",
+          "label": "native",
+          "target_km": null,
+          "width": 1440,
+          "height": 721,
+          "extent": [
+            -180.0,
+            -90.0,
+            179.75,
+            90.0
+          ],
+          "webp_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp"
+          ],
+          "image_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp"
+          ],
+          "png_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp"
+          ],
+          "times": [
+            "2025-07-01T08:00",
+            "2025-07-01T09:00",
+            "2025-07-01T10:00"
+          ],
+          "stats": [
+            {
+              "min": 204.807129,
+              "max": 321.70752,
+              "mean": 281.40976,
+              "std": 21.819876,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": 204.988022,
+              "max": 322.448975,
+              "mean": 281.4328,
+              "std": 21.853752,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": 204.841431,
+              "max": 323.755493,
+              "mean": 281.394379,
+              "std": 21.998741,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            }
+          ],
+          "nodata": -999999.0,
+          "resolution": "native",
+          "resolution_km": null
+        }
+      },
+      "resolution_status": {
+        "1km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 1,
+            "native_km": 27.83,
+            "width": 40048,
+            "height": 20039,
+            "cells": 802521872,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        },
+        "3km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 3,
+            "native_km": 27.83,
+            "width": 13350,
+            "height": 6680,
+            "cells": 89178000,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        }
+      },
+      "png": "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp"
+    },
+    {
+      "name": "sp",
+      "long_name": "Surface pressure",
+      "short_name": "sp",
+      "raw_name": "sp",
+      "name_cn": "Surface pressure",
+      "unit": "Pa",
+      "display_unit": "Pa",
+      "shape": [
+        3,
+        721,
+        1440
+      ],
+      "dims": [
+        "valid_time",
+        "latitude",
+        "longitude"
+      ],
+      "level": "surface",
+      "missing": -999999.0,
+      "stats": {
+        "min": 49797.585938,
+        "max": 104174.171875,
+        "mean": 96485.703125,
+        "std": 9878.709636,
+        "valid_count": 3114720,
+        "missing_count": 0,
+        "total_count": 3114720,
+        "missing_ratio": 0.0
+      },
+      "quality": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      },
+      "category": "era5",
+      "description": "Surface pressure",
+      "wavelength": null,
+      "float32": {
+        "path": null,
+        "paths": [],
+        "dtype": "float32",
+        "byte_order": "little",
+        "width": 1440,
+        "height": 721,
+        "nodata": -999999.0
+      },
+      "netcdf": {
+        "variable": "sp",
+        "time_coord": "valid_time",
+        "lat_coord": "latitude",
+        "lon_coord": "longitude"
+      },
+      "webp": {
+        "path": "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+        "paths": [
+          "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+          "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+          "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp"
+        ],
+        "width": 1440,
+        "height": 721,
+        "alpha": 0.7843137254901961
+      },
+      "available_resolutions": [
+        "native"
+      ],
+      "resolution_layers": {
+        "native": {
+          "key": "native",
+          "label": "native",
+          "target_km": null,
+          "width": 1440,
+          "height": 721,
+          "extent": [
+            -180.0,
+            -90.0,
+            179.75,
+            90.0
+          ],
+          "webp_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp"
+          ],
+          "image_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp"
+          ],
+          "png_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp"
+          ],
+          "times": [
+            "2025-07-01T08:00",
+            "2025-07-01T09:00",
+            "2025-07-01T10:00"
+          ],
+          "stats": [
+            {
+              "min": 49848.175781,
+              "max": 104174.171875,
+              "mean": 96484.96875,
+              "std": 9875.326172,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": 49823.679688,
+              "max": 104117.679688,
+              "mean": 96487.96875,
+              "std": 9875.654297,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": 49797.585938,
+              "max": 104083.585938,
+              "mean": 96484.171875,
+              "std": 9885.148438,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            }
+          ],
+          "nodata": -999999.0,
+          "resolution": "native",
+          "resolution_km": null
+        }
+      },
+      "resolution_status": {
+        "1km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 1,
+            "native_km": 27.83,
+            "width": 40048,
+            "height": 20039,
+            "cells": 802521872,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        },
+        "3km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 3,
+            "native_km": 27.83,
+            "width": 13350,
+            "height": 6680,
+            "cells": 89178000,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        }
+      },
+      "png": "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp"
+    },
+    {
+      "name": "u10",
+      "long_name": "10 metre U wind component",
+      "short_name": "u10",
+      "raw_name": "u10",
+      "name_cn": "10 metre U wind component",
+      "unit": "m s**-1",
+      "display_unit": "m s**-1",
+      "shape": [
+        3,
+        721,
+        1440
+      ],
+      "dims": [
+        "valid_time",
+        "latitude",
+        "longitude"
+      ],
+      "level": "surface",
+      "missing": -999999.0,
+      "stats": {
+        "min": -22.096878,
+        "max": 22.758057,
+        "mean": 0.303436,
+        "std": 5.351896,
+        "valid_count": 3114720,
+        "missing_count": 0,
+        "total_count": 3114720,
+        "missing_ratio": 0.0
+      },
+      "quality": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      },
+      "category": "era5",
+      "description": "10 metre U wind component",
+      "wavelength": null,
+      "float32": {
+        "path": null,
+        "paths": [],
+        "dtype": "float32",
+        "byte_order": "little",
+        "width": 1440,
+        "height": 721,
+        "nodata": -999999.0
+      },
+      "netcdf": {
+        "variable": "u10",
+        "time_coord": "valid_time",
+        "lat_coord": "latitude",
+        "lon_coord": "longitude"
+      },
+      "webp": {
+        "path": "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+        "paths": [
+          "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+          "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+          "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp"
+        ],
+        "width": 1440,
+        "height": 721,
+        "alpha": 0.7843137254901961
+      },
+      "available_resolutions": [
+        "native"
+      ],
+      "resolution_layers": {
+        "native": {
+          "key": "native",
+          "label": "native",
+          "target_km": null,
+          "width": 1440,
+          "height": 721,
+          "extent": [
+            -180.0,
+            -90.0,
+            179.75,
+            90.0
+          ],
+          "webp_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp"
+          ],
+          "image_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp"
+          ],
+          "png_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp"
+          ],
+          "times": [
+            "2025-07-01T08:00",
+            "2025-07-01T09:00",
+            "2025-07-01T10:00"
+          ],
+          "stats": [
+            {
+              "min": -22.096878,
+              "max": 22.632614,
+              "mean": 0.281874,
+              "std": 5.379395,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": -21.794678,
+              "max": 22.758057,
+              "mean": 0.287808,
+              "std": 5.374387,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": -21.867096,
+              "max": 22.663177,
+              "mean": 0.340625,
+              "std": 5.301907,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            }
+          ],
+          "nodata": -999999.0,
+          "resolution": "native",
+          "resolution_km": null
+        }
+      },
+      "resolution_status": {
+        "1km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 1,
+            "native_km": 27.83,
+            "width": 40048,
+            "height": 20039,
+            "cells": 802521872,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        },
+        "3km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 3,
+            "native_km": 27.83,
+            "width": 13350,
+            "height": 6680,
+            "cells": 89178000,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        }
+      },
+      "png": "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp"
+    },
+    {
+      "name": "v10",
+      "long_name": "10 metre V wind component",
+      "short_name": "v10",
+      "raw_name": "v10",
+      "name_cn": "10 metre V wind component",
+      "unit": "m s**-1",
+      "display_unit": "m s**-1",
+      "shape": [
+        3,
+        721,
+        1440
+      ],
+      "dims": [
+        "valid_time",
+        "latitude",
+        "longitude"
+      ],
+      "level": "surface",
+      "missing": -999999.0,
+      "stats": {
+        "min": -22.08873,
+        "max": 26.75415,
+        "mean": 0.389208,
+        "std": 4.721251,
+        "valid_count": 3114720,
+        "missing_count": 0,
+        "total_count": 3114720,
+        "missing_ratio": 0.0
+      },
+      "quality": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      },
+      "category": "era5",
+      "description": "10 metre V wind component",
+      "wavelength": null,
+      "float32": {
+        "path": null,
+        "paths": [],
+        "dtype": "float32",
+        "byte_order": "little",
+        "width": 1440,
+        "height": 721,
+        "nodata": -999999.0
+      },
+      "netcdf": {
+        "variable": "v10",
+        "time_coord": "valid_time",
+        "lat_coord": "latitude",
+        "lon_coord": "longitude"
+      },
+      "webp": {
+        "path": "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+        "paths": [
+          "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+          "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+          "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+        ],
+        "width": 1440,
+        "height": 721,
+        "alpha": 0.7843137254901961
+      },
+      "available_resolutions": [
+        "native"
+      ],
+      "resolution_layers": {
+        "native": {
+          "key": "native",
+          "label": "native",
+          "target_km": null,
+          "width": 1440,
+          "height": 721,
+          "extent": [
+            -180.0,
+            -90.0,
+            179.75,
+            90.0
+          ],
+          "webp_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+          ],
+          "image_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+          ],
+          "png_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+          ],
+          "times": [
+            "2025-07-01T08:00",
+            "2025-07-01T09:00",
+            "2025-07-01T10:00"
+          ],
+          "stats": [
+            {
+              "min": -20.394073,
+              "max": 26.63913,
+              "mean": 0.417626,
+              "std": 4.734729,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": -22.08873,
+              "max": 25.837051,
+              "mean": 0.413457,
+              "std": 4.735404,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": -21.415771,
+              "max": 26.75415,
+              "mean": 0.336541,
+              "std": 4.693621,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            }
+          ],
+          "nodata": -999999.0,
+          "resolution": "native",
+          "resolution_km": null
+        }
+      },
+      "resolution_status": {
+        "1km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 1,
+            "native_km": 27.83,
+            "width": 40048,
+            "height": 20039,
+            "cells": 802521872,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        },
+        "3km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 3,
+            "native_km": 27.83,
+            "width": 13350,
+            "height": 6680,
+            "cells": 89178000,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        }
+      },
+      "png": "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp"
+    }
+  ],
+  "variable_options": [
+    {
+      "name": "t2m",
+      "label": "2 metre temperature",
+      "unit": "K"
+    },
+    {
+      "name": "sp",
+      "label": "Surface pressure",
+      "unit": "Pa"
+    },
+    {
+      "name": "u10",
+      "label": "10 metre U wind component",
+      "unit": "m s**-1"
+    },
+    {
+      "name": "v10",
+      "label": "10 metre V wind component",
+      "unit": "m s**-1"
+    }
+  ],
+  "variable_layers": {
+    "t2m": {
+      "name": "t2m",
+      "label": "2 metre temperature",
+      "unit": "K",
+      "width": 1440,
+      "height": 721,
+      "extent": [
+        -180.0,
+        -90.0,
+        179.75,
+        90.0
+      ],
+      "grid_urls": [],
+      "float32_urls": [],
+      "webp_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp"
+      ],
+      "image_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp"
+      ],
+      "png_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp"
+      ],
+      "times": [
+        "2025-07-01T08:00",
+        "2025-07-01T09:00",
+        "2025-07-01T10:00"
+      ],
+      "stats": [
+        {
+          "min": 204.807129,
+          "max": 321.70752,
+          "mean": 281.40976,
+          "std": 21.819876,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        },
+        {
+          "min": 204.988022,
+          "max": 322.448975,
+          "mean": 281.4328,
+          "std": 21.853752,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        },
+        {
+          "min": 204.841431,
+          "max": 323.755493,
+          "mean": 281.394379,
+          "std": 21.998741,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        }
+      ],
+      "nodata": -999999.0,
+      "resolution": "native",
+      "available_resolutions": [
+        "native"
+      ],
+      "resolution_layers": {
+        "native": {
+          "key": "native",
+          "label": "native",
+          "target_km": null,
+          "width": 1440,
+          "height": 721,
+          "extent": [
+            -180.0,
+            -90.0,
+            179.75,
+            90.0
+          ],
+          "webp_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp"
+          ],
+          "image_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp"
+          ],
+          "png_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_t2m_step002.webp"
+          ],
+          "times": [
+            "2025-07-01T08:00",
+            "2025-07-01T09:00",
+            "2025-07-01T10:00"
+          ],
+          "stats": [
+            {
+              "min": 204.807129,
+              "max": 321.70752,
+              "mean": 281.40976,
+              "std": 21.819876,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": 204.988022,
+              "max": 322.448975,
+              "mean": 281.4328,
+              "std": 21.853752,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": 204.841431,
+              "max": 323.755493,
+              "mean": 281.394379,
+              "std": 21.998741,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            }
+          ],
+          "nodata": -999999.0,
+          "resolution": "native",
+          "resolution_km": null
+        }
+      },
+      "resolution_status": {
+        "1km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 1,
+            "native_km": 27.83,
+            "width": 40048,
+            "height": 20039,
+            "cells": 802521872,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        },
+        "3km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 3,
+            "native_km": 27.83,
+            "width": 13350,
+            "height": 6680,
+            "cells": 89178000,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        }
+      },
+      "quality": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      }
+    },
+    "sp": {
+      "name": "sp",
+      "label": "Surface pressure",
+      "unit": "Pa",
+      "width": 1440,
+      "height": 721,
+      "extent": [
+        -180.0,
+        -90.0,
+        179.75,
+        90.0
+      ],
+      "grid_urls": [],
+      "float32_urls": [],
+      "webp_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp"
+      ],
+      "image_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp"
+      ],
+      "png_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp"
+      ],
+      "times": [
+        "2025-07-01T08:00",
+        "2025-07-01T09:00",
+        "2025-07-01T10:00"
+      ],
+      "stats": [
+        {
+          "min": 49848.175781,
+          "max": 104174.171875,
+          "mean": 96484.96875,
+          "std": 9875.326172,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        },
+        {
+          "min": 49823.679688,
+          "max": 104117.679688,
+          "mean": 96487.96875,
+          "std": 9875.654297,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        },
+        {
+          "min": 49797.585938,
+          "max": 104083.585938,
+          "mean": 96484.171875,
+          "std": 9885.148438,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        }
+      ],
+      "nodata": -999999.0,
+      "resolution": "native",
+      "available_resolutions": [
+        "native"
+      ],
+      "resolution_layers": {
+        "native": {
+          "key": "native",
+          "label": "native",
+          "target_km": null,
+          "width": 1440,
+          "height": 721,
+          "extent": [
+            -180.0,
+            -90.0,
+            179.75,
+            90.0
+          ],
+          "webp_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp"
+          ],
+          "image_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp"
+          ],
+          "png_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_sp_step002.webp"
+          ],
+          "times": [
+            "2025-07-01T08:00",
+            "2025-07-01T09:00",
+            "2025-07-01T10:00"
+          ],
+          "stats": [
+            {
+              "min": 49848.175781,
+              "max": 104174.171875,
+              "mean": 96484.96875,
+              "std": 9875.326172,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": 49823.679688,
+              "max": 104117.679688,
+              "mean": 96487.96875,
+              "std": 9875.654297,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": 49797.585938,
+              "max": 104083.585938,
+              "mean": 96484.171875,
+              "std": 9885.148438,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            }
+          ],
+          "nodata": -999999.0,
+          "resolution": "native",
+          "resolution_km": null
+        }
+      },
+      "resolution_status": {
+        "1km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 1,
+            "native_km": 27.83,
+            "width": 40048,
+            "height": 20039,
+            "cells": 802521872,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        },
+        "3km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 3,
+            "native_km": 27.83,
+            "width": 13350,
+            "height": 6680,
+            "cells": 89178000,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        }
+      },
+      "quality": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      }
+    },
+    "u10": {
+      "name": "u10",
+      "label": "10 metre U wind component",
+      "unit": "m s**-1",
+      "width": 1440,
+      "height": 721,
+      "extent": [
+        -180.0,
+        -90.0,
+        179.75,
+        90.0
+      ],
+      "grid_urls": [],
+      "float32_urls": [],
+      "webp_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp"
+      ],
+      "image_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp"
+      ],
+      "png_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp"
+      ],
+      "times": [
+        "2025-07-01T08:00",
+        "2025-07-01T09:00",
+        "2025-07-01T10:00"
+      ],
+      "stats": [
+        {
+          "min": -22.096878,
+          "max": 22.632614,
+          "mean": 0.281874,
+          "std": 5.379395,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        },
+        {
+          "min": -21.794678,
+          "max": 22.758057,
+          "mean": 0.287808,
+          "std": 5.374387,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        },
+        {
+          "min": -21.867096,
+          "max": 22.663177,
+          "mean": 0.340625,
+          "std": 5.301907,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        }
+      ],
+      "nodata": -999999.0,
+      "resolution": "native",
+      "available_resolutions": [
+        "native"
+      ],
+      "resolution_layers": {
+        "native": {
+          "key": "native",
+          "label": "native",
+          "target_km": null,
+          "width": 1440,
+          "height": 721,
+          "extent": [
+            -180.0,
+            -90.0,
+            179.75,
+            90.0
+          ],
+          "webp_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp"
+          ],
+          "image_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp"
+          ],
+          "png_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_u10_step002.webp"
+          ],
+          "times": [
+            "2025-07-01T08:00",
+            "2025-07-01T09:00",
+            "2025-07-01T10:00"
+          ],
+          "stats": [
+            {
+              "min": -22.096878,
+              "max": 22.632614,
+              "mean": 0.281874,
+              "std": 5.379395,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": -21.794678,
+              "max": 22.758057,
+              "mean": 0.287808,
+              "std": 5.374387,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": -21.867096,
+              "max": 22.663177,
+              "mean": 0.340625,
+              "std": 5.301907,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            }
+          ],
+          "nodata": -999999.0,
+          "resolution": "native",
+          "resolution_km": null
+        }
+      },
+      "resolution_status": {
+        "1km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 1,
+            "native_km": 27.83,
+            "width": 40048,
+            "height": 20039,
+            "cells": 802521872,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        },
+        "3km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 3,
+            "native_km": 27.83,
+            "width": 13350,
+            "height": 6680,
+            "cells": 89178000,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        }
+      },
+      "quality": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      }
+    },
+    "v10": {
+      "name": "v10",
+      "label": "10 metre V wind component",
+      "unit": "m s**-1",
+      "width": 1440,
+      "height": 721,
+      "extent": [
+        -180.0,
+        -90.0,
+        179.75,
+        90.0
+      ],
+      "grid_urls": [],
+      "float32_urls": [],
+      "webp_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+      ],
+      "image_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+      ],
+      "png_urls": [
+        "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+        "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+      ],
+      "times": [
+        "2025-07-01T08:00",
+        "2025-07-01T09:00",
+        "2025-07-01T10:00"
+      ],
+      "stats": [
+        {
+          "min": -20.394073,
+          "max": 26.63913,
+          "mean": 0.417626,
+          "std": 4.734729,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        },
+        {
+          "min": -22.08873,
+          "max": 25.837051,
+          "mean": 0.413457,
+          "std": 4.735404,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        },
+        {
+          "min": -21.415771,
+          "max": 26.75415,
+          "mean": 0.336541,
+          "std": 4.693621,
+          "valid_count": 1038240,
+          "missing_count": 0,
+          "total_count": 1038240,
+          "missing_ratio": 0.0
+        }
+      ],
+      "nodata": -999999.0,
+      "resolution": "native",
+      "available_resolutions": [
+        "native"
+      ],
+      "resolution_layers": {
+        "native": {
+          "key": "native",
+          "label": "native",
+          "target_km": null,
+          "width": 1440,
+          "height": 721,
+          "extent": [
+            -180.0,
+            -90.0,
+            179.75,
+            90.0
+          ],
+          "webp_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+          ],
+          "image_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+          ],
+          "png_urls": [
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step000.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step001.webp",
+            "/data/ERA5/data_stream-oper_stepType-instant_2_v10_step002.webp"
+          ],
+          "times": [
+            "2025-07-01T08:00",
+            "2025-07-01T09:00",
+            "2025-07-01T10:00"
+          ],
+          "stats": [
+            {
+              "min": -20.394073,
+              "max": 26.63913,
+              "mean": 0.417626,
+              "std": 4.734729,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": -22.08873,
+              "max": 25.837051,
+              "mean": 0.413457,
+              "std": 4.735404,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            },
+            {
+              "min": -21.415771,
+              "max": 26.75415,
+              "mean": 0.336541,
+              "std": 4.693621,
+              "valid_count": 1038240,
+              "missing_count": 0,
+              "total_count": 1038240,
+              "missing_ratio": 0.0
+            }
+          ],
+          "nodata": -999999.0,
+          "resolution": "native",
+          "resolution_km": null
+        }
+      },
+      "resolution_status": {
+        "1km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 1,
+            "native_km": 27.83,
+            "width": 40048,
+            "height": 20039,
+            "cells": 802521872,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        },
+        "3km": {
+          "status": "skipped",
+          "reason": "target_grid_too_large",
+          "detail": {
+            "target_km": 3,
+            "native_km": 27.83,
+            "width": 13350,
+            "height": 6680,
+            "cells": 89178000,
+            "skip_reason": "target_grid_too_large",
+            "max_cells": 5000000
+          }
+        }
+      },
+      "quality": {
+        "status": "ok",
+        "issues": [],
+        "warnings": []
+      }
+    }
+  },
+  "available_resolutions": [
+    "native"
+  ],
+  "composites": [],
+  "weather_info": {
+    "source": "ERA5",
+    "product": "ERA5 reanalysis",
+    "element": "2 metre temperature (t2m)",
+    "time": "2025-07-01T08:00 ~ 2025-07-01T10:00",
+    "level": "surface",
+    "range": "-180.0E-179.8E, -90.0N-90.0N",
+    "resolution": "0.250 x 0.250 deg",
+    "available_resolutions": [
+      "native"
+    ],
+    "grid": "1440 x 721",
+    "validGrid": "1038240",
+    "coverage": "latitude/longitude grid",
+    "missing": "-999999.0",
+    "unit": "K",
+    "variables": "t2m, sp, u10, v10",
+    "steps": "3",
+    "step_count": 3,
+    "status": "parsed",
+    "quality": "ok",
+    "quality_issue_count": 0,
+    "quality_warning_count": 0,
+    "max": "321.7075",
+    "min": "204.8071",
+    "mean": "281.4098",
+    "alert": "",
+    "update": "2026-07-08 10:50",
+    "bars": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "trend": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "extra": {
+    "status": "parsed",
+    "generated_at": "2026-07-08T02:50:50.439446+00:00",
+    "era5": {
+      "default_variable": "t2m",
+      "lat_coord": "latitude",
+      "lon_coord": "longitude",
+      "time_coord": "valid_time",
+      "preferred_variables": [
+        "t2m",
+        "tp",
+        "sp",
+        "u10",
+        "v10",
+        "ssrd"
+      ],
+      "quality_report": {
+        "status": "ok",
+        "checks": [
+          {
+            "name": "latitude_range",
+            "status": "ok",
+            "south": -90.0,
+            "north": 90.0
+          },
+          {
+            "name": "longitude_range",
+            "status": "ok",
+            "west": -180.0,
+            "east": 179.75
+          },
+          {
+            "name": "grid_size",
+            "status": "ok",
+            "lat_count": 721,
+            "lon_count": 1440
+          },
+          {
+            "name": "time_axis",
+            "status": "ok",
+            "time_count": 3
+          }
+        ],
+        "issues": [],
+        "warnings": [],
+        "summary": {
+          "issue_count": 0,
+          "warning_count": 0,
+          "variable_count": 4,
+          "time_count": 3
+        },
+        "variables": {
+          "t2m": {
+            "status": "ok",
+            "issues": [],
+            "warnings": []
+          },
+          "sp": {
+            "status": "ok",
+            "issues": [],
+            "warnings": []
+          },
+          "u10": {
+            "status": "ok",
+            "issues": [],
+            "warnings": []
+          },
+          "v10": {
+            "status": "ok",
+            "issues": [],
+            "warnings": []
+          }
+        }
+      },
+      "db_sync": {
+        "db_path": "C:/study/project/era5/agent/backend_system/data/ERA5/era5_index.db",
+        "datasets": 1,
+        "variables": 4,
+        "time_steps": 3,
+        "layer_assets": 12,
+        "parse_logs": 10
+      }
+    }
+  }
+}

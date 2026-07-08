@@ -1,0 +1,128 @@
+{
+  "dataset_id": "data_0_3_nc",
+  "data_type": "ERA5",
+  "file_format": "NC",
+  "source_file": "C:/study/project/era5/agent/backend_system/data/ERA5/data_0_3.nc",
+  "meta_file": "C:/study/project/era5/agent/backend_system/data/ERA5/data_0_3.nc.meta.json",
+  "png_files": [
+    "C:/study/project/era5/agent/backend_system/data/ERA5/data_0_3_t2m.png"
+  ],
+  "variables": [
+    {
+      "name": "t2m",
+      "long_name": "2 metre temperature",
+      "units": "K"
+    },
+    {
+      "name": "tp",
+      "long_name": "Total precipitation",
+      "units": "m"
+    },
+    {
+      "name": "u10",
+      "long_name": "10 metre U wind component",
+      "units": "m s**-1"
+    },
+    {
+      "name": "v10",
+      "long_name": "10 metre V wind component",
+      "units": "m s**-1"
+    },
+    {
+      "name": "ssrd",
+      "long_name": "Surface short-wave (solar) radiation downwards",
+      "units": "J m**-2"
+    },
+    {
+      "name": "sp",
+      "long_name": "Surface pressure",
+      "units": "Pa"
+    }
+  ],
+  "times": [
+    "2025-04-03T00:00",
+    "2025-04-03T01:00",
+    "2025-04-03T02:00",
+    "2025-04-03T03:00",
+    "2025-04-03T04:00",
+    "2025-04-03T05:00",
+    "2025-04-03T06:00",
+    "2025-04-03T07:00",
+    "2025-04-03T08:00",
+    "2025-04-03T09:00",
+    "2025-04-03T10:00",
+    "2025-04-03T11:00",
+    "2025-04-03T12:00",
+    "2025-04-03T13:00",
+    "2025-04-03T14:00",
+    "2025-04-03T15:00",
+    "2025-04-03T16:00",
+    "2025-04-03T17:00",
+    "2025-04-03T18:00",
+    "2025-04-03T19:00",
+    "2025-04-03T20:00",
+    "2025-04-03T21:00",
+    "2025-04-03T22:00",
+    "2025-04-03T23:00"
+  ],
+  "levels": [
+    "地表"
+  ],
+  "bbox": [
+    73.0,
+    18.0,
+    135.0,
+    54.0
+  ],
+  "extent": [
+    73.0,
+    18.0,
+    135.0,
+    54.0
+  ],
+  "weather_info": {
+    "source": "ERA5",
+    "product": "ERA5 再分析数据",
+    "element": "2 metre temperature (t2m)",
+    "time": "2025-04-03T00:00 ~ 2025-04-03T23:00",
+    "level": "地表",
+    "range": "73.0°E-135.0°E, 18.0°N-54.0°N",
+    "resolution": "0.100° × 0.100°",
+    "grid": "621 × 361",
+    "validGrid": "4417728",
+    "coverage": "中国区域",
+    "missing": "NaN",
+    "unit": "K",
+    "variables": "t2m, tp, u10, v10, ssrd, sp",
+    "steps": "24",
+    "status": "已解析",
+    "quality": "良好",
+    "max": "314.0447",
+    "min": "232.1395",
+    "mean": "281.2750",
+    "alert": "无",
+    "update": "24",
+    "bars": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "trend": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "extra": {
+    "status": "parsed",
+    "generated_at": "2026-06-29T06:53:29.313339+00:00",
+    "default_variable": "t2m"
+  }
+}
