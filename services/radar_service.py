@@ -324,6 +324,121 @@ def _clamp_index(index: int, size: int) -> int:
     return min(max(int(index or 0), 0), size - 1)
 
 
+def _level_label(value: Any, index: int) -> str:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return str(value or f"Level {index + 1}")
+    if numeric.is_integer():
+        return f"{int(numeric)} m"
+    return f"{numeric:g} m"
+
+
+def _level_webp_url(default_webp: str | None, level_key: str) -> str | None:
+    if not default_webp:
+        return None
+    if level_key == "max":
+        return default_webp
+    if default_webp.endswith(".max.webp"):
+        candidate = f"{default_webp[:-len('.max.webp')]}.{level_key}.webp"
+        if _existing_path(candidate):
+            return candidate
+    return None
+
+
+def _product_levels_from_meta(variable: dict[str, Any], meta_json: dict[str, Any]) -> list[dict[str, Any]]:
+    default_webp = _public_url(variable.get("webp_url") or variable.get("webp"))
+    extent = meta_json.get("extent") or meta_json.get("bbox") or variable.get("extent")
+    legend = variable.get("legend") or {}
+    levels: list[dict[str, Any]] = []
+
+    max_url = _level_webp_url(default_webp, "max")
+    if max_url:
+        levels.append(
+            {
+                "key": "max",
+                "label": "最大值合成",
+                "mode": "vertical_max",
+                "level": None,
+                "webp": max_url,
+                "webp_url": max_url,
+                "extent": extent,
+                "stats": variable.get("stats") or {},
+                "legend": legend,
+            }
+        )
+
+    meta_levels = meta_json.get("levels") if isinstance(meta_json.get("levels"), list) else []
+    shape = variable.get("shape") if isinstance(variable.get("shape"), list) else []
+    if meta_levels and shape and int(shape[0] or 0) == len(meta_levels):
+        for index, level_value in enumerate(meta_levels):
+            key = f"level-{index}"
+            url = _level_webp_url(default_webp, key)
+            if not url:
+                continue
+            levels.append(
+                {
+                    "key": key,
+                    "label": _level_label(level_value, index),
+                    "mode": "single_level",
+                    "level": level_value,
+                    "webp": url,
+                    "webp_url": url,
+                    "extent": extent,
+                    "stats": {},
+                    "legend": legend,
+                }
+            )
+
+    return levels
+
+
+def _products_from_meta(meta_json: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not meta_json:
+        return []
+    variables = meta_json.get("variables")
+    if not isinstance(variables, list):
+        return []
+
+    products: list[dict[str, Any]] = []
+    for item in variables:
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("name") or item.get("short_name") or item.get("raw_name") or "").strip()
+        if not key:
+            continue
+        levels = _product_levels_from_meta(item, meta_json)
+        if not levels:
+            continue
+        label = item.get("name_cn") or item.get("long_name") or item.get("label") or key
+        products.append(
+            {
+                "key": key,
+                "code": key,
+                "name": item.get("long_name") or label,
+                "name_cn": item.get("name_cn") or label,
+                "name_en": item.get("name_en") or item.get("long_name") or key,
+                "label": label,
+                "unit": item.get("unit") or item.get("display_unit") or item.get("units") or "",
+                "description": item.get("description") or item.get("definition") or "",
+                "description_en": item.get("description_en") or "",
+                "legend": item.get("legend") or {},
+                "extent": meta_json.get("extent") or meta_json.get("bbox") or item.get("extent"),
+                "levels": levels,
+            }
+        )
+    return products
+
+
+def _load_frame_meta(frame: dict[str, Any] | None, fallback_meta: dict[str, Any] | None) -> dict[str, Any] | None:
+    meta_file = _existing_path(frame.get("meta_file")) if frame else None
+    if meta_file:
+        loaded = _load_meta(meta_file)
+        if loaded:
+            return loaded
+    return fallback_meta
+
+
 def _active_level(products: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not products:
         return None
@@ -355,12 +470,17 @@ def get_display_data(time_index: int = 0) -> dict[str, Any]:
     source_path = _frame_source(current_frame) or _source_from_meta(meta_json)
 
     products: list[dict[str, Any]] = []
+    catalog_error = None
     if source_path:
         try:
             catalog = radar_adapter.build_webp_catalog(source_path)
             products = catalog.get("products", [])
         except Exception as exc:  # pragma: no cover - surfaced to frontend for diagnostics
-            display_error = str(exc) if display_error is None else f"{display_error}; {exc}"
+            catalog_error = str(exc)
+    if not products:
+        products = _products_from_meta(_load_frame_meta(current_frame, meta_json))
+    if not products and catalog_error:
+        display_error = catalog_error if display_error is None else f"{display_error}; {catalog_error}"
 
     level = _active_level(products)
     webp_url = _public_url(level.get("webp_url") if level else None) or _webp_from_item(current_frame) or _webp_from_item(meta_json)
