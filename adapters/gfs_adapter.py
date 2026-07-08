@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import traceback
@@ -391,7 +392,7 @@ def _var_priority(var_name: str, long_name: str = "") -> int:
         return 850
     if name in {"sp", "msl", "prmsl"}:
         return 800
-    if name in {"u10", "v10", "ugrd", "vgrd"}:
+    if name in {"u10", "v10", "10u", "10v", "ugrd", "vgrd"}:
         return 700
     if "temperature" in text:
         return 600
@@ -430,6 +431,12 @@ def _product_category(var_name: str) -> str:
         "sp": "气压产品",
         "msl": "气压产品",
         "prmsl": "气压产品",
+        "u10": "风场产品",
+        "v10": "风场产品",
+        "10u": "风场产品",
+        "10v": "风场产品",
+        "ugrd": "风场产品",
+        "vgrd": "风场产品",
     }
     return mapping.get(var_name.lower(), "数值预报产品")
 
@@ -445,6 +452,12 @@ def _business_label(var_name: str, long_name: str) -> str:
         "sp": "地面气压",
         "msl": "海平面气压",
         "prmsl": "海平面气压",
+        "u10": "10米U风",
+        "v10": "10米V风",
+        "10u": "10米U风",
+        "10v": "10米V风",
+        "ugrd": "纬向风",
+        "vgrd": "经向风",
     }
     return mapping.get(var_name.lower(), long_name or var_name)
 
@@ -700,7 +713,7 @@ def _binary_layer_summary(layer: dict[str, Any]) -> dict[str, Any]:
         "bbox": layer.get("bbox"),
         "color_range": layer.get("color_range", {}),
         "legend_ticks": layer.get("legend_ticks", []),
-        "render_mode": "binary",
+        "render_mode": "webp",
     }
 
 
@@ -721,6 +734,10 @@ def _display_label(var_name: str, long_name: str) -> str:
         "apcp": "total precipitation",
         "u10": "10m U wind",
         "v10": "10m V wind",
+        "10u": "10m U wind",
+        "10v": "10m V wind",
+        "ugrd": "U wind component",
+        "vgrd": "V wind component",
     }
     return mapping.get(var_name.lower(), long_name or var_name)
 
@@ -923,6 +940,479 @@ def _save_png_sequence_for_var(
 
 
 
+
+# ============================================================
+# WEBP-only differential resolution variants
+# raw / diff_3km / diff_1km
+# ============================================================
+
+DIFF_VARIANT_CONFIGS = [
+    {
+        "key": "diff_3km",
+        "label": "3km差分",
+        "km": 3.0,
+    },
+    {
+        "key": "diff_1km",
+        "label": "1km差分",
+        "km": 1.0,
+    },
+]
+
+
+def _parse_diff_bbox(lat: np.ndarray, lon: np.ndarray) -> tuple[float, float, float, float]:
+    """
+    差分细化默认不做全球 1km，否则体量会非常大。
+    默认区域：中国及周边，格式 west,south,east,north。
+    可通过环境变量覆盖：
+        WEATHER_DIFF_BBOX=73,15,135,55
+    """
+    raw = os.getenv("WEATHER_DIFF_BBOX", "73,15,135,55").strip()
+
+    try:
+        parts = [float(x.strip()) for x in raw.split(",")]
+        if len(parts) == 4:
+            west, south, east, north = parts
+        else:
+            raise ValueError
+    except Exception:
+        west, south, east, north = 73.0, 15.0, 135.0, 55.0
+
+    lon_min = float(np.nanmin(lon))
+    lon_max = float(np.nanmax(lon))
+    lat_min = float(np.nanmin(lat))
+    lat_max = float(np.nanmax(lat))
+
+    west = max(west, lon_min)
+    east = min(east, lon_max)
+    south = max(south, lat_min)
+    north = min(north, lat_max)
+
+    if west >= east or south >= north:
+        # 兜底：使用原始范围，但不建议全球 1km。
+        west, east = lon_min, lon_max
+        south, north = lat_min, lat_max
+
+    return west, south, east, north
+
+
+def _km_to_degree(km: float) -> float:
+    """
+    简化的 km -> degree 换算。
+    1 degree latitude ≈ 111.32 km。
+    对 WEBP 展示足够稳定；若后续做严格物理网格，可改成投影坐标。
+    """
+    return float(km) / 111.32
+
+
+def _crop_arr_lat_lon(
+    arr3d: np.ndarray,
+    lat: np.ndarray,
+    lon: np.ndarray,
+    bbox: tuple[float, float, float, float],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    west, south, east, north = bbox
+
+    lat = np.asarray(lat, dtype=float)
+    lon = np.asarray(lon, dtype=float)
+    arr3d = np.asarray(arr3d, dtype=float)
+
+    lat_mask = (lat >= south) & (lat <= north)
+    lon_mask = (lon >= west) & (lon <= east)
+
+    if int(lat_mask.sum()) < 2 or int(lon_mask.sum()) < 2:
+        return arr3d, lat, lon
+
+    cropped = arr3d[:, lat_mask, :][:, :, lon_mask]
+    return cropped, lat[lat_mask], lon[lon_mask]
+
+
+def _make_target_lat_lon(
+    bbox: tuple[float, float, float, float],
+    km: float,
+    max_pixels: int | None = None,
+) -> tuple[np.ndarray, np.ndarray, float]:
+    west, south, east, north = bbox
+    deg = _km_to_degree(km)
+
+    if deg <= 0:
+        deg = _km_to_degree(3.0)
+
+    ny = int(np.floor((north - south) / deg)) + 1
+    nx = int(np.floor((east - west) / deg)) + 1
+
+    if max_pixels is None:
+        try:
+            max_pixels = int(os.getenv("WEATHER_DIFF_MAX_PIXELS", "80000000"))
+        except Exception:
+            max_pixels = 80000000
+
+    pixels = ny * nx
+    actual_deg = deg
+
+    if pixels > max_pixels:
+        scale = float(np.sqrt(pixels / max_pixels))
+        actual_deg = deg * scale
+        ny = int(np.floor((north - south) / actual_deg)) + 1
+        nx = int(np.floor((east - west) / actual_deg)) + 1
+        print(
+            f"[WARN] requested {km}km grid too large ({pixels} pixels). "
+            f"Auto relaxed degree step from {deg:.6f} to {actual_deg:.6f}."
+        )
+
+    target_lat = north - np.arange(ny, dtype=float) * actual_deg
+    target_lon = west + np.arange(nx, dtype=float) * actual_deg
+
+    target_lat = target_lat[(target_lat >= south) & (target_lat <= north)]
+    target_lon = target_lon[(target_lon >= west) & (target_lon <= east)]
+
+    return target_lat, target_lon, actual_deg
+
+
+def _interp2d_latlon(
+    values2d: np.ndarray,
+    src_lat: np.ndarray,
+    src_lon: np.ndarray,
+    target_lat_desc: np.ndarray,
+    target_lon: np.ndarray,
+) -> np.ndarray:
+    """
+    二次一维线性插值：
+    1. 先沿经度插值
+    2. 再沿纬度插值
+
+    输入输出保持 north -> south 的纬度方向，方便 WEBP extent 对齐。
+    """
+    arr = np.asarray(values2d, dtype=float)
+    lat = np.asarray(src_lat, dtype=float)
+    lon = np.asarray(src_lon, dtype=float)
+
+    if arr.ndim != 2:
+        raise ValueError(f"values2d must be 2D, got {arr.shape}")
+
+    # np.interp 需要坐标递增。
+    if lat[0] > lat[-1]:
+        lat_asc = lat[::-1]
+        arr_asc = arr[::-1, :]
+    else:
+        lat_asc = lat
+        arr_asc = arr
+
+    if lon[0] > lon[-1]:
+        order = np.argsort(lon)
+        lon_asc = lon[order]
+        arr_asc = arr_asc[:, order]
+    else:
+        lon_asc = lon
+
+    target_lon = np.asarray(target_lon, dtype=float)
+    target_lat_desc = np.asarray(target_lat_desc, dtype=float)
+    target_lat_asc = target_lat_desc[::-1] if target_lat_desc[0] > target_lat_desc[-1] else target_lat_desc
+
+    tmp = np.empty((arr_asc.shape[0], target_lon.size), dtype=np.float32)
+
+    for i in range(arr_asc.shape[0]):
+        row = arr_asc[i, :]
+        good = np.isfinite(row)
+        if int(good.sum()) < 2:
+            tmp[i, :] = np.nan
+        else:
+            tmp[i, :] = np.interp(target_lon, lon_asc[good], row[good], left=np.nan, right=np.nan)
+
+    out_asc = np.empty((target_lat_asc.size, target_lon.size), dtype=np.float32)
+
+    for j in range(target_lon.size):
+        col = tmp[:, j]
+        good = np.isfinite(col)
+        if int(good.sum()) < 2:
+            out_asc[:, j] = np.nan
+        else:
+            out_asc[:, j] = np.interp(target_lat_asc, lat_asc[good], col[good], left=np.nan, right=np.nan)
+
+    if target_lat_desc[0] > target_lat_desc[-1]:
+        return out_asc[::-1, :]
+
+    return out_asc
+
+
+def _resample_3d_latlon(
+    arr3d: np.ndarray,
+    src_lat: np.ndarray,
+    src_lon: np.ndarray,
+    target_lat_desc: np.ndarray,
+    target_lon: np.ndarray,
+) -> np.ndarray:
+    out = []
+    for i in range(arr3d.shape[0]):
+        out.append(_interp2d_latlon(arr3d[i], src_lat, src_lon, target_lat_desc, target_lon))
+    return np.stack(out, axis=0)
+
+
+def _save_webp_sequence_for_variant(
+    path: Path,
+    var_key: str,
+    variant_key: str,
+    arr3d: np.ndarray,
+    var_type: str,
+    vmin: float | None,
+    vmax: float | None,
+) -> tuple[str, str, list[str], list[str], list[dict[str, Any]]]:
+    webp_files: list[str] = []
+    webp_urls: list[str] = []
+    step_stats: list[dict[str, Any]] = []
+
+    safe_key = "".join(ch if ch.isalnum() or ch in ["_", "-"] else "_" for ch in var_key)
+    safe_variant = "".join(ch if ch.isalnum() or ch in ["_", "-"] else "_" for ch in variant_key)
+
+    for i in range(arr3d.shape[0]):
+        values2d = np.asarray(arr3d[i], dtype=float)
+        step_stats.append(_step_stats(values2d))
+
+        webp_path = path.with_name(f"{path.name}_{safe_key}_{safe_variant}_step{i:03d}.webp")
+        _save_one_webp(
+            values2d=values2d,
+            output_path=webp_path,
+            var_type=var_type,
+            vmin=vmin,
+            vmax=vmax,
+        )
+
+        webp_files.append(str(webp_path).replace("\\", "/"))
+        webp_urls.append(_to_png_url(webp_path))
+
+    first_file = webp_files[0] if webp_files else ""
+    first_url = webp_urls[0] if webp_urls else ""
+
+    return first_file, first_url, webp_files, webp_urls, step_stats
+
+
+def _variant_meta(
+    key: str,
+    label: str,
+    resolution: str,
+    arr3d: np.ndarray,
+    lat: np.ndarray,
+    lon: np.ndarray,
+    webp_file: str,
+    webp_url: str,
+    webp_files: list[str],
+    webp_urls: list[str],
+    step_stats: list[dict[str, Any]],
+    actual_degree: float | None = None,
+) -> dict[str, Any]:
+    lat_min = round(float(np.nanmin(lat)), 4)
+    lat_max = round(float(np.nanmax(lat)), 4)
+    lon_min = round(float(np.nanmin(lon)), 4)
+    lon_max = round(float(np.nanmax(lon)), 4)
+
+    return {
+        "key": key,
+        "label": label,
+        "resolution": resolution,
+        "actual_degree": round(float(actual_degree), 6) if actual_degree is not None else None,
+        "render_mode": "webp",
+        "image_format": "webp",
+
+        "webp": webp_file,
+        "webp_url": webp_url,
+        "webp_files": webp_files,
+        "webp_urls": webp_urls,
+        "image": webp_file,
+        "image_url": webp_url,
+        "image_files": webp_files,
+        "image_urls": webp_urls,
+
+        # WEBP-only: no png / no float32.
+        "png": "",
+        "png_url": "",
+        "png_files": [],
+        "png_urls": [],
+        "grid_files": [],
+        "grid_urls": [],
+        "binary_files": [],
+        "binary_urls": [],
+
+        "extent": [lon_min, lat_min, lon_max, lat_max],
+        "bbox": {
+            "south": lat_min,
+            "north": lat_max,
+            "west": lon_min,
+            "east": lon_max,
+        },
+        "range": f"纬度 {lat_min} ~ {lat_max}，经度 {lon_min} ~ {lon_max}",
+        "grid": {
+            "nx": int(lon.size),
+            "ny": int(lat.size),
+            "text": f"{lat.size} × {lon.size}",
+        },
+        "gridText": f"{lat.size} × {lon.size}",
+        "step_stats": step_stats,
+    }
+
+
+def _build_webp_resolution_variants(
+    path: Path,
+    var_key: str,
+    arr3d: np.ndarray,
+    lat: np.ndarray,
+    lon: np.ndarray,
+    var_type: str,
+    vmin: float | None,
+    vmax: float | None,
+    raw_webp_file: str,
+    raw_webp_url: str,
+    raw_webp_files: list[str],
+    raw_webp_urls: list[str],
+    raw_step_stats: list[dict[str, Any]],
+) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    """
+    正式策略：
+    1. raw 原始分辨率 WEBP 同步生成，保证前端马上能显示；
+    2. display 接口永远不做重计算；
+    3. diff_3km / diff_1km 默认 pending；
+    4. 只有后台预生成任务设置 WEATHER_DIFF_BUILD_SYNC=1 时，才真正生成 diff_3km / diff_1km。
+    """
+    options = [
+        {"key": "raw", "label": "原始分辨率"},
+        {"key": "diff_3km", "label": "3km差分"},
+        {"key": "diff_1km", "label": "1km差分"},
+    ]
+
+    variants: dict[str, Any] = {}
+
+    variants["raw"] = _variant_meta(
+        key="raw",
+        label="原始分辨率",
+        resolution="raw",
+        arr3d=arr3d,
+        lat=lat,
+        lon=lon,
+        webp_file=raw_webp_file,
+        webp_url=raw_webp_url,
+        webp_files=raw_webp_files,
+        webp_urls=raw_webp_urls,
+        step_stats=raw_step_stats,
+        actual_degree=None,
+    )
+    variants["raw"]["status"] = "ready"
+    variants["raw"]["message"] = "原始分辨率WEBP已生成。"
+
+    build_sync = os.getenv("WEATHER_DIFF_BUILD_SYNC", "0").lower() in {"1", "true", "yes", "on"}
+
+    if not build_sync:
+        for cfg in DIFF_VARIANT_CONFIGS:
+            key = cfg["key"]
+            label = cfg["label"]
+            km = float(cfg["km"])
+            variants[key] = {
+                "key": key,
+                "label": label,
+                "resolution": f"{int(km)}km",
+                "status": "pending",
+                "message": "差分WEBP尚未预生成，当前前端回退显示原始分辨率。",
+                "render_mode": "webp",
+                "image_format": "webp",
+                "webp": "",
+                "webp_url": "",
+                "webp_files": [],
+                "webp_urls": [],
+                "image": "",
+                "image_url": "",
+                "image_files": [],
+                "image_urls": [],
+                "png_files": [],
+                "png_urls": [],
+                "grid_files": [],
+                "grid_urls": [],
+                "binary_files": [],
+                "binary_urls": [],
+                "step_stats": [],
+            }
+        return options, variants
+
+    # 后台预生成模式：真正生成 3km 和 1km。
+    bbox = _parse_diff_bbox(lat, lon)
+    cropped_arr, cropped_lat, cropped_lon = _crop_arr_lat_lon(arr3d, lat, lon, bbox)
+
+    # 先 3km 后 1km。3km 快，前端先能看到增强版。
+    ordered_configs = sorted(DIFF_VARIANT_CONFIGS, key=lambda item: float(item["km"]), reverse=True)
+
+    for cfg in ordered_configs:
+        key = cfg["key"]
+        label = cfg["label"]
+        km = float(cfg["km"])
+
+        try:
+            target_lat, target_lon, actual_degree = _make_target_lat_lon(bbox, km)
+
+            if target_lat.size < 2 or target_lon.size < 2:
+                raise ValueError(f"{key} target grid too small.")
+
+            diff_arr = _resample_3d_latlon(
+                cropped_arr,
+                cropped_lat,
+                cropped_lon,
+                target_lat,
+                target_lon,
+            )
+
+            webp_file, webp_url, webp_files, webp_urls, step_stats = _save_webp_sequence_for_variant(
+                path=path,
+                var_key=var_key,
+                variant_key=key,
+                arr3d=diff_arr,
+                var_type=var_type,
+                vmin=vmin,
+                vmax=vmax,
+            )
+
+            variants[key] = _variant_meta(
+                key=key,
+                label=label,
+                resolution=f"{int(km)}km",
+                arr3d=diff_arr,
+                lat=target_lat,
+                lon=target_lon,
+                webp_file=webp_file,
+                webp_url=webp_url,
+                webp_files=webp_files,
+                webp_urls=webp_urls,
+                step_stats=step_stats,
+                actual_degree=actual_degree,
+            )
+            variants[key]["status"] = "ready"
+            variants[key]["message"] = "差分WEBP已预生成。"
+
+        except Exception as e:
+            print(f"[WARN] failed to build {key} for {var_key}: {e}")
+            variants[key] = {
+                "key": key,
+                "label": label,
+                "resolution": f"{int(km)}km",
+                "status": "failed",
+                "message": f"差分WEBP预生成失败：{e}",
+                "render_mode": "webp",
+                "image_format": "webp",
+                "error": str(e),
+                "webp": "",
+                "webp_url": "",
+                "webp_files": [],
+                "webp_urls": [],
+                "image": "",
+                "image_url": "",
+                "image_files": [],
+                "image_urls": [],
+                "png_files": [],
+                "png_urls": [],
+                "grid_files": [],
+                "grid_urls": [],
+                "binary_files": [],
+                "binary_urls": [],
+                "step_stats": [],
+            }
+
+    return options, variants
+
 def _step_stats(values2d: np.ndarray) -> dict[str, Any]:
     arr = np.asarray(values2d, dtype=float)
     total = int(arr.size)
@@ -993,9 +1483,18 @@ def _build_variable_layers(path: Path, groups: list[xr.Dataset]) -> tuple[list[d
     raw_layers: list[tuple[int, str, dict[str, Any]]] = []
     seen: set[str] = set()
 
-    # 为了让前端变量下拉保持干净，默认只展示 GFS 的 4 个核心业务变量。
-    # 后续想扩展风场/高空层，只需要把对应变量名加入这里。
-    allowed_vars = {"t2m", "2t", "d2m", "2d", "tp", "apcp", "sp", "msl", "prmsl"}
+    # 默认展示 GFS / ECMWF 最常用的业务变量。
+    # 说明：
+    # 1. GFS 和 ECMWF 仍然是两个数据源；
+    # 2. 这里只是复用同一个 GRIB 解析器；
+    # 3. 前端入口、数据目录和 display 接口应保持 GFS / ECMWF 分开。
+    allowed_vars = {
+        "t2m", "2t",
+        "d2m", "2d",
+        "tp", "apcp",
+        "sp", "msl", "prmsl",
+        "u10", "v10", "10u", "10v", "ugrd", "vgrd",
+    }
 
     for group_index, ds in enumerate(groups):
         for var_name in ds.data_vars:
@@ -1046,7 +1545,11 @@ def _build_variable_layers(path: Path, groups: list[xr.Dataset]) -> tuple[list[d
                 valid_hours = _valid_hours_from_times(times)
                 cycle_time = _cycle_time(ds)
 
-                png_file, png_url, png_files, png_urls = _save_png_sequence_for_var(
+                # WEBP-only mode:
+                # 1. Do not generate PNG.
+                # 2. Do not generate float32.
+                # 3. Generate raw / diff_3km / diff_1km WEBP variants inside this adapter.
+                webp_file, webp_url, webp_files, webp_urls = _save_webp_sequence_for_var(
                     path=path,
                     var_key=var_name,
                     arr3d=converted_arr,
@@ -1055,29 +1558,28 @@ def _build_variable_layers(path: Path, groups: list[xr.Dataset]) -> tuple[list[d
                     vmax=vmax,
                 )
 
-                try:
-                    webp_file, webp_url, webp_files, webp_urls = _save_webp_sequence_for_var(
-                        path=path,
-                        var_key=var_name,
-                        arr3d=converted_arr,
-                        var_type=var_type,
-                        vmin=vmin,
-                        vmax=vmax,
-                    )
-                    image_file, image_url, image_files, image_urls, image_format = (
-                        webp_file, webp_url, webp_files, webp_urls, "webp"
-                    )
-                except Exception as webp_exc:
-                    print(f"[WARN] WEBP generation failed for {var_name}, fallback to PNG: {webp_exc}")
-                    webp_file, webp_url, webp_files, webp_urls = "", "", [], []
-                    image_file, image_url, image_files, image_urls, image_format = (
-                        png_file, png_url, png_files, png_urls, "png"
-                    )
+                image_file, image_url, image_files, image_urls, image_format = (
+                    webp_file, webp_url, webp_files, webp_urls, "webp"
+                )
 
-                grid_files, grid_urls, step_stats = _save_grid_sequence_for_var(
+                png_file, png_url, png_files, png_urls = "", "", [], []
+                grid_files, grid_urls = [], []
+                step_stats = [_step_stats(np.asarray(converted_arr[i], dtype=float)) for i in range(converted_arr.shape[0])]
+
+                resolution_options, resolution_variants = _build_webp_resolution_variants(
                     path=path,
                     var_key=var_name,
                     arr3d=converted_arr,
+                    lat=lat,
+                    lon=lon,
+                    var_type=var_type,
+                    vmin=vmin,
+                    vmax=vmax,
+                    raw_webp_file=webp_file,
+                    raw_webp_url=webp_url,
+                    raw_webp_files=webp_files,
+                    raw_webp_urls=webp_urls,
+                    raw_step_stats=step_stats,
                 )
 
                 label = _business_label(var_name, long_name)
@@ -1155,10 +1657,17 @@ def _build_variable_layers(path: Path, groups: list[xr.Dataset]) -> tuple[list[d
                     "image_files": image_files,
                     "image_urls": image_urls,
                     "image_format": image_format,
-                    "grid_files": grid_files,
-                    "grid_urls": grid_urls,
-                    "binary_files": grid_files,
-                    "binary_urls": grid_urls,
+
+                    # WEBP-only resolution variants.
+                    "resolution_options": resolution_options,
+                    "resolution_variants": resolution_variants,
+                    "selected_resolution": "raw",
+
+                    # Compatibility fields. They intentionally point to WEBP-only assets.
+                    "grid_files": [],
+                    "grid_urls": [],
+                    "binary_files": [],
+                    "binary_urls": [],
                     "step_stats": step_stats,
                 }
 
@@ -1197,7 +1706,8 @@ def _build_variable_layers(path: Path, groups: list[xr.Dataset]) -> tuple[list[d
             "legend_ticks": layer["legend_ticks"],
             "gradient": layer["gradient"],
             "color_range": layer.get("color_range", {}),
-            "render_mode": "binary",
+            "resolution_options": layer.get("resolution_options", []),
+            "render_mode": "webp",
         })
         variable_layers[var_name] = layer
 
@@ -1283,9 +1793,12 @@ def _build_weather_info_from_layer(
         "valid_hours": layer.get("valid_hours", []),
         "valid_time_hours": layer.get("valid_time_hours", []),
         "color_range": layer.get("color_range", {}),
+        "resolution_options": layer.get("resolution_options", []),
+        "resolution_variants": layer.get("resolution_variants", {}),
+        "selected_resolution": layer.get("selected_resolution", "raw"),
         "binary_layer": layer.get("binary_layer", {}),
         "binary_layers": {key: _binary_layer_summary(value) for key, value in variable_layers.items()},
-        "render_mode": "binary",
+        "render_mode": "webp",
         "fileSizeMB": round(path.stat().st_size / 1024 / 1024, 3) if path.exists() else None,
         "variable_options": variable_options,
         "variable_layers": variable_layers,
@@ -1336,7 +1849,7 @@ def _build_panel_meta(
         "valid_time_hours": weather_info.get("valid_time_hours", []),
         "binary_layer": weather_info.get("binary_layer", {}),
         "binary_layers": weather_info.get("binary_layers", {}),
-        "render_mode": "binary",
+        "render_mode": "webp",
         "issueTime": weather_info.get("issueTime", "待解析"),
         "cycleTime": weather_info.get("cycleTime", "待解析"),
         "productCategory": weather_info.get("productCategory", "待解析"),
@@ -1519,8 +2032,8 @@ def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
     result["variable_layers"] = variable_layers
     result["default_variable"] = default_variable
 
-    # 统一二进制格点输出。前端主渲染读取 binary_layers/grid_urls，PNG 只做兜底预览。
-    result["render_mode"] = "binary"
+    # WEBP 优先输出。binary_layer 字段保留用于兼容旧前端，但本适配器默认不再强制生成 float32。
+    result["render_mode"] = "webp"
     result["binary_layer"] = weather_info.get("binary_layer", {})
     result["binary_layers"] = weather_info.get("binary_layers", {})
 

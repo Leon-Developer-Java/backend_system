@@ -1,11 +1,15 @@
 import asyncio
 import contextlib
 import os
+import json
+import subprocess
+import uuid
+from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -107,6 +111,133 @@ app.mount("/data", StaticFiles(directory=str(DATA_DIR)), name="data")
 
 def ok(data: Any = None, message: str = "success") -> dict[str, Any]:
     return {"code": 0, "data": data, "message": message}
+
+
+DIFF_TASK_LOG = DATA_DIR / "diff_tasks.jsonl"
+
+
+def _now_text() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _append_diff_task(record: dict[str, Any]) -> None:
+    DIFF_TASK_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with DIFF_TASK_LOG.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def _read_diff_tasks(limit: int = 20) -> list[dict[str, Any]]:
+    if not DIFF_TASK_LOG.exists():
+        return []
+
+    rows = []
+    with DIFF_TASK_LOG.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rows.append(json.loads(line))
+            except Exception:
+                continue
+
+    latest = {}
+    for row in rows:
+        tid = row.get("task_id")
+        if tid:
+            latest[tid] = row
+
+    return list(latest.values())[-limit:][::-1]
+
+
+def _run_diff_build_task(
+    task_id: str,
+    source: str,
+    lead_start: int,
+    lead_end: int,
+    lead_step: int,
+    bbox: str,
+    max_pixels: int,
+) -> None:
+    start = datetime.now()
+
+    _append_diff_task({
+        "task_id": task_id,
+        "source": source,
+        "status": "running",
+        "started_at": _now_text(),
+        "lead_start": lead_start,
+        "lead_end": lead_end,
+        "lead_step": lead_step,
+        "bbox": bbox,
+        "max_pixels": max_pixels,
+    })
+
+    env = os.environ.copy()
+    env["WEATHER_DIFF_BUILD_SYNC"] = "1"
+    env["WEATHER_DIFF_BBOX"] = bbox
+    env["WEATHER_DIFF_MAX_PIXELS"] = str(max_pixels)
+
+    cmd = [
+        os.sys.executable,
+        str(BASE_DIR / "scripts" / "download_gfs_ecmwf.py"),
+        "--source", source,
+        "--lead-start", str(lead_start),
+        "--lead-end", str(lead_end),
+        "--lead-step", str(lead_step),
+        "--min-success", "4",
+        "--parse-after",
+        "--overwrite",
+    ]
+
+    try:
+        completed = subprocess.run(
+            cmd,
+            cwd=str(BASE_DIR),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=None,
+        )
+
+        duration = (datetime.now() - start).total_seconds()
+        log_tail = (completed.stdout or "")[-5000:]
+
+        _append_diff_task({
+            "task_id": task_id,
+            "source": source,
+            "status": "success" if completed.returncode == 0 else "failed",
+            "started_at": start.strftime("%Y-%m-%d %H:%M:%S"),
+            "ended_at": _now_text(),
+            "duration_seconds": round(duration, 2),
+            "exit_code": completed.returncode,
+            "lead_start": lead_start,
+            "lead_end": lead_end,
+            "lead_step": lead_step,
+            "bbox": bbox,
+            "max_pixels": max_pixels,
+            "log_tail": log_tail,
+        })
+
+    except Exception as e:
+        duration = (datetime.now() - start).total_seconds()
+        _append_diff_task({
+            "task_id": task_id,
+            "source": source,
+            "status": "failed",
+            "started_at": start.strftime("%Y-%m-%d %H:%M:%S"),
+            "ended_at": _now_text(),
+            "duration_seconds": round(duration, 2),
+            "lead_start": lead_start,
+            "lead_end": lead_end,
+            "lead_step": lead_step,
+            "bbox": bbox,
+            "max_pixels": max_pixels,
+            "error": str(e),
+        })
 
 
 
@@ -270,6 +401,57 @@ def parse_file(
             "weather_info": meta.get("weather_info", {}),
         }
     )
+
+
+@app.post("/api/display/{business_type}/diff-build")
+def start_diff_build(
+    business_type: str,
+    background_tasks: BackgroundTasks,
+    bbox: str = Query(default="105,20,125,40"),
+    max_pixels: int = Query(default=12000000, ge=100000, le=120000000),
+    lead_start: int = Query(default=0, ge=0),
+    lead_end: int = Query(default=24, ge=0),
+    lead_step: int | None = Query(default=None, ge=1),
+) -> dict[str, Any]:
+    source = business_type.upper()
+
+    if source not in {"GFS", "ECMWF"}:
+        raise HTTPException(status_code=400, detail="仅支持 GFS / ECMWF 差分构建。")
+
+    if lead_step is None:
+        lead_step = 3 if source == "ECMWF" else 1
+
+    task_id = f"diff_{source}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+
+    background_tasks.add_task(
+        _run_diff_build_task,
+        task_id,
+        source,
+        lead_start,
+        lead_end,
+        lead_step,
+        bbox,
+        max_pixels,
+    )
+
+    return ok({
+        "task_id": task_id,
+        "source": source,
+        "status": "submitted",
+        "bbox": bbox,
+        "max_pixels": max_pixels,
+        "lead_start": lead_start,
+        "lead_end": lead_end,
+        "lead_step": lead_step,
+        "message": "差分生成任务已提交，原始分辨率可先展示，1km/3km 生成完成后刷新页面即可切换。",
+    })
+
+
+@app.get("/api/display/diff-tasks")
+def list_diff_tasks(limit: int = Query(default=20, ge=1, le=100)) -> dict[str, Any]:
+    return ok({
+        "tasks": _read_diff_tasks(limit=limit),
+    })
 
 
 @app.get("/api/display/{business_type}")
