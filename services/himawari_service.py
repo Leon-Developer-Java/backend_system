@@ -5,13 +5,8 @@ from pathlib import Path
 from typing import Any
 
 from adapters.himawari_adapter import (
-    BAND_DESCRIPTION_EN,
-    BAND_CATALOG,
-    CHINA_EXTENT,
     DEFAULT_LATEST_DELAY_MINUTES,
     DEFAULT_WINDOW_HOURS,
-    LATLON_RESOLUTION,
-    build_latlon_grid,
     latest_himawari_slot,
     normalize_himawari_meta,
 )
@@ -20,7 +15,6 @@ from adapters.himawari_adapter import (
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "Himawari"
 STATIC_PREFIX = "/data/Himawari"
 BEIJING_OFFSET = timedelta(hours=8)
-DISPLAY_IMAGE_PATTERNS = ("*.webp", "*.png")
 
 
 def _as_posix(path: Path | None) -> str | None:
@@ -35,13 +29,6 @@ def _png_url(path: Path | None) -> str | None:
     except ValueError:
         return None
     return f"{STATIC_PREFIX}/{relative.as_posix()}"
-
-
-def _display_image_files(folder: Path) -> list[Path]:
-    files: list[Path] = []
-    for pattern in DISPLAY_IMAGE_PATTERNS:
-        files.extend(folder.glob(pattern))
-    return files
 
 
 def _window_hours_env() -> int:
@@ -67,15 +54,25 @@ def _product_name(item: dict[str, Any]) -> str:
 def _existing_path(value: str | None, meta_path: Path | None = None) -> Path | None:
     if not value:
         return None
+    if Path(value).suffix.lower() != ".webp":
+        return None
     path = Path(value)
     if path.exists():
         return path
     if meta_path:
+        scene_dir = meta_path.parent.parent
+        # 处理 diff/*/latlon/ 路径
+        if "diff" in path.parts:
+            diff_idx = path.parts.index("diff")
+            candidate = scene_dir.joinpath(*path.parts[diff_idx:])
+            if candidate.exists():
+                return candidate
+            return None
+        # 处理直接的 latlon/ 或 composites/ 路径
         for folder in ("latlon", "composites"):
             if folder not in path.parts:
                 continue
-            relative_parts = path.parts[path.parts.index(folder) :]
-            candidate = meta_path.parent.parent.joinpath(*relative_parts)
+            candidate = scene_dir.joinpath(*path.parts[path.parts.index(folder):])
             if candidate.exists():
                 return candidate
     return None
@@ -83,7 +80,7 @@ def _existing_path(value: str | None, meta_path: Path | None = None) -> Path | N
 
 def _select_default_png(meta_json: dict[str, Any] | None, fallback: list[Path], meta_path: Path | None = None) -> Path | None:
     if not meta_json:
-        return fallback[0] if fallback else None
+        return None
 
     for key in ("B13", "B14", "B08"):
         for item in meta_json.get("variables", []):
@@ -102,10 +99,35 @@ def _with_png_urls(items: list[dict[str, Any]], meta_path: Path | None = None) -
     enriched = []
     for item in items:
         path = _existing_path(item.get("png"), meta_path)
+        if not path:
+            continue
         item_copy = {**item}
         item_copy.pop("png_data_url", None)
-        enriched.append({**item_copy, "png_url": _png_url(path)})
+        item_copy["png_url"] = _png_url(path)
+        # 为 resolution_assets 注入 png_url
+        assets = item.get("resolution_assets")
+        if isinstance(assets, dict):
+            item_copy["resolution_assets"] = {
+                key: {
+                    **asset,
+                    "png_url": _png_url(_existing_path(asset.get("png"), meta_path)),
+                }
+                for key, asset in assets.items()
+                if isinstance(asset, dict)
+            }
+        enriched.append(item_copy)
     return enriched
+
+
+def _scene_webp_files(meta_path: Path | None) -> list[Path]:
+    if not meta_path:
+        return []
+    scene_dir = meta_path.parent.parent
+    files = [
+        *scene_dir.glob("latlon/*.webp"),
+        *scene_dir.glob("composites/*.webp"),
+    ]
+    return sorted(files, key=lambda item: (item.stat().st_mtime, item.as_posix()), reverse=True)
 
 
 def _parse_observation_time(value: str | None) -> datetime | None:
@@ -127,104 +149,6 @@ def _scene_time_from_path(meta_path: Path) -> datetime | None:
         return datetime.strptime(f"{date}{scene_time}", "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
     except ValueError:
         return None
-
-
-def _scene_time_from_scene_dir(scene_dir: Path) -> datetime | None:
-    try:
-        return datetime.strptime(f"{scene_dir.parent.name}{scene_dir.name}", "%Y%m%d%H%M").replace(tzinfo=timezone.utc)
-    except ValueError:
-        return None
-
-
-def _legend_ticks(vmin: float, vmax: float, count: int = 4) -> list[str]:
-    if count <= 1 or vmax <= vmin:
-        return [f"{vmin:g}", f"{vmax:g}"]
-    step = (vmax - vmin) / (count - 1)
-    return [f"{vmin + step * index:g}" for index in range(count)]
-
-
-def _partial_variable_from_png(scene_dir: Path, png_path: Path, grid: dict[str, Any]) -> dict[str, Any] | None:
-    band = png_path.stem.upper()
-    catalog = BAND_CATALOG.get(band)
-    if not catalog:
-        return None
-    vmin = float(catalog["vmin"])
-    vmax = float(catalog["vmax"])
-    return {
-        "name": catalog["key"],
-        "long_name": catalog["plain_name"],
-        "short_name": catalog["key"],
-        "raw_name": catalog["key"],
-        "name_cn": catalog["name_zh"],
-        "unit": catalog["unit"],
-        "display_unit": catalog["display_unit"],
-        "shape": [grid["ny"], grid["nx"]],
-        "dims": ["lat", "lon"],
-        "level": None,
-        "missing": None,
-        "stats": {"min": None, "max": None, "mean": None, "std": None},
-        "category": catalog["category"],
-        "description": catalog["description"],
-        "description_zh": catalog["description"],
-        "description_en": BAND_DESCRIPTION_EN.get(band),
-        "wavelength": catalog["wavelength"],
-        "vmin": vmin,
-        "vmax": vmax,
-        "legend_ticks": _legend_ticks(vmin, vmax),
-        "png": png_path.as_posix(),
-        "float32": None,
-        "netcdf": None,
-    }
-
-
-def _read_partial_png_entry(scene_dir: Path) -> dict[str, Any] | None:
-    if (scene_dir / "meta" / "scene.meta.json").exists():
-        return None
-    observed = _scene_time_from_scene_dir(scene_dir)
-    if not observed:
-        return None
-    png_files = sorted(
-        [item for item in _display_image_files(scene_dir / "latlon") if item.stem.upper().startswith("B")],
-        key=lambda item: item.stem,
-    )
-    if not png_files:
-        return None
-    grid = build_latlon_grid(CHINA_EXTENT, LATLON_RESOLUTION)
-    variables = [
-        variable
-        for png_path in png_files
-        if (variable := _partial_variable_from_png(scene_dir, png_path, grid))
-    ]
-    if not variables:
-        return None
-    meta_path = scene_dir / "meta" / "scene.meta.json"
-    meta_json = normalize_himawari_meta(
-        {
-            "scene_id": f"{scene_dir.parent.name}_{scene_dir.name}",
-            "satellite": "Himawari-9",
-            "observation_time": observed.isoformat().replace("+00:00", "Z"),
-            "projection": grid["projection"],
-            "grid_type": grid["grid_type"],
-            "extent": grid["extent"],
-            "resolution": grid["resolution"],
-            "grid": {"nx": grid["nx"], "ny": grid["ny"]},
-            "variables": variables,
-            "composites": [],
-            "loaded_bands": [item["name"] for item in variables],
-            "source_raw_dir": (scene_dir / "raw").as_posix(),
-            "raw_file_count": len(list((scene_dir / "raw").glob("HS_H*.DAT*"))),
-            "retention_managed": True,
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "extra": {"status": "partial"},
-        },
-        meta_path,
-    )
-    return {
-        "path": meta_path,
-        "meta": meta_json,
-        "observed": observed,
-        "scene_id": meta_json.get("scene_id") or scene_dir.name,
-    }
 
 
 def _read_meta_entry(meta_path: Path) -> dict[str, Any] | None:
@@ -264,9 +188,6 @@ def _meta_entries(
     entries = []
     for meta_path in list(DATA_DIR.glob("*/*/meta/scene.meta.json")) + list(DATA_DIR.glob("*.meta.json")):
         if entry := _read_meta_entry(meta_path):
-            entries.append(entry)
-    for scene_dir in DATA_DIR.glob("*/*"):
-        if scene_dir.is_dir() and (entry := _read_partial_png_entry(scene_dir)):
             entries.append(entry)
     if not entries:
         return []
@@ -315,21 +236,12 @@ def get_display_data(
     entries = _meta_entries(retention_hours=retention_hours, now=now, delay_minutes=delay_minutes)
     selected = _select_entry(entries, scene_id)
     meta_files = [entry["path"] for entry in entries]
-    png_files = sorted(
-        [
-            *[path for pattern in DISPLAY_IMAGE_PATTERNS for path in DATA_DIR.glob(f"*/*/latlon/{pattern}")],
-            *[path for pattern in DISPLAY_IMAGE_PATTERNS for path in DATA_DIR.glob(f"*/*/composites/{pattern}")],
-            *[path for pattern in DISPLAY_IMAGE_PATTERNS for path in DATA_DIR.glob(pattern)],
-        ],
-        key=lambda item: (item.stat().st_mtime, item.as_posix()),
-        reverse=True,
-    )
-
     meta_json = None
     if selected:
         meta_json = selected["meta"]
 
     meta_path = selected["path"] if selected else None
+    png_files = _scene_webp_files(meta_path)
     png_path = _select_default_png(meta_json, png_files, meta_path)
     variables = _with_png_urls(meta_json.get("variables", []), meta_path) if meta_json else []
     composites = _with_png_urls(meta_json.get("composites", []), meta_path) if meta_json else []
@@ -339,6 +251,8 @@ def get_display_data(
         "meta_file": _as_posix(meta_path),
         "meta_json": meta_json,
         "weather_info": meta_json.get("weather_info") if meta_json else None,
+        "resolution_options": (meta_json.get("resolution_options") or None) if meta_json else None,
+        "resolutions": (meta_json.get("resolutions") or None) if meta_json else None,
         "extent": (meta_json.get("extent") or meta_json.get("bbox")) if meta_json else None,
         "grid": meta_json.get("grid") if meta_json else None,
         "timeline": [_timeline_item(entry) for entry in entries],
@@ -347,5 +261,5 @@ def get_display_data(
         "products": composites + variables,
         "png": _as_posix(png_path),
         "png_url": _png_url(png_path),
-        "png_files": [_as_posix(path) for path in png_files if "latlon" in path.parts or "composites" in path.parts],
+        "png_files": [_as_posix(path) for path in png_files],
     }

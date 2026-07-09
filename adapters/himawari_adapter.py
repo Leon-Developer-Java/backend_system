@@ -27,6 +27,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, Path(__file__).resolve().parents[1].as_posix())
 
 from adapters.base import process_basic_file
+from adapters import diff_methods
 
 
 HSD_FILENAME_RE = re.compile(
@@ -363,7 +364,69 @@ def normalize_himawari_meta(meta: dict[str, Any], meta_path: str | Path | None =
         "generated_at": generated_at,
     }
     normalized["weather_info"] = _weather_info(normalized, variables, default_variable, generated_at)
+    # 扫描 diff/ 目录，为变量注入 resolution_assets，meta 注入 resolution_options
+    scene_dir = Path(meta_path).parent.parent if meta_path else None
+    enriched_vars, res_options = _build_himawari_resolution_assets(variables, scene_dir, grid)
+    if res_options:
+        normalized["variables"] = enriched_vars
+        normalized["products"] = normalized.get("composites", []) + enriched_vars
+        normalized["resolution_options"] = res_options
+        normalized["resolutions"] = {item["key"]: item["resolution"] for item in res_options}
     return normalized
+
+
+def _build_himawari_resolution_assets(
+    variables: list[dict[str, Any]],
+    scene_dir: Path | None,
+    grid: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]] | None]:
+    """扫描 diff/ 目录，为每个变量构建 resolution_assets 并生成 resolution_options。"""
+    if not scene_dir or not scene_dir.exists():
+        return variables, None
+    diff_dir = scene_dir / "diff"
+    if not diff_dir.is_dir():
+        return variables, None
+
+    res_keys = sorted(d.name for d in diff_dir.iterdir() if d.is_dir() and (d / "latlon").is_dir())
+    if not res_keys:
+        return variables, None
+
+    src_res = float(grid.get("resolution", LATLON_RESOLUTION))
+    options = [{"key": "original", "label": "原始", "resolution": src_res}]
+    for key in res_keys:
+        options.append({"key": key, "label": diff_methods.resolution_label_for_key(key), "resolution": src_res})
+
+    enriched = []
+    for var in variables:
+        name = _product_name(var)
+        assets: dict[str, Any] = {
+            "original": _himawari_asset_entry("original", "原始", var.get("png"), var.get("float32"), grid),
+        }
+        for key in res_keys:
+            png_rel = f"diff/{key}/latlon/{name}.webp"
+            float32_rel = f"diff/{key}/latlon/{name}.float32"
+            if (scene_dir / png_rel).is_file():
+                assets[key] = _himawari_asset_entry(key, diff_methods.resolution_label_for_key(key), png_rel, float32_rel, grid)
+        if len(assets) > 1:
+            enriched.append({**var, "resolution_assets": assets})
+        else:
+            enriched.append(var)
+    return enriched, options
+
+
+def _himawari_asset_entry(
+    key: str, label: str, png: str | None, float32: str | None, grid: dict[str, Any]
+) -> dict[str, Any]:
+    return {
+        "key": key,
+        "label": label,
+        "png": png,
+        "float32": float32,
+        "grid": {"nx": grid.get("nx"), "ny": grid.get("ny"), "resolution": grid.get("resolution")},
+        "extent": grid.get("extent"),
+        "resolution": grid.get("resolution"),
+        "spatial_resolution": f"{grid.get('resolution', '')}°" if grid.get("resolution") else "",
+    }
 
 
 def _merge_scene_metadata(
@@ -1353,7 +1416,7 @@ def build_latlon_grid(extent: list[float] | None = None, resolution: float = LAT
     return {"projection": "EPSG:4326", "grid_type": "regular_latlon", "extent": [west, south, east, north], "resolution": resolution, "nx": nx, "ny": ny}
 
 
-def _normalize_for_png(data: np.ndarray, vmin: float, vmax: float, invert: bool = False) -> np.ndarray:
+def _normalize_for_webp(data: np.ndarray, vmin: float, vmax: float, invert: bool = False) -> np.ndarray:
     """将数据归一化到 0-1 并生成 RGBA 图像。
 
     invert=True 时反转灰度（用于红外亮温波段）：
@@ -1375,17 +1438,17 @@ def _normalize_for_png(data: np.ndarray, vmin: float, vmax: float, invert: bool 
     return rgba
 
 
-def _render_png(data: np.ndarray, png_path: Path, catalog: dict[str, Any]) -> None:
-    png_path.parent.mkdir(parents=True, exist_ok=True)
+def _render_webp(data: np.ndarray, webp_path: Path, catalog: dict[str, Any]) -> None:
+    webp_path.parent.mkdir(parents=True, exist_ok=True)
     # 红外亮温波段（单位 K）按气象标准反转: 冷云顶=亮白
     invert = str(catalog.get("unit", "")).strip().upper() == "K"
-    rgba = _normalize_for_png(
+    rgba = _normalize_for_webp(
         data,
         float(catalog.get("vmin", np.nanmin(data))),
         float(catalog.get("vmax", np.nanmax(data))),
         invert=invert,
     )
-    Image.fromarray(rgba).save(png_path, format=DISPLAY_IMAGE_FORMAT, lossless=True)
+    Image.fromarray(rgba).save(webp_path, format=DISPLAY_IMAGE_FORMAT, lossless=True)
 
 
 def _latlon_coords(grid: dict[str, Any]) -> tuple[np.ndarray, np.ndarray]:
@@ -1407,7 +1470,12 @@ def _write_netcdf(data: np.ndarray, nc_path: Path, band: str, catalog: dict[str,
     dataset.close()
 
 
-def write_latlon_variable(output_dir: str | Path, band: str, data: np.ndarray, grid: dict[str, Any], save_intermediates: bool = False) -> dict[str, Any]:
+def write_latlon_variable(output_dir: str | Path, band: str, data: np.ndarray, grid: dict[str, Any], save_intermediates: bool = False) -> dict[str, Any] | None:
+    """将重采样后的波段数据写入 WebP 图像并返回变量元数据。
+
+    如果数据全为 NaN（例如单分段 HSD 文件不覆盖请求的地理范围），
+    返回 None 而非创建全透明空壳 WebP，避免前端显示空白。
+    """
     output_dir = Path(output_dir)
     latlon_dir = output_dir / "latlon"
     latlon_dir.mkdir(parents=True, exist_ok=True)
@@ -1417,7 +1485,16 @@ def write_latlon_variable(output_dir: str | Path, band: str, data: np.ndarray, g
     png_path = latlon_dir / f"{band}{DISPLAY_IMAGE_SUFFIX}"
     float32_path = latlon_dir / f"{band}.float32"
     nc_path = latlon_dir / f"{band}.nc"
-    _render_png(values, png_path, catalog)
+
+    # 检测是否有有效数据（避免全 NaN → 全透明空壳图像）
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        for path in (png_path, float32_path, nc_path):
+            if path.exists():
+                path.unlink()
+        return None
+
+    _render_webp(values, png_path, catalog)
     if save_intermediates:
         values.tofile(float32_path)
         _write_netcdf(values, nc_path, band, catalog, grid)
@@ -1638,7 +1715,7 @@ def _normalize_reflectance_channel(values: np.ndarray, high: float = 100.0, gamm
     return np.where(np.isfinite(scaled), scaled, 0).astype(np.float32)
 
 
-def _save_rgb_png(rgb: np.ndarray, output_path: Path) -> None:
+def _save_rgb_webp(rgb: np.ndarray, output_path: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     rgba = np.zeros((*rgb.shape[:2], 4), dtype=np.uint8)
     rgba[..., :3] = (np.clip(rgb, 0, 1) * 255).astype(np.uint8)
@@ -1868,7 +1945,7 @@ def write_composites(scene_dir: str | Path, arrays: dict[str, np.ndarray]) -> li
         if rgb is None:
             continue
         png_path = scene_dir / "composites" / f"{key}{DISPLAY_IMAGE_SUFFIX}"
-        _save_rgb_png(rgb, png_path)
+        _save_rgb_webp(rgb, png_path)
         description_zh, description_en = _description_pair(key, catalog)
         output.append(
             {
@@ -1963,7 +2040,11 @@ def process_scene(
                 queue_total=len(load_bands),
             )
             values = _resample_dataset_to_latlon(scene[band], grid)
-            variables.append(write_latlon_variable(scene_dir, band, values, grid, save_intermediates=save_intermediates))
+            var_meta = write_latlon_variable(scene_dir, band, values, grid, save_intermediates=save_intermediates)
+            if var_meta is not None:
+                variables.append(var_meta)
+                if composites:
+                    resampled_arrays[band] = values
             write_incremental_scene_metadata(
                 scene_dir,
                 date,
@@ -1976,8 +2057,6 @@ def process_scene(
                 [],
                 retention_managed=retention_managed,
             )
-            if composites:
-                resampled_arrays[band] = values
         del scene
     _emit_progress(progress_callback, stage="compositing", phase=phase, scene_id=scene_id, detail="生成 RGB 合成产品")
     composite_meta = write_composites(scene_dir, resampled_arrays) if composites else []
@@ -1988,7 +2067,7 @@ def process_scene(
         rgb = _create_rayleigh_corrected_true_color(resampled_arrays, grid, observation_time=obs_time)
         if rgb is not None:
             png_path = scene_dir / "composites" / f"true_color{DISPLAY_IMAGE_SUFFIX}"
-            _save_rgb_png(rgb, png_path)
+            _save_rgb_webp(rgb, png_path)
             catalog = COMPOSITE_CATALOG.get("true_color", {})
             desc_zh, desc_en = _description_pair("true_color", catalog)
             tc_meta = {
