@@ -1,0 +1,2437 @@
+{
+  "business_type": "FY3",
+  "data_type": "FY3",
+  "scene_id": "20260701_0030",
+  "satellite": "FY-3D",
+  "sensor": "MERSI",
+  "observation_time": "2026-07-01T00:30:00Z",
+  "projection": "EPSG:4326",
+  "grid_type": "latlon",
+  "extent": [
+    -141.1763153076172,
+    -52.53244400024414,
+    -99.91395568847656,
+    -29.410411834716797
+  ],
+  "resolution": 0.25,
+  "spatial_resolution": "0.25°",
+  "temporal_resolution": "5分钟",
+  "data_format": "HDF5",
+  "file_format": "HDF5",
+  "resolutions": {
+    "original": 0.25,
+    "3km": 0.03,
+    "1km": 0.01
+  },
+  "resolution_options": [
+    {
+      "key": "original",
+      "label": "原始",
+      "resolution": 0.25
+    },
+    {
+      "key": "3km",
+      "label": "3km",
+      "resolution": 0.03
+    },
+    {
+      "key": "1km",
+      "label": "1km",
+      "resolution": 0.01
+    }
+  ],
+  "grid": {
+    "nx": 166,
+    "ny": 93
+  },
+  "variables": [
+    {
+      "name": "B01",
+      "name_cn": "蓝光可见光",
+      "long_name": "FY-3 MERSI B01",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -1.1631863117218018,
+        "max": 28.909257888793945,
+        "mean": 3.0292294025421143,
+        "std": 6.293827533721924
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B01.float32",
+      "png": "latlon/B01.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B01.webp",
+          "float32": "float32/B01.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B01.webp",
+          "float32": "diff/3km/float32/B01.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B01.webp",
+          "float32": "diff/1km/float32/B01.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B02",
+      "name_cn": "绿光可见光",
+      "long_name": "FY-3 MERSI B02",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.7271997928619385,
+        "max": 26.862001419067383,
+        "mean": 2.7358522415161133,
+        "std": 5.627475738525391
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B02.float32",
+      "png": "latlon/B02.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B02.webp",
+          "float32": "float32/B02.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B02.webp",
+          "float32": "diff/3km/float32/B02.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B02.webp",
+          "float32": "diff/1km/float32/B02.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B03",
+      "name_cn": "红光可见光",
+      "long_name": "FY-3 MERSI B03",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.5956446528434753,
+        "max": 30.089399337768555,
+        "mean": 3.156632900238037,
+        "std": 6.327564239501953
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B03.float32",
+      "png": "latlon/B03.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B03.webp",
+          "float32": "float32/B03.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B03.webp",
+          "float32": "diff/3km/float32/B03.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B03.webp",
+          "float32": "diff/1km/float32/B03.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B04",
+      "name_cn": "近红外",
+      "long_name": "FY-3 MERSI B04",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.7649334669113159,
+        "max": 34.517799377441406,
+        "mean": 3.606562852859497,
+        "std": 7.367542266845703
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B04.float32",
+      "png": "latlon/B04.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B04.webp",
+          "float32": "float32/B04.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B04.webp",
+          "float32": "diff/3km/float32/B04.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B04.webp",
+          "float32": "diff/1km/float32/B04.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B05",
+      "name_cn": "短波红外",
+      "long_name": "FY-3 MERSI B05",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": 0.014677288942039013,
+        "max": 17.682531356811523,
+        "mean": 1.1104336977005005,
+        "std": 2.831907033920288
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B05.float32",
+      "png": "latlon/B05.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B05.webp",
+          "float32": "float32/B05.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B05.webp",
+          "float32": "diff/3km/float32/B05.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B05.webp",
+          "float32": "diff/1km/float32/B05.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B06",
+      "name_cn": "近红外",
+      "long_name": "FY-3 MERSI B06",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.1083313450217247,
+        "max": 28.113975524902344,
+        "mean": 2.964233160018921,
+        "std": 4.9846110343933105
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B06.float32",
+      "png": "latlon/B06.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B06.webp",
+          "float32": "float32/B06.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B06.webp",
+          "float32": "diff/3km/float32/B06.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B06.webp",
+          "float32": "diff/1km/float32/B06.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B07",
+      "name_cn": "近红外",
+      "long_name": "FY-3 MERSI B07",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.07591168582439423,
+        "max": 19.093481063842773,
+        "mean": 1.9799810647964478,
+        "std": 3.501917839050293
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B07.float32",
+      "png": "latlon/B07.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B07.webp",
+          "float32": "float32/B07.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B07.webp",
+          "float32": "diff/3km/float32/B07.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B07.webp",
+          "float32": "diff/1km/float32/B07.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B08",
+      "name_cn": "近红外",
+      "long_name": "FY-3 MERSI B08",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.6975716948509216,
+        "max": 29.994882583618164,
+        "mean": 3.8131139278411865,
+        "std": 6.5514326095581055
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B08.float32",
+      "png": "latlon/B08.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B08.webp",
+          "float32": "float32/B08.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B08.webp",
+          "float32": "diff/3km/float32/B08.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B08.webp",
+          "float32": "diff/1km/float32/B08.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B09",
+      "name_cn": "近红外",
+      "long_name": "FY-3 MERSI B09",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.5402442216873169,
+        "max": 28.54033088684082,
+        "mean": 3.6779873371124268,
+        "std": 6.207658290863037
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B09.float32",
+      "png": "latlon/B09.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B09.webp",
+          "float32": "float32/B09.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B09.webp",
+          "float32": "diff/3km/float32/B09.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B09.webp",
+          "float32": "diff/1km/float32/B09.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B10",
+      "name_cn": "近红外",
+      "long_name": "FY-3 MERSI B10",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.46761906147003174,
+        "max": 26.154829025268555,
+        "mean": 3.2422187328338623,
+        "std": 5.620100975036621
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B10.float32",
+      "png": "latlon/B10.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B10.webp",
+          "float32": "float32/B10.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B10.webp",
+          "float32": "diff/3km/float32/B10.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B10.webp",
+          "float32": "diff/1km/float32/B10.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B11",
+      "name_cn": "短波红外",
+      "long_name": "FY-3 MERSI B11",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.4063739776611328,
+        "max": 25.570356369018555,
+        "mean": 2.8807923793792725,
+        "std": 5.385453224182129
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B11.float32",
+      "png": "latlon/B11.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B11.webp",
+          "float32": "float32/B11.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B11.webp",
+          "float32": "diff/3km/float32/B11.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B11.webp",
+          "float32": "diff/1km/float32/B11.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B12",
+      "name_cn": "短波红外",
+      "long_name": "FY-3 MERSI B12",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.37010204792022705,
+        "max": 32.19476318359375,
+        "mean": 3.7707455158233643,
+        "std": 6.860177516937256
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B12.float32",
+      "png": "latlon/B12.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B12.webp",
+          "float32": "float32/B12.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B12.webp",
+          "float32": "diff/3km/float32/B12.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B12.webp",
+          "float32": "diff/1km/float32/B12.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B13",
+      "name_cn": "短波红外",
+      "long_name": "FY-3 MERSI B13",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.3481088876724243,
+        "max": 31.877525329589844,
+        "mean": 3.71250319480896,
+        "std": 6.765935897827148
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B13.float32",
+      "png": "latlon/B13.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B13.webp",
+          "float32": "float32/B13.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B13.webp",
+          "float32": "diff/3km/float32/B13.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B13.webp",
+          "float32": "diff/1km/float32/B13.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B14",
+      "name_cn": "短波红外",
+      "long_name": "FY-3 MERSI B14",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.3546779155731201,
+        "max": 32.20903778076172,
+        "mean": 3.8080203533172607,
+        "std": 6.957959175109863
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B14.float32",
+      "png": "latlon/B14.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B14.webp",
+          "float32": "float32/B14.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B14.webp",
+          "float32": "diff/3km/float32/B14.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B14.webp",
+          "float32": "diff/1km/float32/B14.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B15",
+      "name_cn": "短波红外",
+      "long_name": "FY-3 MERSI B15",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.2325766682624817,
+        "max": 33.909400939941406,
+        "mean": 4.095968246459961,
+        "std": 7.307826042175293
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B15.float32",
+      "png": "latlon/B15.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B15.webp",
+          "float32": "float32/B15.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B15.webp",
+          "float32": "diff/3km/float32/B15.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B15.webp",
+          "float32": "diff/1km/float32/B15.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B16",
+      "name_cn": "短波红外",
+      "long_name": "FY-3 MERSI B16",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.828200101852417,
+        "max": 31.796798706054688,
+        "mean": 2.7494113445281982,
+        "std": 6.4788289070129395
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B16.float32",
+      "png": "latlon/B16.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B16.webp",
+          "float32": "float32/B16.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B16.webp",
+          "float32": "diff/3km/float32/B16.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B16.webp",
+          "float32": "diff/1km/float32/B16.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B17",
+      "name_cn": "短波红外",
+      "long_name": "FY-3 MERSI B17",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.5874004364013672,
+        "max": 26.056800842285156,
+        "mean": 1.9156923294067383,
+        "std": 4.9646711349487305
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B17.float32",
+      "png": "latlon/B17.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B17.webp",
+          "float32": "float32/B17.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B17.webp",
+          "float32": "diff/3km/float32/B17.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B17.webp",
+          "float32": "diff/1km/float32/B17.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B18",
+      "name_cn": "短波红外",
+      "long_name": "FY-3 MERSI B18",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.8066000938415527,
+        "max": 29.366397857666016,
+        "mean": 2.140869617462158,
+        "std": 5.725579261779785
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B18.float32",
+      "png": "latlon/B18.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B18.webp",
+          "float32": "float32/B18.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B18.webp",
+          "float32": "diff/3km/float32/B18.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B18.webp",
+          "float32": "diff/1km/float32/B18.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B19",
+      "name_cn": "短波红外",
+      "long_name": "FY-3 MERSI B19",
+      "product_type": "variable",
+      "unit": "%",
+      "display_unit": "%",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": -0.544761061668396,
+        "max": 30.41358184814453,
+        "mean": 3.037719249725342,
+        "std": 6.34529447555542
+      },
+      "vmin": 0,
+      "vmax": 100,
+      "legend_ticks": [
+        "0",
+        "50",
+        "100"
+      ],
+      "float32": "float32/B19.float32",
+      "png": "latlon/B19.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B19.webp",
+          "float32": "float32/B19.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B19.webp",
+          "float32": "diff/3km/float32/B19.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B19.webp",
+          "float32": "diff/1km/float32/B19.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B20",
+      "name_cn": "红外窗口",
+      "long_name": "FY-3 MERSI B20",
+      "product_type": "variable",
+      "unit": "mW/(m2 cm-1 sr)",
+      "display_unit": "mW/(m2 cm-1 sr)",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": 0.0383276604115963,
+        "max": 6.221654415130615,
+        "mean": 1.5911359786987305,
+        "std": 1.0961930751800537
+      },
+      "vmin": 0,
+      "vmax": 120,
+      "legend_ticks": [
+        "0",
+        "60",
+        "120"
+      ],
+      "float32": "float32/B20.float32",
+      "png": "latlon/B20.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B20.webp",
+          "float32": "float32/B20.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B20.webp",
+          "float32": "diff/3km/float32/B20.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B20.webp",
+          "float32": "diff/1km/float32/B20.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B21",
+      "name_cn": "红外窗口",
+      "long_name": "FY-3 MERSI B21",
+      "product_type": "variable",
+      "unit": "mW/(m2 cm-1 sr)",
+      "display_unit": "mW/(m2 cm-1 sr)",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": 0.05122542381286621,
+        "max": 14.96136474609375,
+        "mean": 3.64076566696167,
+        "std": 3.3299808502197266
+      },
+      "vmin": 0,
+      "vmax": 120,
+      "legend_ticks": [
+        "0",
+        "60",
+        "120"
+      ],
+      "float32": "float32/B21.float32",
+      "png": "latlon/B21.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B21.webp",
+          "float32": "float32/B21.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B21.webp",
+          "float32": "diff/3km/float32/B21.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B21.webp",
+          "float32": "diff/1km/float32/B21.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B22",
+      "name_cn": "红外探测",
+      "long_name": "FY-3 MERSI B22",
+      "product_type": "variable",
+      "unit": "mW/(m2 cm-1 sr)",
+      "display_unit": "mW/(m2 cm-1 sr)",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": 3.6643431186676025,
+        "max": 18.177654266357422,
+        "mean": 10.269808769226074,
+        "std": 3.7797443866729736
+      },
+      "vmin": 0,
+      "vmax": 120,
+      "legend_ticks": [
+        "0",
+        "60",
+        "120"
+      ],
+      "float32": "float32/B22.float32",
+      "png": "latlon/B22.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B22.webp",
+          "float32": "float32/B22.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B22.webp",
+          "float32": "diff/3km/float32/B22.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B22.webp",
+          "float32": "diff/1km/float32/B22.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B23",
+      "name_cn": "红外探测",
+      "long_name": "FY-3 MERSI B23",
+      "product_type": "variable",
+      "unit": "mW/(m2 cm-1 sr)",
+      "display_unit": "mW/(m2 cm-1 sr)",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": 29.1766357421875,
+        "max": 171.61526489257812,
+        "mean": 97.83145141601562,
+        "std": 41.55507278442383
+      },
+      "vmin": 0,
+      "vmax": 120,
+      "legend_ticks": [
+        "0",
+        "60",
+        "120"
+      ],
+      "float32": "float32/B23.float32",
+      "png": "latlon/B23.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B23.webp",
+          "float32": "float32/B23.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B23.webp",
+          "float32": "diff/3km/float32/B23.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B23.webp",
+          "float32": "diff/1km/float32/B23.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B24",
+      "name_cn": "红外辅助",
+      "long_name": "FY-3 MERSI B24",
+      "product_type": "variable",
+      "unit": "mW/(m2 cm-1 sr)",
+      "display_unit": "mW/(m2 cm-1 sr)",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": 103.2563705444336,
+        "max": 515.23876953125,
+        "mean": 315.1035461425781,
+        "std": 120.8753890991211
+      },
+      "vmin": 0,
+      "vmax": 300,
+      "legend_ticks": [
+        "0",
+        "150",
+        "300"
+      ],
+      "float32": "float32/B24.float32",
+      "png": "latlon/B24.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B24.webp",
+          "float32": "float32/B24.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B24.webp",
+          "float32": "diff/3km/float32/B24.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B24.webp",
+          "float32": "diff/1km/float32/B24.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    },
+    {
+      "name": "B25",
+      "name_cn": "红外辅助",
+      "long_name": "FY-3 MERSI B25",
+      "product_type": "variable",
+      "unit": "mW/(m2 cm-1 sr)",
+      "display_unit": "mW/(m2 cm-1 sr)",
+      "shape": [
+        93,
+        166
+      ],
+      "dims": [
+        "lat",
+        "lon"
+      ],
+      "stats": {
+        "min": 204.11392211914062,
+        "max": 836.6821899414062,
+        "mean": 531.6160278320312,
+        "std": 187.53480529785156
+      },
+      "vmin": 0,
+      "vmax": 300,
+      "legend_ticks": [
+        "0",
+        "150",
+        "300"
+      ],
+      "float32": "float32/B25.float32",
+      "png": "latlon/B25.webp",
+      "quality": {
+        "valid_pixel_ratio": 1.0,
+        "warnings": []
+      },
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "png": "latlon/B25.webp",
+          "float32": "float32/B25.float32",
+          "grid": {
+            "nx": 166,
+            "ny": 93,
+            "resolution": 0.25
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.25,
+          "spatial_resolution": "0.25°"
+        },
+        "3km": {
+          "key": "3km",
+          "label": "3km",
+          "png": "diff/3km/latlon/B25.webp",
+          "float32": "diff/3km/float32/B25.float32",
+          "grid": {
+            "nx": 1376,
+            "ny": 772,
+            "resolution": 0.03
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°"
+        },
+        "1km": {
+          "key": "1km",
+          "label": "1km",
+          "png": "diff/1km/latlon/B25.webp",
+          "float32": "diff/1km/float32/B25.float32",
+          "grid": {
+            "nx": 4127,
+            "ny": 2313,
+            "resolution": 0.01
+          },
+          "extent": [
+            -141.1763153076172,
+            -52.53244400024414,
+            -99.91395568847656,
+            -29.410411834716797
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°"
+        }
+      }
+    }
+  ],
+  "composites": [],
+  "loaded_bands": [
+    "B01",
+    "B02",
+    "B03",
+    "B04",
+    "B05",
+    "B06",
+    "B07",
+    "B08",
+    "B09",
+    "B10",
+    "B11",
+    "B12",
+    "B13",
+    "B14",
+    "B15",
+    "B16",
+    "B17",
+    "B18",
+    "B19",
+    "B20",
+    "B21",
+    "B22",
+    "B23",
+    "B24",
+    "B25"
+  ],
+  "quality": {
+    "valid_pixel_ratio": 1.0,
+    "warnings": []
+  },
+  "source_raw_dir": "/Users/shaoyongjin/code/zhihuiqixiang/backend_system/raw_data/FY3/20260701/0030",
+  "source_files": [
+    "/Users/shaoyongjin/code/zhihuiqixiang/backend_system/raw_data/FY3/20260701/0030/FY3D_MERSI_GBAL_L1_20260701_0030_1000M_MS.HDF",
+    "/Users/shaoyongjin/code/zhihuiqixiang/backend_system/raw_data/FY3/20260701/0030/FY3D_MERSI_GBAL_L1_20260701_0030_GEO1K_MS.HDF"
+  ],
+  "generated_at": "2026-07-08T12:30:09.846948+00:00"
+}
