@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
@@ -250,6 +250,10 @@ def normalize_business_type(value: str) -> str:
     key = str(value or "").strip()
     upper = key.upper()
 
+    if key == "\u96f7\u8fbe":
+        return "Radar"
+    if key == "\u8475\u82b1":
+        return "Himawari"
     if upper == "HIMAWARI":
         return "Himawari"
     if upper == "RADAR":
@@ -305,7 +309,9 @@ def save_upload_file(file: UploadFile, target_dir: Path, business_type: str | No
     if business_type and (adapter := ADAPTERS.get(business_type)) and hasattr(adapter, "upload_target_dir"):
         target_dir = adapter.upload_target_dir(safe_name, target_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
-    target_path = unique_upload_path(target_dir / safe_name)
+    target_path = target_dir / safe_name
+    if business_type != "Radar":
+        target_path = unique_upload_path(target_path)
 
     with target_path.open("wb") as output:
         output.write(file.file.read())
@@ -376,23 +382,31 @@ def himawari_auto_log(lines: int = Query(default=200, ge=1, le=1000)) -> dict[st
 def parse_file(
     file: UploadFile | None = File(default=None),
     files: list[UploadFile] | None = File(default=None),
+    business_type: str | None = Form(default=None),
+    data_type: str | None = Form(default=None),
 ) -> dict[str, Any]:
     try:
         upload_files = [item for item in ([file] if file else []) + (files or []) if item.filename]
         if not upload_files:
             raise ValueError("请选择要解析的文件。")
-        business_type = infer_upload_business_type(upload_files)
-        adapter = ADAPTERS[business_type]
+        requested_type = normalize_business_type(business_type or data_type or "")
+        if requested_type:
+            if requested_type not in ADAPTERS:
+                raise ValueError(f"不支持的数据类型：{requested_type}")
+            resolved_business_type = requested_type
+        else:
+            resolved_business_type = infer_upload_business_type(upload_files)
+        adapter = ADAPTERS[resolved_business_type]
         if hasattr(adapter, "select_upload_files"):
             upload_files = adapter.select_upload_files(upload_files)
-        saved_paths = save_upload_files(upload_files, BUSINESS_DIRS[business_type], business_type)
+        saved_paths = save_upload_files(upload_files, BUSINESS_DIRS[resolved_business_type], resolved_business_type)
         saved_path = saved_paths[0]
-        if business_type == "Radar" and len(saved_paths) > 1:
-            meta = radar_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
-        elif business_type == "CMA" and len(saved_paths) > 1:
-            meta = cma_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
+        if resolved_business_type == "Radar" and len(saved_paths) > 1:
+            meta = radar_adapter.process_files([str(path) for path in saved_paths], data_type=resolved_business_type)
+        elif resolved_business_type == "CMA" and len(saved_paths) > 1:
+            meta = cma_adapter.process_files([str(path) for path in saved_paths], data_type=resolved_business_type)
         else:
-            meta = ADAPTERS[business_type].process_file(str(saved_path), data_type=business_type)
+            meta = ADAPTERS[resolved_business_type].process_file(str(saved_path), data_type=resolved_business_type)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -401,7 +415,7 @@ def parse_file(
             "file_name": saved_path.name,
             "file_count": len(saved_paths),
             "directory": str(saved_path.parent).replace("\\", "/") + "/",
-            "business_type": business_type,
+            "business_type": resolved_business_type,
             "meta": meta,
             "weather_info": meta.get("weather_info", {}),
         }

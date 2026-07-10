@@ -183,7 +183,7 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
 
     try:
-        with xr.open_dataset(source_file, decode_times=False) as dataset:
+        with _open_radar_dataset(source_file) as dataset:
             render_name = _choose_render_variable(dataset)
             render_data, render_mode = _make_render_data(dataset[render_name])
             default_level_key = _default_level_key(dataset[render_name], render_mode)
@@ -390,6 +390,13 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
     return meta
 
 
+def _open_radar_dataset(source_file: Path) -> xr.Dataset:
+    try:
+        return xr.open_dataset(source_file, decode_times=False, engine="h5netcdf")
+    except (ImportError, OSError, ValueError):
+        return xr.open_dataset(source_file, decode_times=False)
+
+
 def process_files(file_paths: list[str], data_type: str = "Radar") -> dict[str, Any]:
     paths = [Path(item).resolve() for item in file_paths]
     if not paths:
@@ -503,7 +510,7 @@ def build_webp_catalog(source_file: str | Path, cache_dir: str | Path | None = N
         cache_path = Path(cache_dir).resolve()
     cache_path.mkdir(parents=True, exist_ok=True)
 
-    with xr.open_dataset(source_path, decode_times=False) as dataset:
+    with _open_radar_dataset(source_path) as dataset:
         stations = _stations(dataset)
         products = []
 

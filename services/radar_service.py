@@ -338,7 +338,7 @@ def _level_webp_url(default_webp: str | None, level_key: str) -> str | None:
     if not default_webp:
         return None
     if level_key == "max":
-        return default_webp
+        return default_webp if _existing_path(default_webp) else None
     if default_webp.endswith(".max.webp"):
         candidate = f"{default_webp[:-len('.max.webp')]}.{level_key}.webp"
         if _existing_path(candidate):
