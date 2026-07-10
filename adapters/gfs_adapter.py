@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import shutil
-import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -13,736 +11,268 @@ import cfgrib
 import matplotlib
 import numpy as np
 import xarray as xr
+from PIL import Image
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-try:
-    from PIL import Image
-except Exception:
-    Image = None
 
-from adapters.base import process_basic_file
+SCHEMA_VERSION = "2.0"
+WEBP_QUALITY = 82
+WEBP_METHOD = 2
+
+# 只展示常用近地面业务变量；后续扩展时在此加入变量名即可。
+ALLOWED_VARS = {
+    "t2m", "2t",
+    "d2m", "2d",
+    "tp", "apcp",
+    "sp", "msl", "prmsl",
+    "u10", "v10", "10u", "10v", "ugrd", "vgrd",
+}
 
 
-MISSING_VALUE = -9999.0
+def _source_name(data_type: str | None) -> str:
+    return "ECMWF" if str(data_type or "").strip().upper() in {"EC", "ECMWF", "IFS"} else "GFS"
 
 
-# ============================================================
-# GFS / ECMWF GRIB adapter
-# 功能：
-# 1. 支持 GRIB / GRIB2
-# 2. 支持多变量解析：t2m / d2m / sp / tp 等
-# 3. 每个变量生成独立 PNG 序列
-# 4. 返回 variable_options + variable_layers，供前端变量下拉切换
-# 5. 保留 png_url / png_urls 等旧字段，兼容旧前端
-# ============================================================
+def _product_name(source: str) -> str:
+    return "ECMWF 数值预报产品" if source == "ECMWF" else "GFS 数值预报产品"
 
 
 def _open_grib_groups(file_path: str) -> list[xr.Dataset]:
-    """cfgrib 会把不同 level/typeOfLevel/stepType 拆成多个 dataset。"""
+    """按 cfgrib 分组打开 GRIB/GRIB2。"""
     try:
-        return list(
-            cfgrib.open_datasets(
+        return list(cfgrib.open_datasets(file_path, backend_kwargs={"indexpath": ""}))
+    except Exception:
+        return [
+            xr.open_dataset(
                 file_path,
+                engine="cfgrib",
                 backend_kwargs={"indexpath": ""},
             )
-        )
-    except Exception:
-        ds = xr.open_dataset(
-            file_path,
-            engine="cfgrib",
-            backend_kwargs={"indexpath": ""},
-        )
-        return [ds]
+        ]
 
 
 def _find_lat_lon_names(ds: xr.Dataset) -> tuple[str, str]:
-    lat_name = None
-    lon_name = None
-
-    for name in ["latitude", "lat", "y"]:
-        if name in ds.coords or name in ds.dims:
-            lat_name = name
-            break
-
-    for name in ["longitude", "lon", "x"]:
-        if name in ds.coords or name in ds.dims:
-            lon_name = name
-            break
-
+    lat_name = next((name for name in ("latitude", "lat", "y") if name in ds.coords or name in ds.dims), None)
+    lon_name = next((name for name in ("longitude", "lon", "x") if name in ds.coords or name in ds.dims), None)
     if not lat_name or not lon_name:
         raise ValueError("无法识别经纬度坐标。")
-
     return lat_name, lon_name
-
-
-def _fmt_time(v: Any) -> str:
-    try:
-        return str(v).replace(".000000000", "")
-    except Exception:
-        return str(v)
 
 
 def _coord_values(ds: xr.Dataset, name: str) -> list[str]:
     if name not in ds.coords:
         return []
-
-    arr = np.asarray(ds.coords[name].values).reshape(-1)
-    if arr.size == 0:
-        return []
-
-    return [_fmt_time(x) for x in arr]
+    values = np.asarray(ds.coords[name].values).reshape(-1)
+    return [str(value).replace(".000000000", "") for value in values]
 
 
 def _time_labels(ds: xr.Dataset, n: int) -> list[str]:
     valid_times = _coord_values(ds, "valid_time")
-    steps = _coord_values(ds, "step")
     base_times = _coord_values(ds, "time")
+    steps = _coord_values(ds, "step")
 
     if len(valid_times) == n:
         return valid_times
-
     if len(steps) == n:
         base = base_times[0] if base_times else "time"
-        return [f"{base} + {s}" for s in steps]
-
+        return [f"{base} + {step}" for step in steps]
     if n == 1:
-        if valid_times:
-            return [valid_times[0]]
-        if base_times:
-            return [base_times[0]]
-        return ["step000"]
-
+        return [valid_times[0] if valid_times else (base_times[0] if base_times else "step000")]
     return [f"step{i:03d}" for i in range(n)]
 
 
-def _summarize_time(labels: list[str]) -> str:
-    if not labels:
-        return "待解析"
-    if len(labels) == 1:
-        return labels[0]
-    return f"{labels[0]} 至 {labels[-1]}"
-
-
-def _summarize_steps(labels: list[str]) -> str:
-    if not labels:
-        return "待解析"
-    return str(len(labels))
-
-
-def _infer_var_type(var_name: str, units: str, long_name: str) -> str:
-    text = f"{var_name} {units} {long_name}".lower()
-
-    if any(k in text for k in ["t2m", "2t", "temperature", "tmp", "d2m", "dewpoint"]):
-        return "temperature"
-
-    if any(k in text for k in ["tp", "apcp", "precip", "rain", "total precipitation"]):
-        return "precipitation"
-
-    if any(k in text for k in ["pressure", "prmsl", "msl", "sp", "pa"]):
-        return "pressure"
-
-    if any(k in text for k in ["wind", "u10", "v10", "ugrd", "vgrd"]):
-        return "wind"
-
-    return "generic"
-
-
-def _convert_values(
-    var_name: str,
-    units: str,
-    long_name: str,
-    values: np.ndarray,
-) -> tuple[np.ndarray, str, str, str]:
-    arr = np.asarray(values, dtype=float)
-    units_lower = (units or "").lower()
-    var_type = _infer_var_type(var_name, units, long_name)
-
-    if var_type == "temperature" and units_lower in ["k", "kelvin"]:
-        return arr - 273.15, "°C", "K → °C", var_type
-
-    if var_type == "pressure" and units_lower in ["pa", "pascal", "pascals"]:
-        return arr / 100.0, "hPa", "Pa → hPa", var_type
-
-    if var_type == "precipitation" and units_lower in ["m", "meter", "metre"]:
-        return arr * 1000.0, "mm", "m → mm", var_type
-
-    if var_type == "precipitation" and "kg" in units_lower and "m" in units_lower:
-        return arr, "mm", f"{units} → mm", var_type
-
-    return arr, units or "未知", "未转换", var_type
-
-
-
-def _normalize_lon_0360_to_180(
-    arr: np.ndarray,
-    lon: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Convert longitude from 0~360 to -180~180 and reorder data columns.
-
-    This is required for web map overlay alignment. Only changing extent is wrong;
-    the array columns must be reordered with the same longitude order.
-    """
-    lon = np.asarray(lon, dtype=float)
-
-    if lon.size >= 2 and np.nanmin(lon) >= 0.0 and np.nanmax(lon) > 180.0:
-        lon_new = ((lon + 180.0) % 360.0) - 180.0
-        order = np.argsort(lon_new)
-
-        lon_new = lon_new[order]
-
-        if arr.ndim == 3:
-            arr = arr[:, :, order]
-        elif arr.ndim == 2:
-            arr = arr[:, order]
-        else:
-            raise ValueError(f"Unsupported array ndim for longitude normalization: {arr.ndim}")
-
-        return arr, lon_new
-
-    return arr, lon
-
-
-
-def _extract_array_lat_lon(ds: xr.Dataset, var_name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    lat_name, lon_name = _find_lat_lon_names(ds)
-
-    da = ds[var_name]
-    lat = np.asarray(ds[lat_name].values, dtype=float)
-    lon = np.asarray(ds[lon_name].values, dtype=float)
-
-    keep_dims = {lat_name, lon_name, "time", "valid_time", "step"}
-
-    for dim in list(da.dims):
-        if dim not in keep_dims:
-            da = da.isel({dim: 0})
-
-    arr = np.asarray(da.values, dtype=float)
-    arr = np.squeeze(arr)
-
-    if arr.ndim == 2:
-        arr = arr[None, :, :]
-    elif arr.ndim == 3:
-        pass
-    elif arr.ndim > 3:
-        h = arr.shape[-2]
-        w = arr.shape[-1]
-        arr = arr.reshape(-1, h, w)
-    else:
-        raise ValueError(f"变量 {var_name} 维度不适合渲染：shape={arr.shape}")
-
-    # latitude 从南到北时，翻转成北到南，便于 PNG 和 extent 对应。
-    if lat.size >= 2 and lat[0] < lat[-1]:
-        lat = lat[::-1]
-        arr = arr[:, ::-1, :]
-
-    # longitude 从大到小时，翻转。
-    if lon.size >= 2 and lon[0] > lon[-1]:
-        lon = lon[::-1]
-        arr = arr[:, :, ::-1]
-
-    # GFS/NOMADS often uses 0~360 longitude, while web maps expect -180~180.
-    # Reorder array columns together with longitude values.
-    arr, lon = _normalize_lon_0360_to_180(arr, lon)
-
-    return arr, lat, lon
-
-
-def _stats(values: np.ndarray) -> dict[str, Any]:
-    arr = np.asarray(values, dtype=float)
-    total = int(arr.size)
-    mask = np.isfinite(arr)
-    valid_count = int(mask.sum())
-    missing_count = total - valid_count
-    missing_ratio = missing_count / total if total else 1.0
-
-    if valid_count == 0:
-        return {
-            "max": None,
-            "min": None,
-            "mean": None,
-            "p02": None,
-            "p05": None,
-            "p10": None,
-            "p25": None,
-            "p50": None,
-            "p75": None,
-            "p90": None,
-            "p95": None,
-            "p98": None,
-            "valid_count": 0,
-            "total_count": total,
-            "missing_count": missing_count,
-            "missing_ratio": missing_ratio,
-        }
-
-    valid = arr[mask]
-
-    def q(p: float) -> float:
-        return round(float(np.nanpercentile(valid, p)), 3)
-
-    return {
-        "max": round(float(np.nanmax(valid)), 3),
-        "min": round(float(np.nanmin(valid)), 3),
-        "mean": round(float(np.nanmean(valid)), 3),
-        "p02": q(2),
-        "p05": q(5),
-        "p10": q(10),
-        "p25": q(25),
-        "p50": q(50),
-        "p75": q(75),
-        "p90": q(90),
-        "p95": q(95),
-        "p98": q(98),
-        "valid_count": valid_count,
-        "total_count": total,
-        "missing_count": missing_count,
-        "missing_ratio": missing_ratio,
-    }
-
-
-def _make_bars(values: np.ndarray, bins: int = 5) -> list[int]:
-    arr = np.asarray(values, dtype=float)
-    arr = arr[np.isfinite(arr)]
-
-    if arr.size == 0:
-        return [0] * bins
-
-    hist, _ = np.histogram(arr, bins=bins)
-    if hist.max() == 0:
-        return [0] * bins
-
-    return [int(round(x)) for x in hist / hist.max() * 100]
-
-
-def _make_trend(values: np.ndarray) -> list[float]:
-    arr = np.asarray(values, dtype=float)
-
-    if arr.ndim == 3:
-        series = np.nanmean(arr, axis=(1, 2))
-    else:
-        series = np.asarray([np.nanmean(arr)])
-
-    return [round(float(x), 3) for x in series]
-
-
-def _quality_text(missing_ratio: float) -> str:
-    if missing_ratio <= 0.01:
-        return "正常"
-    if missing_ratio <= 0.10:
-        return "少量缺测"
-    if missing_ratio <= 0.30:
-        return "部分缺测"
-    return "缺测较多"
-
-
-def _alert_text(var_type: str, max_value: Any) -> str:
-    if max_value is None:
-        return "无"
-
-    try:
-        max_v = float(max_value)
-    except Exception:
-        return "无"
-
-    if var_type == "temperature" and max_v >= 35:
-        return "高温风险"
-
-    if var_type == "precipitation" and max_v >= 50:
-        return "强降水风险"
-
-    if var_type == "wind" and max_v >= 17:
-        return "大风风险"
-
-    return "无"
-
-
-def _collect_variable_names(groups: list[xr.Dataset]) -> str:
-    items = []
-
-    for ds in groups:
-        for var in ds.data_vars:
-            da = ds[var]
-            long_name = da.attrs.get("long_name", "")
-            units = da.attrs.get("units", "")
-
-            if long_name or units:
-                items.append(f"{var}({long_name}, {units})")
-            else:
-                items.append(var)
-
-    text = "; ".join(items)
-    if len(text) > 500:
-        text = text[:500] + "..."
-
-    return text or "待解析"
-
-
-def _var_priority(var_name: str, long_name: str = "") -> int:
-    name = var_name.lower()
-    text = f"{name} {long_name}".lower()
-
-    if name in {"t2m", "2t", "tmp"}:
-        return 1000
-    if name in {"d2m", "2d"}:
-        return 900
-    if name in {"tp", "apcp"}:
-        return 850
-    if name in {"sp", "msl", "prmsl"}:
-        return 800
-    if name in {"u10", "v10", "10u", "10v", "ugrd", "vgrd"}:
-        return 700
-    if "temperature" in text:
-        return 600
-    if "precip" in text:
-        return 500
-    if "pressure" in text:
-        return 400
-    return 100
-
-
-
-
-
-def _source_name(data_type: str) -> str:
-    name = str(data_type or "GFS").upper()
-    if name == "ECMWF":
-        return "ECMWF"
-    return "GFS"
-
-
-def _product_name(data_type: str) -> str:
-    source = _source_name(data_type)
-    if source == "ECMWF":
-        return "ECMWF 数值预报产品"
-    return "GFS 数值预报产品"
-
-
-def _product_category(var_name: str) -> str:
-    mapping = {
-        "t2m": "温度产品",
-        "2t": "温度产品",
-        "d2m": "湿度产品",
-        "2d": "湿度产品",
-        "tp": "降水产品",
-        "apcp": "降水产品",
-        "sp": "气压产品",
-        "msl": "气压产品",
-        "prmsl": "气压产品",
-        "u10": "风场产品",
-        "v10": "风场产品",
-        "10u": "风场产品",
-        "10v": "风场产品",
-        "ugrd": "风场产品",
-        "vgrd": "风场产品",
-    }
-    return mapping.get(var_name.lower(), "数值预报产品")
-
-
-def _business_label(var_name: str, long_name: str) -> str:
-    mapping = {
-        "t2m": "2米气温",
-        "2t": "2米气温",
-        "d2m": "2米露点温度",
-        "2d": "2米露点温度",
-        "tp": "累积降水",
-        "apcp": "累积降水",
-        "sp": "地面气压",
-        "msl": "海平面气压",
-        "prmsl": "海平面气压",
-        "u10": "10米U风",
-        "v10": "10米V风",
-        "10u": "10米U风",
-        "10v": "10米V风",
-        "ugrd": "纬向风",
-        "vgrd": "经向风",
-    }
-    return mapping.get(var_name.lower(), long_name or var_name)
-
-
-def _fixed_color_range(var_name: str, var_type: str, stats: dict[str, Any]) -> tuple[float | None, float | None, str]:
-    """
-    四个核心 GFS 变量的增强色标范围。
-
-    设计原则：
-    1. 同一变量的所有时次共用一个色标，保证动画前后可比较；
-    2. 不再使用过宽色标，例如 sp=850~1100 hPa 会把气压变化压扁；
-    3. 使用稳健分位数增强对比，允许少量极端值饱和；
-    4. PNG 与二进制前端渲染共用 color_range。
-    """
-    name = var_name.lower()
-
-    def finite_float(value: Any, fallback: float | None = None) -> float | None:
-        try:
-            v = float(value)
-            return v if np.isfinite(v) else fallback
-        except Exception:
-            return fallback
-
-    def robust_range(
-        lo_key: str,
-        hi_key: str,
-        fallback_min: float,
-        fallback_max: float,
-        min_span: float,
-        hard_min: float | None = None,
-        hard_max: float | None = None,
-        max_span: float | None = None,
-    ) -> tuple[float, float]:
-        lo = finite_float(stats.get(lo_key), fallback_min)
-        hi = finite_float(stats.get(hi_key), fallback_max)
-
-        if lo is None or hi is None or hi <= lo:
-            lo, hi = fallback_min, fallback_max
-
-        center = (lo + hi) / 2.0
-        half = max((hi - lo) / 2.0, min_span / 2.0)
-
-        if max_span is not None:
-            half = min(half, max_span / 2.0)
-
-        lo = center - half
-        hi = center + half
-
-        if hard_min is not None:
-            lo = max(lo, hard_min)
-        if hard_max is not None:
-            hi = min(hi, hard_max)
-
-        if hi <= lo:
-            hi = lo + min_span
-
-        return round(float(lo), 3), round(float(hi), 3)
-
-    # 2米气温：增强冷暖梯度。全球极端会略饱和，但中国—东亚业务视野更清楚。
-    if name in {"t2m", "2t"}:
-        lo, hi = robust_range(
-            "p05",
-            "p95",
-            fallback_min=-20.0,
-            fallback_max=40.0,
-            min_span=24.0,
-            hard_min=-40.0,
-            hard_max=50.0,
-            max_span=70.0,
-        )
-        return lo, hi, "enhanced_t2m_p05_p95"
-
-    # 2米露点：突出干湿边界，范围比气温略窄。
-    if name in {"d2m", "2d"}:
-        lo, hi = robust_range(
-            "p05",
-            "p95",
-            fallback_min=-25.0,
-            fallback_max=30.0,
-            min_span=22.0,
-            hard_min=-45.0,
-            hard_max=35.0,
-            max_span=65.0,
-        )
-        return lo, hi, "enhanced_d2m_p05_p95"
-
-    # 累积降水：按当前文件高分位/最大值分档。短时效小雨也能看出来。
-    if name in {"tp", "apcp"}:
-        p98 = finite_float(stats.get("p98"), None)
-        max_v = finite_float(stats.get("max"), None)
-        candidates = [v for v in [p98, max_v, 0.0] if v is not None]
-        ref = max(candidates) if candidates else 0.0
-
-        if ref <= 0.5:
-            vmax = 1.0
-        elif ref <= 2.0:
-            vmax = 2.0
-        elif ref <= 5.0:
-            vmax = 5.0
-        elif ref <= 10.0:
-            vmax = 10.0
-        elif ref <= 25.0:
-            vmax = 25.0
-        elif ref <= 50.0:
-            vmax = 50.0
-        elif ref <= 100.0:
-            vmax = 100.0
-        else:
-            vmax = 150.0
-
-        return 0.0, float(vmax), "enhanced_tp_dynamic"
-
-    # 地面气压/海平面气压：不能用 850~1100 这种过宽色标。
-    # 使用 IQR/均值附近窄窗口增强对比，允许极端低压/高压饱和。
-    if name in {"sp", "msl", "prmsl"}:
-        mean_v = finite_float(stats.get("mean"), None)
-        p25 = finite_float(stats.get("p25"), None)
-        p75 = finite_float(stats.get("p75"), None)
-
-        if mean_v is None:
-            return 980.0, 1040.0, "enhanced_sp_fallback"
-
-        if p25 is not None and p75 is not None and p75 > p25:
-            center = (p25 + p75) / 2.0
-            half = max((p75 - p25) * 0.90, 6.0)
-        else:
-            center = mean_v
-            half = 12.0
-
-        # 不让气压色标过宽，否则动画变化看不出来。
-        half = min(max(half, 6.0), 24.0)
-        return round(center - half, 3), round(center + half, 3), "enhanced_sp_iqr"
-
-    if stats.get("p05") is not None and stats.get("p95") is not None:
-        return float(stats["p05"]), float(stats["p95"]), "enhanced_percentile_auto"
-
-    if stats.get("min") is not None and stats.get("max") is not None:
-        return float(stats["min"]), float(stats["max"]), "auto"
-
-    return None, None, "auto"
-
-
-def _step_hours(ds: xr.Dataset, n: int) -> list[int | None]:
+def _step_hours(ds: xr.Dataset, n: int) -> list[int]:
     if "step" not in ds.coords:
-        return [None] * n
+        return list(range(n))
 
-    vals = np.asarray(ds.coords["step"].values).reshape(-1)
-    if vals.size != n:
-        return [None] * n
+    values = np.asarray(ds.coords["step"].values).reshape(-1)
+    if values.size != n:
+        return list(range(n))
 
-    out: list[int | None] = []
-    for v in vals:
+    result: list[int] = []
+    for i, value in enumerate(values):
         try:
-            # np.timedelta64
-            h = int(round(float(v / np.timedelta64(1, "h"))))
-            out.append(h)
+            result.append(int(round(float(value / np.timedelta64(1, "h")))))
             continue
         except Exception:
             pass
 
-        text = str(v)
-        # 兼容 "0 days 06:00:00"
-        m = re.search(r"(?:(\d+)\s+days?\s+)?(\d{1,2}):(\d{2}):(\d{2})", text)
-        if m:
-            days = int(m.group(1) or 0)
-            hours = int(m.group(2))
-            out.append(days * 24 + hours)
+        text = str(value)
+        match = re.search(r"(?:(\d+)\s+days?\s+)?(\d{1,2}):(\d{2}):(\d{2})", text)
+        if match:
+            result.append(int(match.group(1) or 0) * 24 + int(match.group(2)))
             continue
 
-        m = re.search(r"(\d+)", text)
-        out.append(int(m.group(1)) if m else None)
+        match = re.search(r"(\d+)", text)
+        result.append(int(match.group(1)) if match else i)
 
-    return out
-
-
-def _forecast_labels(ds: xr.Dataset, n: int) -> list[str]:
-    hours = _step_hours(ds, n)
-    labels: list[str] = []
-    for i, h in enumerate(hours):
-        labels.append(f"F{h:03d}" if h is not None else f"F{i:03d}")
-    return labels
-
-
-def _valid_hours_from_times(times: list[str]) -> list[int | None]:
-    """从 valid_time / 普通时间字符串中提取小时，用于前端业务时间轴吸附。"""
-    out: list[int | None] = []
-
-    for i, value in enumerate(times or []):
-        text = str(value or "")
-
-        # ISO: 2026-06-30T18:00:00
-        m = re.search(r"T(\d{1,2}):\d{2}", text)
-        if m:
-            out.append(int(m.group(1)))
-            continue
-
-        # 普通：2026-06-30 18:00 / 06-30 18:00
-        m = re.search(r"(\d{1,2}):\d{2}", text)
-        if m:
-            out.append(int(m.group(1)))
-            continue
-
-        # 中文：18时
-        m = re.search(r"(\d{1,2})时", text)
-        if m:
-            out.append(int(m.group(1)))
-            continue
-
-        out.append(i)
-
-    return out
-
-
-def _compact_forecast_hours(hours: list[int | None], n: int) -> list[int]:
-    out: list[int] = []
-    for i in range(n):
-        h = hours[i] if i < len(hours) else None
-        out.append(int(h) if h is not None else i)
-    return out
-
-
-def _binary_layer_summary(layer: dict[str, Any]) -> dict[str, Any]:
-    """统一前端二进制格点模板字段，兼容 meta.template.json 的思路。"""
-    grid = layer.get("grid", {}) or {}
-    grid_urls = layer.get("grid_urls", []) or []
-    times = layer.get("times", []) or []
-
-    return {
-        "key": layer.get("key"),
-        "label": layer.get("label"),
-        "element": layer.get("element"),
-        "elementCode": layer.get("elementCode") or layer.get("key"),
-        "elementEnglish": layer.get("elementEnglish") or layer.get("englishLabel"),
-        "elementLongName": layer.get("elementLongName") or layer.get("long_name"),
-        "dtype": "float32",
-        "endian": "little",
-        "missing": MISSING_VALUE,
-        "shape": [grid.get("ny"), grid.get("nx")],
-        "height": grid.get("ny"),
-        "width": grid.get("nx"),
-        "unit": layer.get("unit"),
-        "varType": layer.get("varType"),
-        "times": times,
-        "valid_times": layer.get("valid_times", times),
-        "valid_hours": layer.get("valid_hours", []),
-        "valid_time_hours": layer.get("valid_time_hours", []),
-        "forecast_hours": layer.get("forecast_hours", []),
-        "forecast_labels": layer.get("forecast_labels", []),
-        "grid_urls": grid_urls,
-        "grid_files": layer.get("grid_files", []),
-        "step_stats": layer.get("step_stats", []),
-        "extent": layer.get("extent", []),
-        "bbox": layer.get("bbox"),
-        "color_range": layer.get("color_range", {}),
-        "legend_ticks": layer.get("legend_ticks", []),
-        "render_mode": "webp",
-    }
+    return result
 
 
 def _cycle_time(ds: xr.Dataset) -> str:
-    vals = _coord_values(ds, "time")
-    return vals[0] if vals else "待解析"
+    values = _coord_values(ds, "time")
+    return values[0] if values else "待解析"
 
-def _display_label(var_name: str, long_name: str) -> str:
+
+def _normalize_longitude(arr: np.ndarray, lon: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    lon = np.asarray(lon, dtype=float)
+    if lon.size >= 2 and np.nanmin(lon) >= 0 and np.nanmax(lon) > 180:
+        normalized = ((lon + 180.0) % 360.0) - 180.0
+        order = np.argsort(normalized)
+        return arr[:, :, order], normalized[order]
+    return arr, lon
+
+
+def _extract_array_lat_lon(ds: xr.Dataset, var_name: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    lat_name, lon_name = _find_lat_lon_names(ds)
+    da = ds[var_name]
+
+    for dim in list(da.dims):
+        if dim not in {lat_name, lon_name, "time", "valid_time", "step"}:
+            da = da.isel({dim: 0})
+
+    arr = np.squeeze(np.asarray(da.values, dtype=float))
+    if arr.ndim == 2:
+        arr = arr[None, :, :]
+    elif arr.ndim > 3:
+        arr = arr.reshape(-1, arr.shape[-2], arr.shape[-1])
+    elif arr.ndim != 3:
+        raise ValueError(f"变量 {var_name} 无法渲染，shape={arr.shape}")
+
+    lat = np.asarray(ds[lat_name].values, dtype=float)
+    lon = np.asarray(ds[lon_name].values, dtype=float)
+
+    # 输出统一为北到南、经度递增。
+    if lat.size >= 2 and lat[0] < lat[-1]:
+        lat = lat[::-1]
+        arr = arr[:, ::-1, :]
+    if lon.size >= 2 and lon[0] > lon[-1]:
+        lon = lon[::-1]
+        arr = arr[:, :, ::-1]
+
+    arr, lon = _normalize_longitude(arr, lon)
+    return arr, lat, lon
+
+
+def _infer_var_type(var_name: str, units: str, long_name: str) -> str:
+    text = f"{var_name} {units} {long_name}".lower()
+    if any(key in text for key in ("t2m", "2t", "d2m", "2d", "temperature", "dewpoint")):
+        return "temperature"
+    if any(key in text for key in ("tp", "apcp", "precip", "rain")):
+        return "precipitation"
+    if any(key in text for key in ("pressure", "prmsl", "msl", "sp")):
+        return "pressure"
+    if any(key in text for key in ("wind", "u10", "v10", "10u", "10v", "ugrd", "vgrd")):
+        return "wind"
+    return "generic"
+
+
+def _convert_values(var_name: str, units: str, long_name: str, values: np.ndarray) -> tuple[np.ndarray, str, str, str]:
+    arr = np.asarray(values, dtype=float)
+    lower = str(units or "").lower()
+    var_type = _infer_var_type(var_name, units, long_name)
+
+    if var_type == "temperature" and lower in {"k", "kelvin"}:
+        return arr - 273.15, "°C", "K → °C", var_type
+    if var_type == "pressure" and lower in {"pa", "pascal", "pascals"}:
+        return arr / 100.0, "hPa", "Pa → hPa", var_type
+    if var_type == "precipitation" and lower in {"m", "meter", "metre"}:
+        return arr * 1000.0, "mm", "m → mm", var_type
+    if var_type == "precipitation" and "kg" in lower and "m" in lower:
+        return arr, "mm", f"{units} → mm", var_type
+    return arr, units or "未知", "未转换", var_type
+
+
+def _business_label(var_name: str, long_name: str) -> str:
     mapping = {
-        "t2m": "2m temperature",
-        "2t": "2m temperature",
-        "d2m": "2m dewpoint",
-        "2d": "2m dewpoint",
-        "sp": "surface pressure",
-        "msl": "mean sea-level pressure",
-        "prmsl": "mean sea-level pressure",
-        "tp": "total precipitation",
-        "apcp": "total precipitation",
-        "u10": "10m U wind",
-        "v10": "10m V wind",
-        "10u": "10m U wind",
-        "10v": "10m V wind",
-        "ugrd": "U wind component",
-        "vgrd": "V wind component",
+        "t2m": "2米气温", "2t": "2米气温",
+        "d2m": "2米露点温度", "2d": "2米露点温度",
+        "tp": "累积降水", "apcp": "累积降水",
+        "sp": "地面气压", "msl": "海平面气压", "prmsl": "海平面气压",
+        "u10": "10米U风", "10u": "10米U风", "ugrd": "U风分量",
+        "v10": "10米V风", "10v": "10米V风", "vgrd": "V风分量",
     }
     return mapping.get(var_name.lower(), long_name or var_name)
 
 
-def _gradient_for_var(var_type: str) -> str:
+def _product_category(var_type: str) -> str:
+    return {
+        "temperature": "温度产品",
+        "precipitation": "降水产品",
+        "pressure": "气压产品",
+        "wind": "风场产品",
+    }.get(var_type, "数值预报产品")
+
+
+def _priority(var_name: str) -> int:
+    return {
+        "t2m": 1000, "2t": 1000,
+        "d2m": 900, "2d": 900,
+        "tp": 850, "apcp": 850,
+        "sp": 800, "msl": 790, "prmsl": 790,
+        "u10": 700, "10u": 700, "ugrd": 690,
+        "v10": 680, "10v": 680, "vgrd": 670,
+    }.get(var_name.lower(), 100)
+
+
+def _frame_stats(values: np.ndarray) -> dict[str, Any]:
+    valid = values[np.isfinite(values)]
+    if valid.size == 0:
+        return {"min": None, "mean": None, "max": None, "p05": None, "p50": None, "p95": None, "missing_ratio": 1.0}
+    return {
+        "min": round(float(valid.min()), 3),
+        "mean": round(float(valid.mean()), 3),
+        "max": round(float(valid.max()), 3),
+        "p05": round(float(np.percentile(valid, 5)), 3),
+        "p50": round(float(np.percentile(valid, 50)), 3),
+        "p95": round(float(np.percentile(valid, 95)), 3),
+        "missing_ratio": round(float(1.0 - valid.size / values.size), 6),
+    }
+
+
+def _global_stats(arr3d: np.ndarray) -> dict[str, Any]:
+    valid = arr3d[np.isfinite(arr3d)]
+    if valid.size == 0:
+        return {"min": None, "mean": None, "max": None, "p05": None, "p95": None, "missing_ratio": 1.0}
+    return {
+        "min": round(float(valid.min()), 3),
+        "mean": round(float(valid.mean()), 3),
+        "max": round(float(valid.max()), 3),
+        "p05": round(float(np.percentile(valid, 5)), 3),
+        "p95": round(float(np.percentile(valid, 95)), 3),
+        "missing_ratio": round(float(1.0 - valid.size / arr3d.size), 6),
+    }
+
+
+def _color_range(var_name: str, var_type: str, stats: dict[str, Any]) -> dict[str, Any]:
+    name = var_name.lower()
+    if name in {"tp", "apcp"}:
+        ref = max(float(stats.get("p95") or 0), float(stats.get("max") or 0))
+        levels = [1, 2, 5, 10, 25, 50, 100, 150]
+        vmax = next((value for value in levels if ref <= value), 150)
+        return {"min": 0.0, "max": float(vmax), "mode": "precip_dynamic"}
+    if name in {"sp", "msl", "prmsl"}:
+        mean = float(stats.get("mean") or 1013.0)
+        return {"min": round(mean - 18, 3), "max": round(mean + 18, 3), "mode": "pressure_centered"}
+    p05 = stats.get("p05")
+    p95 = stats.get("p95")
+    if p05 is not None and p95 is not None and float(p95) > float(p05):
+        return {"min": float(p05), "max": float(p95), "mode": "p05_p95"}
+    return {"min": stats.get("min"), "max": stats.get("max"), "mode": "min_max"}
+
+
+def _legend_ticks(color_range: dict[str, Any]) -> list[str]:
+    vmin = color_range.get("min")
+    vmax = color_range.get("max")
+    if vmin is None or vmax is None or float(vmax) <= float(vmin):
+        return ["低", "较低", "中", "较高", "高"]
+    values = np.linspace(float(vmin), float(vmax), 5)
+    return [f"{value:.0f}" if abs(value) >= 10 else f"{value:.1f}" for value in values]
+
+
+def _gradient(var_type: str) -> str:
     if var_type == "precipitation":
         return "linear-gradient(to right, #f8fafc, #93c5fd, #22c55e, #facc15, #ef4444)"
     if var_type == "pressure":
@@ -752,1324 +282,257 @@ def _gradient_for_var(var_type: str) -> str:
     return "linear-gradient(to right, #1e40af, #0ea5e9, #22c55e, #facc15, #ef4444)"
 
 
-def _legend_ticks(vmin: Any, vmax: Any) -> list[str]:
-    if vmin is None or vmax is None:
-        return ["低", "较低", "中", "较高", "高"]
-
-    try:
-        a = float(vmin)
-        b = float(vmax)
-    except Exception:
-        return ["低", "较低", "中", "较高", "高"]
-
-    if abs(a - b) < 1e-12:
-        return [f"{a:.0f}"] * 5
-
-    vals = np.linspace(a, b, 5)
-    return [f"{v:.0f}" if abs(v) >= 10 else f"{v:.1f}" for v in vals]
+def _to_data_url(path: Path) -> str:
+    normalized = str(path).replace("\\", "/")
+    marker = "/data/"
+    index = normalized.lower().find(marker)
+    return normalized[index:] if index >= 0 else f"/data/{path.name}"
 
 
-def _save_one_png(
-    values2d: np.ndarray,
-    output_path: Path,
-    var_type: str = "generic",
-    vmin: float | None = None,
-    vmax: float | None = None,
-) -> str:
+def _save_one_webp(values2d: np.ndarray, output_path: Path, var_type: str, vmin: float | None, vmax: float | None) -> None:
     arr = np.asarray(values2d, dtype=float)
     valid = np.isfinite(arr)
-
     if not valid.any():
-        arr = np.zeros_like(arr, dtype=float)
-        valid = np.isfinite(arr)
+        arr = np.zeros_like(arr)
+        valid = np.ones_like(arr, dtype=bool)
 
     if vmin is None:
-        vmin = float(np.nanmin(arr[valid]))
+        vmin = float(arr[valid].min())
     if vmax is None:
-        vmax = float(np.nanmax(arr[valid]))
-
+        vmax = float(arr[valid].max())
     if abs(vmax - vmin) < 1e-12:
-        norm = np.zeros_like(arr, dtype=float)
+        normalized = np.zeros_like(arr, dtype=float)
     else:
-        norm = (arr - vmin) / (vmax - vmin)
+        normalized = np.clip((arr - vmin) / (vmax - vmin), 0, 1)
 
-    norm = np.clip(norm, 0, 1)
-
-    if var_type == "pressure":
-        cmap = plt.get_cmap("viridis")
-    else:
-        cmap = plt.get_cmap("turbo")
-
-    rgba = cmap(norm)
-    rgba[..., 3] = np.where(valid, 0.72, 0.0)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.imsave(output_path, rgba)
-
-    return str(output_path).replace("\\", "/")
-
-
-
-def _save_one_webp(
-    values2d: np.ndarray,
-    output_path: Path,
-    var_type: str = "generic",
-    vmin: float | None = None,
-    vmax: float | None = None,
-    quality: int = 86,
-) -> str:
-    if Image is None:
-        raise RuntimeError("Pillow 未安装，无法生成 WEBP。请执行 pip install pillow")
-
-    arr = np.asarray(values2d, dtype=float)
-    valid = np.isfinite(arr)
-
-    if not valid.any():
-        arr = np.zeros_like(arr, dtype=float)
-        valid = np.isfinite(arr)
-
-    if vmin is None:
-        vmin = float(np.nanmin(arr[valid]))
-    if vmax is None:
-        vmax = float(np.nanmax(arr[valid]))
-
-    if abs(vmax - vmin) < 1e-12:
-        norm = np.zeros_like(arr, dtype=float)
-    else:
-        norm = (arr - vmin) / (vmax - vmin)
-
-    norm = np.clip(norm, 0, 1)
     cmap = plt.get_cmap("viridis" if var_type == "pressure" else "turbo")
-    rgba = cmap(norm)
+    rgba = cmap(normalized)
     rgba[..., 3] = np.where(valid, 0.72, 0.0)
     rgba8 = np.clip(rgba * 255, 0, 255).astype(np.uint8)
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    Image.fromarray(rgba8, mode="RGBA").save(output_path, format="WEBP", quality=quality, method=4)
-
-    return str(output_path).replace("\\", "/")
-
-
-def _to_data_url(data_path: Path) -> str:
-    parts = list(data_path.parts)
-    if "data" in parts:
-        idx = parts.index("data")
-        rel_parts = parts[idx + 1:]
-        return "/data/" + "/".join(rel_parts).replace("\\", "/")
-    return f"/data/GFS/{data_path.name}"
-
-
-def _save_webp_sequence_for_var(
-    path: Path,
-    var_key: str,
-    arr3d: np.ndarray,
-    var_type: str,
-    vmin: float | None,
-    vmax: float | None,
-) -> tuple[str, str, list[str], list[str]]:
-    webp_files: list[str] = []
-    webp_urls: list[str] = []
-
-    safe_key = "".join(ch if ch.isalnum() or ch in ["_", "-"] else "_" for ch in var_key)
-
-    for i in range(arr3d.shape[0]):
-        step_path = path.with_name(f"{path.name}_{safe_key}_step{i:03d}.webp")
-        webp_file = _save_one_webp(arr3d[i], step_path, var_type=var_type, vmin=vmin, vmax=vmax)
-        webp_files.append(webp_file)
-        webp_urls.append(_to_data_url(step_path))
-
-    if not webp_files:
-        raise ValueError(f"变量 {var_key} 没有生成任何 WEBP。")
-
-    compat_path = path.with_name(f"{path.name}_{safe_key}.webp")
-    first_path = Path(webp_files[0])
-    if first_path.resolve() != compat_path.resolve():
-        shutil.copyfile(first_path, compat_path)
-
-    return (
-        str(compat_path).replace("\\", "/"),
-        _to_data_url(compat_path),
-        webp_files,
-        webp_urls,
-    )
-
-def _to_png_url(png_path: Path) -> str:
-    parts = list(png_path.parts)
-
-    if "data" in parts:
-        idx = parts.index("data")
-        rel_parts = parts[idx + 1:]
-        return "/data/" + "/".join(rel_parts).replace("\\", "/")
-
-    return f"/data/GFS/{png_path.name}"
-
-
-def _save_png_sequence_for_var(
-    path: Path,
-    var_key: str,
-    arr3d: np.ndarray,
-    var_type: str,
-    vmin: float | None,
-    vmax: float | None,
-) -> tuple[str, str, list[str], list[str]]:
-    png_files: list[str] = []
-    png_urls: list[str] = []
-
-    safe_key = "".join(ch if ch.isalnum() or ch in ["_", "-"] else "_" for ch in var_key)
-
-    for i in range(arr3d.shape[0]):
-        step_path = path.with_name(f"{path.name}_{safe_key}_step{i:03d}.png")
-        png_file = _save_one_png(arr3d[i], step_path, var_type=var_type, vmin=vmin, vmax=vmax)
-        png_files.append(png_file)
-        png_urls.append(_to_png_url(step_path))
-
-    if not png_files:
-        raise ValueError(f"变量 {var_key} 没有生成任何 PNG。")
-
-    compat_path = path.with_name(f"{path.name}_{safe_key}.png")
-    first_path = Path(png_files[0])
-    if first_path.resolve() != compat_path.resolve():
-        shutil.copyfile(first_path, compat_path)
-
-    return (
-        str(compat_path).replace("\\", "/"),
-        _to_png_url(compat_path),
-        png_files,
-        png_urls,
+    Image.fromarray(rgba8, mode="RGBA").save(
+        output_path,
+        format="WEBP",
+        quality=WEBP_QUALITY,
+        method=WEBP_METHOD,
     )
 
 
-
-
-# ============================================================
-# WEBP-only differential resolution variants
-# raw / diff_3km / diff_1km
-# ============================================================
-
-DIFF_VARIANT_CONFIGS = [
-    {
-        "key": "diff_3km",
-        "label": "3km差分",
-        "km": 3.0,
-    },
-    {
-        "key": "diff_1km",
-        "label": "1km差分",
-        "km": 1.0,
-    },
-]
-
-
-def _parse_diff_bbox(lat: np.ndarray, lon: np.ndarray) -> tuple[float, float, float, float]:
-    """
-    差分细化默认不做全球 1km，否则体量会非常大。
-    默认区域：中国及周边，格式 west,south,east,north。
-    可通过环境变量覆盖：
-        WEATHER_DIFF_BBOX=73,15,135,55
-    """
-    raw = os.getenv("WEATHER_DIFF_BBOX", "73,15,135,55").strip()
-
-    try:
-        parts = [float(x.strip()) for x in raw.split(",")]
-        if len(parts) == 4:
-            west, south, east, north = parts
-        else:
-            raise ValueError
-    except Exception:
-        west, south, east, north = 73.0, 15.0, 135.0, 55.0
-
-    lon_min = float(np.nanmin(lon))
-    lon_max = float(np.nanmax(lon))
-    lat_min = float(np.nanmin(lat))
-    lat_max = float(np.nanmax(lat))
-
-    west = max(west, lon_min)
-    east = min(east, lon_max)
-    south = max(south, lat_min)
-    north = min(north, lat_max)
-
-    if west >= east or south >= north:
-        # 兜底：使用原始范围，但不建议全球 1km。
-        west, east = lon_min, lon_max
-        south, north = lat_min, lat_max
-
-    return west, south, east, north
-
-
-def _km_to_degree(km: float) -> float:
-    """
-    简化的 km -> degree 换算。
-    1 degree latitude ≈ 111.32 km。
-    对 WEBP 展示足够稳定；若后续做严格物理网格，可改成投影坐标。
-    """
-    return float(km) / 111.32
-
-
-def _crop_arr_lat_lon(
-    arr3d: np.ndarray,
-    lat: np.ndarray,
-    lon: np.ndarray,
-    bbox: tuple[float, float, float, float],
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    west, south, east, north = bbox
-
-    lat = np.asarray(lat, dtype=float)
-    lon = np.asarray(lon, dtype=float)
-    arr3d = np.asarray(arr3d, dtype=float)
-
-    lat_mask = (lat >= south) & (lat <= north)
-    lon_mask = (lon >= west) & (lon <= east)
-
-    if int(lat_mask.sum()) < 2 or int(lon_mask.sum()) < 2:
-        return arr3d, lat, lon
-
-    cropped = arr3d[:, lat_mask, :][:, :, lon_mask]
-    return cropped, lat[lat_mask], lon[lon_mask]
-
-
-def _make_target_lat_lon(
-    bbox: tuple[float, float, float, float],
-    km: float,
-    max_pixels: int | None = None,
-) -> tuple[np.ndarray, np.ndarray, float]:
-    west, south, east, north = bbox
-    deg = _km_to_degree(km)
-
-    if deg <= 0:
-        deg = _km_to_degree(3.0)
-
-    ny = int(np.floor((north - south) / deg)) + 1
-    nx = int(np.floor((east - west) / deg)) + 1
-
-    if max_pixels is None:
-        try:
-            max_pixels = int(os.getenv("WEATHER_DIFF_MAX_PIXELS", "80000000"))
-        except Exception:
-            max_pixels = 80000000
-
-    pixels = ny * nx
-    actual_deg = deg
-
-    if pixels > max_pixels:
-        scale = float(np.sqrt(pixels / max_pixels))
-        actual_deg = deg * scale
-        ny = int(np.floor((north - south) / actual_deg)) + 1
-        nx = int(np.floor((east - west) / actual_deg)) + 1
-        print(
-            f"[WARN] requested {km}km grid too large ({pixels} pixels). "
-            f"Auto relaxed degree step from {deg:.6f} to {actual_deg:.6f}."
-        )
-
-    target_lat = north - np.arange(ny, dtype=float) * actual_deg
-    target_lon = west + np.arange(nx, dtype=float) * actual_deg
-
-    target_lat = target_lat[(target_lat >= south) & (target_lat <= north)]
-    target_lon = target_lon[(target_lon >= west) & (target_lon <= east)]
-
-    return target_lat, target_lon, actual_deg
-
-
-def _interp2d_latlon(
-    values2d: np.ndarray,
-    src_lat: np.ndarray,
-    src_lon: np.ndarray,
-    target_lat_desc: np.ndarray,
-    target_lon: np.ndarray,
-) -> np.ndarray:
-    """
-    二次一维线性插值：
-    1. 先沿经度插值
-    2. 再沿纬度插值
-
-    输入输出保持 north -> south 的纬度方向，方便 WEBP extent 对齐。
-    """
-    arr = np.asarray(values2d, dtype=float)
-    lat = np.asarray(src_lat, dtype=float)
-    lon = np.asarray(src_lon, dtype=float)
-
-    if arr.ndim != 2:
-        raise ValueError(f"values2d must be 2D, got {arr.shape}")
-
-    # np.interp 需要坐标递增。
-    if lat[0] > lat[-1]:
-        lat_asc = lat[::-1]
-        arr_asc = arr[::-1, :]
-    else:
-        lat_asc = lat
-        arr_asc = arr
-
-    if lon[0] > lon[-1]:
-        order = np.argsort(lon)
-        lon_asc = lon[order]
-        arr_asc = arr_asc[:, order]
-    else:
-        lon_asc = lon
-
-    target_lon = np.asarray(target_lon, dtype=float)
-    target_lat_desc = np.asarray(target_lat_desc, dtype=float)
-    target_lat_asc = target_lat_desc[::-1] if target_lat_desc[0] > target_lat_desc[-1] else target_lat_desc
-
-    tmp = np.empty((arr_asc.shape[0], target_lon.size), dtype=np.float32)
-
-    for i in range(arr_asc.shape[0]):
-        row = arr_asc[i, :]
-        good = np.isfinite(row)
-        if int(good.sum()) < 2:
-            tmp[i, :] = np.nan
-        else:
-            tmp[i, :] = np.interp(target_lon, lon_asc[good], row[good], left=np.nan, right=np.nan)
-
-    out_asc = np.empty((target_lat_asc.size, target_lon.size), dtype=np.float32)
-
-    for j in range(target_lon.size):
-        col = tmp[:, j]
-        good = np.isfinite(col)
-        if int(good.sum()) < 2:
-            out_asc[:, j] = np.nan
-        else:
-            out_asc[:, j] = np.interp(target_lat_asc, lat_asc[good], col[good], left=np.nan, right=np.nan)
-
-    if target_lat_desc[0] > target_lat_desc[-1]:
-        return out_asc[::-1, :]
-
-    return out_asc
-
-
-def _resample_3d_latlon(
-    arr3d: np.ndarray,
-    src_lat: np.ndarray,
-    src_lon: np.ndarray,
-    target_lat_desc: np.ndarray,
-    target_lon: np.ndarray,
-) -> np.ndarray:
-    out = []
-    for i in range(arr3d.shape[0]):
-        out.append(_interp2d_latlon(arr3d[i], src_lat, src_lon, target_lat_desc, target_lon))
-    return np.stack(out, axis=0)
-
-
-def _save_webp_sequence_for_variant(
-    path: Path,
-    var_key: str,
-    variant_key: str,
+def _save_webp_frames(
+    source_path: Path,
+    var_name: str,
     arr3d: np.ndarray,
     var_type: str,
-    vmin: float | None,
-    vmax: float | None,
-) -> tuple[str, str, list[str], list[str], list[dict[str, Any]]]:
-    webp_files: list[str] = []
-    webp_urls: list[str] = []
-    step_stats: list[dict[str, Any]] = []
+    color_range: dict[str, Any],
+    times: list[str],
+    forecast_hours: list[int],
+) -> tuple[str, list[dict[str, Any]]]:
+    safe_key = re.sub(r"[^0-9A-Za-z_-]", "_", var_name)
+    frames: list[dict[str, Any]] = []
+    first_path: Path | None = None
 
-    safe_key = "".join(ch if ch.isalnum() or ch in ["_", "-"] else "_" for ch in var_key)
-    safe_variant = "".join(ch if ch.isalnum() or ch in ["_", "-"] else "_" for ch in variant_key)
-
-    for i in range(arr3d.shape[0]):
-        values2d = np.asarray(arr3d[i], dtype=float)
-        step_stats.append(_step_stats(values2d))
-
-        webp_path = path.with_name(f"{path.name}_{safe_key}_{safe_variant}_step{i:03d}.webp")
+    for index, frame in enumerate(arr3d):
+        output_path = source_path.with_name(f"{source_path.name}_{safe_key}_step{index:03d}.webp")
         _save_one_webp(
-            values2d=values2d,
-            output_path=webp_path,
+            frame,
+            output_path,
             var_type=var_type,
-            vmin=vmin,
-            vmax=vmax,
+            vmin=color_range.get("min"),
+            vmax=color_range.get("max"),
         )
+        if first_path is None:
+            first_path = output_path
+        frames.append({
+            "index": index,
+            "forecast_hour": forecast_hours[index] if index < len(forecast_hours) else index,
+            "forecast_label": f"F{(forecast_hours[index] if index < len(forecast_hours) else index):03d}",
+            "valid_time": times[index] if index < len(times) else f"step{index:03d}",
+            "url": _to_data_url(output_path),
+            "stats": _frame_stats(np.asarray(frame, dtype=float)),
+        })
 
-        webp_files.append(str(webp_path).replace("\\", "/"))
-        webp_urls.append(_to_png_url(webp_path))
+    if first_path is None:
+        raise ValueError(f"变量 {var_name} 没有生成 WebP。")
 
-    first_file = webp_files[0] if webp_files else ""
-    first_url = webp_urls[0] if webp_urls else ""
+    compat_path = source_path.with_name(f"{source_path.name}_{safe_key}.webp")
+    if first_path.resolve() != compat_path.resolve():
+        shutil.copyfile(first_path, compat_path)
 
-    return first_file, first_url, webp_files, webp_urls, step_stats
-
-
-def _variant_meta(
-    key: str,
-    label: str,
-    resolution: str,
-    arr3d: np.ndarray,
-    lat: np.ndarray,
-    lon: np.ndarray,
-    webp_file: str,
-    webp_url: str,
-    webp_files: list[str],
-    webp_urls: list[str],
-    step_stats: list[dict[str, Any]],
-    actual_degree: float | None = None,
-) -> dict[str, Any]:
-    lat_min = round(float(np.nanmin(lat)), 4)
-    lat_max = round(float(np.nanmax(lat)), 4)
-    lon_min = round(float(np.nanmin(lon)), 4)
-    lon_max = round(float(np.nanmax(lon)), 4)
-
-    return {
-        "key": key,
-        "label": label,
-        "resolution": resolution,
-        "actual_degree": round(float(actual_degree), 6) if actual_degree is not None else None,
-        "render_mode": "webp",
-        "image_format": "webp",
-
-        "webp": webp_file,
-        "webp_url": webp_url,
-        "webp_files": webp_files,
-        "webp_urls": webp_urls,
-        "image": webp_file,
-        "image_url": webp_url,
-        "image_files": webp_files,
-        "image_urls": webp_urls,
-
-        # WEBP-only: no png / no float32.
-        "png": "",
-        "png_url": "",
-        "png_files": [],
-        "png_urls": [],
-        "grid_files": [],
-        "grid_urls": [],
-        "binary_files": [],
-        "binary_urls": [],
-
-        "extent": [lon_min, lat_min, lon_max, lat_max],
-        "bbox": {
-            "south": lat_min,
-            "north": lat_max,
-            "west": lon_min,
-            "east": lon_max,
-        },
-        "range": f"纬度 {lat_min} ~ {lat_max}，经度 {lon_min} ~ {lon_max}",
-        "grid": {
-            "nx": int(lon.size),
-            "ny": int(lat.size),
-            "text": f"{lat.size} × {lon.size}",
-        },
-        "gridText": f"{lat.size} × {lon.size}",
-        "step_stats": step_stats,
-    }
+    return _to_data_url(compat_path), frames
 
 
-def _build_webp_resolution_variants(
-    path: Path,
-    var_key: str,
-    arr3d: np.ndarray,
-    lat: np.ndarray,
-    lon: np.ndarray,
-    var_type: str,
-    vmin: float | None,
-    vmax: float | None,
-    raw_webp_file: str,
-    raw_webp_url: str,
-    raw_webp_files: list[str],
-    raw_webp_urls: list[str],
-    raw_step_stats: list[dict[str, Any]],
-) -> tuple[list[dict[str, str]], dict[str, Any]]:
-    """
-    正式策略：
-    1. raw 原始分辨率 WEBP 同步生成，保证前端马上能显示；
-    2. display 接口永远不做重计算；
-    3. diff_3km / diff_1km 默认 pending；
-    4. 只有后台预生成任务设置 WEATHER_DIFF_BUILD_SYNC=1 时，才真正生成 diff_3km / diff_1km。
-    """
-    options = [
-        {"key": "raw", "label": "原始分辨率"},
-        {"key": "diff_3km", "label": "3km差分"},
-        {"key": "diff_1km", "label": "1km差分"},
-    ]
-
-    variants: dict[str, Any] = {}
-
-    variants["raw"] = _variant_meta(
-        key="raw",
-        label="原始分辨率",
-        resolution="raw",
-        arr3d=arr3d,
-        lat=lat,
-        lon=lon,
-        webp_file=raw_webp_file,
-        webp_url=raw_webp_url,
-        webp_files=raw_webp_files,
-        webp_urls=raw_webp_urls,
-        step_stats=raw_step_stats,
-        actual_degree=None,
-    )
-    variants["raw"]["status"] = "ready"
-    variants["raw"]["message"] = "原始分辨率WEBP已生成。"
-
-    build_sync = os.getenv("WEATHER_DIFF_BUILD_SYNC", "0").lower() in {"1", "true", "yes", "on"}
-
-    if not build_sync:
-        for cfg in DIFF_VARIANT_CONFIGS:
-            key = cfg["key"]
-            label = cfg["label"]
-            km = float(cfg["km"])
-            variants[key] = {
-                "key": key,
-                "label": label,
-                "resolution": f"{int(km)}km",
-                "status": "pending",
-                "message": "差分WEBP尚未预生成，当前前端回退显示原始分辨率。",
-                "render_mode": "webp",
-                "image_format": "webp",
-                "webp": "",
-                "webp_url": "",
-                "webp_files": [],
-                "webp_urls": [],
-                "image": "",
-                "image_url": "",
-                "image_files": [],
-                "image_urls": [],
-                "png_files": [],
-                "png_urls": [],
-                "grid_files": [],
-                "grid_urls": [],
-                "binary_files": [],
-                "binary_urls": [],
-                "step_stats": [],
-            }
-        return options, variants
-
-    # 后台预生成模式：真正生成 3km 和 1km。
-    bbox = _parse_diff_bbox(lat, lon)
-    cropped_arr, cropped_lat, cropped_lon = _crop_arr_lat_lon(arr3d, lat, lon, bbox)
-
-    # 先 3km 后 1km。3km 快，前端先能看到增强版。
-    ordered_configs = sorted(DIFF_VARIANT_CONFIGS, key=lambda item: float(item["km"]), reverse=True)
-
-    for cfg in ordered_configs:
-        key = cfg["key"]
-        label = cfg["label"]
-        km = float(cfg["km"])
-
-        try:
-            target_lat, target_lon, actual_degree = _make_target_lat_lon(bbox, km)
-
-            if target_lat.size < 2 or target_lon.size < 2:
-                raise ValueError(f"{key} target grid too small.")
-
-            diff_arr = _resample_3d_latlon(
-                cropped_arr,
-                cropped_lat,
-                cropped_lon,
-                target_lat,
-                target_lon,
-            )
-
-            webp_file, webp_url, webp_files, webp_urls, step_stats = _save_webp_sequence_for_variant(
-                path=path,
-                var_key=var_key,
-                variant_key=key,
-                arr3d=diff_arr,
-                var_type=var_type,
-                vmin=vmin,
-                vmax=vmax,
-            )
-
-            variants[key] = _variant_meta(
-                key=key,
-                label=label,
-                resolution=f"{int(km)}km",
-                arr3d=diff_arr,
-                lat=target_lat,
-                lon=target_lon,
-                webp_file=webp_file,
-                webp_url=webp_url,
-                webp_files=webp_files,
-                webp_urls=webp_urls,
-                step_stats=step_stats,
-                actual_degree=actual_degree,
-            )
-            variants[key]["status"] = "ready"
-            variants[key]["message"] = "差分WEBP已预生成。"
-
-        except Exception as e:
-            print(f"[WARN] failed to build {key} for {var_key}: {e}")
-            variants[key] = {
-                "key": key,
-                "label": label,
-                "resolution": f"{int(km)}km",
-                "status": "failed",
-                "message": f"差分WEBP预生成失败：{e}",
-                "render_mode": "webp",
-                "image_format": "webp",
-                "error": str(e),
-                "webp": "",
-                "webp_url": "",
-                "webp_files": [],
-                "webp_urls": [],
-                "image": "",
-                "image_url": "",
-                "image_files": [],
-                "image_urls": [],
-                "png_files": [],
-                "png_urls": [],
-                "grid_files": [],
-                "grid_urls": [],
-                "binary_files": [],
-                "binary_urls": [],
-                "step_stats": [],
-            }
-
-    return options, variants
-
-def _step_stats(values2d: np.ndarray) -> dict[str, Any]:
-    arr = np.asarray(values2d, dtype=float)
-    total = int(arr.size)
-    mask = np.isfinite(arr)
-    valid_count = int(mask.sum())
-
-    if valid_count == 0:
-        return {
-            "min": None,
-            "max": None,
-            "mean": None,
-            "p05": None,
-            "p50": None,
-            "p95": None,
-            "valid_count": 0,
-            "total_count": total,
-            "missing_ratio": 1.0,
-        }
-
-    valid = arr[mask]
-
-    def q(p: float) -> float:
-        return round(float(np.nanpercentile(valid, p)), 3)
-
-    return {
-        "min": round(float(np.nanmin(valid)), 3),
-        "max": round(float(np.nanmax(valid)), 3),
-        "mean": round(float(np.nanmean(valid)), 3),
-        "p05": q(5),
-        "p50": q(50),
-        "p95": q(95),
-        "valid_count": valid_count,
-        "total_count": total,
-        "missing_ratio": round(float(1.0 - valid_count / total), 6) if total else 1.0,
-    }
-
-
-def _save_grid_sequence_for_var(
-    path: Path,
-    var_key: str,
-    arr3d: np.ndarray,
-) -> tuple[list[str], list[str], list[dict[str, Any]]]:
-    """
-    保存 float32 数值矩阵。
-    PNG 负责显示，float32 负责前端鼠标点查真实值。
-    """
-    grid_files: list[str] = []
-    grid_urls: list[str] = []
-    step_stats: list[dict[str, Any]] = []
-
-    safe_key = "".join(ch if ch.isalnum() or ch in ["_", "-"] else "_" for ch in var_key)
-
-    for i in range(arr3d.shape[0]):
-        values2d = np.asarray(arr3d[i], dtype=float)
-        step_stats.append(_step_stats(values2d))
-
-        out = np.where(np.isfinite(values2d), values2d, MISSING_VALUE).astype("<f4")
-        grid_path = path.with_name(f"{path.name}_{safe_key}_step{i:03d}.float32")
-        grid_path.parent.mkdir(parents=True, exist_ok=True)
-        out.tofile(grid_path)
-
-        grid_files.append(str(grid_path).replace("\\", "/"))
-        grid_urls.append(_to_png_url(grid_path))
-
-    return grid_files, grid_urls, step_stats
-
-def _build_variable_layers(path: Path, groups: list[xr.Dataset]) -> tuple[list[dict[str, Any]], dict[str, Any], str]:
-    raw_layers: list[tuple[int, str, dict[str, Any]]] = []
+def _build_layers(source_path: Path, groups: list[xr.Dataset]) -> tuple[list[dict[str, Any]], dict[str, Any], str]:
+    records: list[tuple[int, str, dict[str, Any]]] = []
     seen: set[str] = set()
-
-    # 默认展示 GFS / ECMWF 最常用的业务变量。
-    # 说明：
-    # 1. GFS 和 ECMWF 仍然是两个数据源；
-    # 2. 这里只是复用同一个 GRIB 解析器；
-    # 3. 前端入口、数据目录和 display 接口应保持 GFS / ECMWF 分开。
-    allowed_vars = {
-        "t2m", "2t",
-        "d2m", "2d",
-        "tp", "apcp",
-        "sp", "msl", "prmsl",
-        "u10", "v10", "10u", "10v", "ugrd", "vgrd",
-    }
 
     for group_index, ds in enumerate(groups):
         for var_name in ds.data_vars:
-            if var_name not in allowed_vars:
-                continue
-
-            if var_name in seen:
+            if var_name not in ALLOWED_VARS or var_name in seen:
                 continue
 
             try:
                 da = ds[var_name]
                 attrs = da.attrs
-
                 long_name = attrs.get("long_name", var_name)
                 units = attrs.get("units", "")
                 short_name = attrs.get("GRIB_shortName", var_name)
                 type_of_level = attrs.get("GRIB_typeOfLevel", attrs.get("typeOfLevel", "surface"))
                 step_type = attrs.get("GRIB_stepType", attrs.get("stepType", "unknown"))
 
-                raw_arr, lat, lon = _extract_array_lat_lon(ds, var_name)
-                converted_arr, display_unit, conversion, var_type = _convert_values(
+                raw, lat, lon = _extract_array_lat_lon(ds, var_name)
+                values, display_unit, conversion, var_type = _convert_values(var_name, units, long_name, raw)
+
+                times = _time_labels(ds, values.shape[0])
+                forecast_hours = _step_hours(ds, values.shape[0])
+                stats = _global_stats(values)
+                color_range = _color_range(var_name, var_type, stats)
+                image_url, frames = _save_webp_frames(
+                    source_path,
                     var_name,
-                    units,
-                    long_name,
-                    raw_arr,
+                    values,
+                    var_type,
+                    color_range,
+                    times,
+                    forecast_hours,
                 )
 
-                times = _time_labels(ds, converted_arr.shape[0])
-                s = _stats(converted_arr)
-
-                lat_min = round(float(np.nanmin(lat)), 4)
-                lat_max = round(float(np.nanmax(lat)), 4)
-                lon_min = round(float(np.nanmin(lon)), 4)
-                lon_max = round(float(np.nanmax(lon)), 4)
-
-                extent = [lon_min, lat_min, lon_max, lat_max]
-                bbox = {
-                    "south": lat_min,
-                    "north": lat_max,
-                    "west": lon_min,
-                    "east": lon_max,
-                }
-
-                vmin, vmax, color_range_mode = _fixed_color_range(var_name, var_type, s)
-                raw_forecast_hours = _step_hours(ds, converted_arr.shape[0])
-                forecast_hours = _compact_forecast_hours(raw_forecast_hours, converted_arr.shape[0])
-                forecast_labels = _forecast_labels(ds, converted_arr.shape[0])
-                valid_hours = _valid_hours_from_times(times)
-                cycle_time = _cycle_time(ds)
-
-                # WEBP-only mode:
-                # 1. Do not generate PNG.
-                # 2. Do not generate float32.
-                # 3. Generate raw / diff_3km / diff_1km WEBP variants inside this adapter.
-                webp_file, webp_url, webp_files, webp_urls = _save_webp_sequence_for_var(
-                    path=path,
-                    var_key=var_name,
-                    arr3d=converted_arr,
-                    var_type=var_type,
-                    vmin=vmin,
-                    vmax=vmax,
-                )
-
-                image_file, image_url, image_files, image_urls, image_format = (
-                    webp_file, webp_url, webp_files, webp_urls, "webp"
-                )
-
-                png_file, png_url, png_files, png_urls = "", "", [], []
-                grid_files, grid_urls = [], []
-                step_stats = [_step_stats(np.asarray(converted_arr[i], dtype=float)) for i in range(converted_arr.shape[0])]
-
-                resolution_options, resolution_variants = _build_webp_resolution_variants(
-                    path=path,
-                    var_key=var_name,
-                    arr3d=converted_arr,
-                    lat=lat,
-                    lon=lon,
-                    var_type=var_type,
-                    vmin=vmin,
-                    vmax=vmax,
-                    raw_webp_file=webp_file,
-                    raw_webp_url=webp_url,
-                    raw_webp_files=webp_files,
-                    raw_webp_urls=webp_urls,
-                    raw_step_stats=step_stats,
-                )
+                lat_min, lat_max = float(np.nanmin(lat)), float(np.nanmax(lat))
+                lon_min, lon_max = float(np.nanmin(lon)), float(np.nanmax(lon))
+                resolution = "待解析"
+                if lat.size >= 2 and lon.size >= 2:
+                    resolution = f"{abs(float(lat[1] - lat[0])):.2f}° × {abs(float(lon[1] - lon[0])):.2f}°"
 
                 label = _business_label(var_name, long_name)
-                english_label = _display_label(var_name, long_name)
-                product_category = _product_category(var_name)
-
                 layer = {
                     "key": var_name,
                     "label": label,
-                    "englishLabel": english_label,
-                    "productCategory": product_category,
-                    "productType": product_category,
-                    # 前端主显示只用中文业务名，避免右侧面板过长。
-                    # 详细信息拆成独立字段：
-                    #   element        -> 2米气温
-                    #   elementEnglish -> 2 metre temperature
-                    #   elementCode    -> t2m
                     "element": label,
                     "elementCode": var_name,
-                    "elementEnglish": english_label,
-                    "elementLongName": long_name,
-                    "long_name": long_name,
+                    "elementEnglish": long_name,
                     "shortName": short_name,
+                    "productCategory": _product_category(var_type),
+                    "varType": var_type,
                     "rawUnit": units,
                     "unit": display_unit,
                     "displayUnit": display_unit,
                     "conversion": conversion,
-                    "varType": var_type,
                     "groupIndex": group_index,
                     "level": f"{type_of_level}, stepType={step_type}",
-                    "time": _summarize_time(times),
+                    "typeOfLevel": type_of_level,
+                    "stepType": step_type,
+                    "issue_time": _cycle_time(ds),
+                    "time": times[0] if len(times) == 1 else f"{times[0]} 至 {times[-1]}",
                     "times": times,
-                    "valid_times": times,
-                    "valid_hours": valid_hours,
-                    "valid_time_hours": valid_hours,
                     "forecast_hours": forecast_hours,
-                    "forecast_labels": forecast_labels,
-                    "cycle_time": cycle_time,
-                    "issue_time": cycle_time,
-                    "steps": _summarize_steps(times),
-                    "extent": extent,
-                    "bbox": bbox,
-                    "range": f"纬度 {lat_min} ~ {lat_max}，经度 {lon_min} ~ {lon_max}",
-                    "resolution": "待解析" if lat.size < 2 or lon.size < 2 else f"{abs(float(lat[1] - lat[0])):.2f}° × {abs(float(lon[1] - lon[0])):.2f}°",
-                    "grid": {
-                        "nx": int(lon.size),
-                        "ny": int(lat.size),
-                        "text": f"{lat.size} × {lon.size}",
+                    "forecast_labels": [f"F{hour:03d}" for hour in forecast_hours],
+                    "extent": [round(lon_min, 4), round(lat_min, 4), round(lon_max, 4), round(lat_max, 4)],
+                    "bbox": {
+                        "south": round(lat_min, 4),
+                        "north": round(lat_max, 4),
+                        "west": round(lon_min, 4),
+                        "east": round(lon_max, 4),
                     },
+                    "range": f"纬度 {lat_min:.4f} ~ {lat_max:.4f}，经度 {lon_min:.4f} ~ {lon_max:.4f}",
+                    "resolution": resolution,
+                    "grid": {"nx": int(lon.size), "ny": int(lat.size), "text": f"{lat.size} × {lon.size}"},
                     "gridText": f"{lat.size} × {lon.size}",
-                    "validGrid": f"{s['valid_count']} / {s['total_count']}",
-                    "coverage": f"{(1 - s['missing_ratio']) * 100:.2f}%",
-                    "missing": MISSING_VALUE,
-                    "missingText": f"{s['missing_ratio'] * 100:.2f}%",
-                    "quality": _quality_text(float(s["missing_ratio"])),
-                    "max": s["max"],
-                    "min": s["min"],
-                    "mean": s["mean"],
-                    "alert": _alert_text(var_type, s["max"]),
-                    "bars": _make_bars(converted_arr),
-                    "trend": _make_trend(converted_arr),
-                    "gradient": _gradient_for_var(var_type),
-                    "legend_ticks": _legend_ticks(vmin, vmax),
-                    "color_range": {"min": vmin, "max": vmax, "mode": color_range_mode},
-                    "png": png_file,
-                    "png_url": png_url,
-                    "png_files": png_files,
-                    "png_urls": png_urls,
-                    "webp": webp_file,
-                    "webp_url": webp_url,
-                    "webp_files": webp_files,
-                    "webp_urls": webp_urls,
-                    "image": image_file,
+                    "coverage": f"{(1.0 - float(stats['missing_ratio'])) * 100:.2f}%",
+                    "missingText": f"{float(stats['missing_ratio']) * 100:.2f}%",
+                    "quality": "正常" if float(stats["missing_ratio"]) <= 0.01 else "存在缺测",
+                    "min": stats.get("min"),
+                    "mean": stats.get("mean"),
+                    "max": stats.get("max"),
+                    "color_range": color_range,
+                    "legend_ticks": _legend_ticks(color_range),
+                    "gradient": _gradient(var_type),
+                    "image_format": "webp",
                     "image_url": image_url,
-                    "image_files": image_files,
-                    "image_urls": image_urls,
-                    "image_format": image_format,
-
-                    # WEBP-only resolution variants.
-                    "resolution_options": resolution_options,
-                    "resolution_variants": resolution_variants,
-                    "selected_resolution": "raw",
-
-                    # Compatibility fields. They intentionally point to WEBP-only assets.
-                    "grid_files": [],
-                    "grid_urls": [],
-                    "binary_files": [],
-                    "binary_urls": [],
-                    "step_stats": step_stats,
+                    "image_urls": [frame["url"] for frame in frames],
+                    "frames": frames,
+                    "render_mode": "webp",
                 }
 
-                layer["binary_layer"] = _binary_layer_summary(layer)
-
-                priority = _var_priority(var_name, long_name)
-                raw_layers.append((priority, var_name, layer))
+                records.append((_priority(var_name), var_name, layer))
                 seen.add(var_name)
+            except Exception as exc:
+                print(f"[WARN] Skip variable {var_name}: {exc}")
 
-            except Exception as e:
-                print(f"[WARN] Skip variable {var_name}: {e}")
-                continue
+    if not records:
+        raise ValueError("GRIB 文件中没有可渲染的常用变量。")
 
-    if not raw_layers:
-        raise ValueError("GRIB 文件中没有可渲染变量。")
-
-    raw_layers.sort(key=lambda x: x[0], reverse=True)
-
-    variable_options: list[dict[str, Any]] = []
-    variable_layers: dict[str, Any] = {}
-
-    for _, var_name, layer in raw_layers:
-        variable_options.append({
-            "key": var_name,
+    records.sort(key=lambda item: item[0], reverse=True)
+    layers = {name: layer for _, name, layer in records}
+    options = [
+        {
+            "key": name,
             "label": layer["label"],
-            "element": layer["element"],
-            "elementCode": layer.get("elementCode"),
-            "elementEnglish": layer.get("elementEnglish"),
-            "elementLongName": layer.get("elementLongName"),
-            "englishLabel": layer.get("englishLabel"),
-            "productCategory": layer.get("productCategory"),
             "unit": layer["unit"],
             "varType": layer["varType"],
-            "min": layer["min"],
-            "max": layer["max"],
-            "legend_ticks": layer["legend_ticks"],
-            "gradient": layer["gradient"],
-            "color_range": layer.get("color_range", {}),
-            "resolution_options": layer.get("resolution_options", []),
-            "render_mode": "webp",
-        })
-        variable_layers[var_name] = layer
-
-    default_var = variable_options[0]["key"]
-    return variable_options, variable_layers, default_var
-
-
-def _build_weather_info_from_layer(
-    path: Path,
-    groups: list[xr.Dataset],
-    layer: dict[str, Any],
-    variable_options: list[dict[str, Any]],
-    variable_layers: dict[str, Any],
-    default_variable: str,
-    data_type: str = "GFS",
-) -> dict[str, Any]:
-    source = _source_name(data_type)
-    product = _product_name(data_type)
-
-    return {
-        "source": source,
-        "product": product,
-        "productCategory": layer.get("productCategory", "数值预报产品"),
-        "issueTime": layer.get("issue_time", "待解析"),
-        "cycleTime": layer.get("cycle_time", "待解析"),
-        "element": layer.get("element", "GRIB 变量"),
-        "elementCode": layer.get("elementCode") or layer.get("key"),
-        "elementEnglish": layer.get("elementEnglish") or layer.get("englishLabel"),
-        "elementLongName": layer.get("elementLongName") or layer.get("long_name"),
-        "englishLabel": layer.get("englishLabel"),
-        "time": layer.get("time", "待解析"),
-        "level": layer.get("level", "待解析"),
-        "range": layer.get("range", "待解析"),
-        "resolution": layer.get("resolution", "待解析"),
-        "grid": layer.get("gridText", "待解析"),
-        "validGrid": layer.get("validGrid", "待解析"),
-        "coverage": layer.get("coverage", "待解析"),
-        "missing": layer.get("missingText", "待解析"),
-        "unit": layer.get("unit", "待解析"),
-        "variables": _collect_variable_names(groups),
-        "steps": layer.get("steps", "待解析"),
-        "status": "解析成功",
-        "quality": layer.get("quality", "待解析"),
-        "max": layer.get("max"),
-        "min": layer.get("min"),
-        "mean": layer.get("mean"),
-        "alert": layer.get("alert", "无"),
-        "update": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "bars": layer.get("bars", []),
-        "trend": layer.get("trend", []),
-        "mainVariable": default_variable,
-        "mainVariableName": layer.get("long_name"),
-        "shortName": layer.get("shortName"),
-        "rawUnit": layer.get("rawUnit"),
-        "displayUnit": layer.get("displayUnit"),
-        "conversion": layer.get("conversion"),
-        "varType": layer.get("varType"),
-        "groupIndex": layer.get("groupIndex"),
-        "extent": layer.get("extent", []),
-        "bbox": layer.get("bbox"),
-        "png": layer.get("png"),
-        "png_url": layer.get("png_url"),
-        "png_files": layer.get("png_files", []),
-        "png_urls": layer.get("png_urls", []),
-        "webp": layer.get("webp"),
-        "webp_url": layer.get("webp_url"),
-        "webp_files": layer.get("webp_files", []),
-        "webp_urls": layer.get("webp_urls", []),
-        "image": layer.get("image"),
-        "image_url": layer.get("image_url", layer.get("webp_url") or layer.get("png_url")),
-        "image_files": layer.get("image_files", layer.get("webp_files") or layer.get("png_files", [])),
-        "image_urls": layer.get("image_urls", layer.get("webp_urls") or layer.get("png_urls", [])),
-        "image_format": layer.get("image_format", "png"),
-        "grid_files": layer.get("grid_files", []),
-        "grid_urls": layer.get("grid_urls", []),
-        "binary_urls": layer.get("binary_urls", layer.get("grid_urls", [])),
-        "gridShape": layer.get("grid", {}),
-        "step_stats": layer.get("step_stats", []),
-        "times": layer.get("times", []),
-        "forecast_hours": layer.get("forecast_hours", []),
-        "forecast_labels": layer.get("forecast_labels", []),
-        "valid_times": layer.get("valid_times", []),
-        "valid_hours": layer.get("valid_hours", []),
-        "valid_time_hours": layer.get("valid_time_hours", []),
-        "color_range": layer.get("color_range", {}),
-        "resolution_options": layer.get("resolution_options", []),
-        "resolution_variants": layer.get("resolution_variants", {}),
-        "selected_resolution": layer.get("selected_resolution", "raw"),
-        "binary_layer": layer.get("binary_layer", {}),
-        "binary_layers": {key: _binary_layer_summary(value) for key, value in variable_layers.items()},
-        "render_mode": "webp",
-        "fileSizeMB": round(path.stat().st_size / 1024 / 1024, 3) if path.exists() else None,
-        "variable_options": variable_options,
-        "variable_layers": variable_layers,
-        "default_variable": default_variable,
-    }
-
-
-def _build_panel_meta(
-    path: Path,
-    weather_info: dict[str, Any],
-    extent: list[float],
-    png_url: str,
-    png_urls: list[str],
-    times: list[str],
-) -> dict[str, Any]:
-    return {
-        "file": path.name,
-        "source": weather_info.get("source", "GFS"),
-        "product": weather_info.get("product", "数值预报产品"),
-        "business_type": weather_info.get("source", "GFS"),
-        "data_type": weather_info.get("source", "GFS"),
-        "element": weather_info.get("element", "待解析"),
-        "time": weather_info.get("time", "待解析"),
-        "level": weather_info.get("level", "待解析"),
-        "range": weather_info.get("range", "待解析"),
-        "grid": weather_info.get("grid", "待解析"),
-        "missing": weather_info.get("missing", "待解析"),
-        "unit": weather_info.get("unit", "待解析"),
-        "vars": weather_info.get("variables", "待解析"),
-        "steps": weather_info.get("steps", "待解析"),
-        "extent": extent,
-        "png_url": png_url,
-        "png_urls": png_urls,
-        "webp_url": weather_info.get("webp_url"),
-        "webp_urls": weather_info.get("webp_urls", []),
-        "image_url": weather_info.get("image_url") or weather_info.get("webp_url") or png_url,
-        "image_urls": weather_info.get("image_urls") or weather_info.get("webp_urls") or png_urls,
-        "image_format": weather_info.get("image_format", "png"),
-        "grid_urls": weather_info.get("grid_urls", []),
-        "binary_urls": weather_info.get("binary_urls", weather_info.get("grid_urls", [])),
-        "gridShape": weather_info.get("gridShape", {}),
-        "step_stats": weather_info.get("step_stats", []),
-        "times": times,
-        "forecast_hours": weather_info.get("forecast_hours", []),
-        "forecast_labels": weather_info.get("forecast_labels", []),
-        "valid_times": weather_info.get("valid_times", []),
-        "valid_hours": weather_info.get("valid_hours", []),
-        "valid_time_hours": weather_info.get("valid_time_hours", []),
-        "binary_layer": weather_info.get("binary_layer", {}),
-        "binary_layers": weather_info.get("binary_layers", {}),
-        "render_mode": "webp",
-        "issueTime": weather_info.get("issueTime", "待解析"),
-        "cycleTime": weather_info.get("cycleTime", "待解析"),
-        "productCategory": weather_info.get("productCategory", "待解析"),
-        "status": weather_info.get("status", "待解析"),
-        "quality": weather_info.get("quality", "待解析"),
-        "max": weather_info.get("max"),
-        "min": weather_info.get("min"),
-        "mean": weather_info.get("mean"),
-        "alert": weather_info.get("alert"),
-        "variable_options": weather_info.get("variable_options", []),
-        "variable_layers": weather_info.get("variable_layers", {}),
-        "default_variable": weather_info.get("default_variable"),
-    }
-
-
-def _write_meta_again(result: dict[str, Any]) -> None:
-    meta_file = result.get("meta_file")
-    if not meta_file:
-        return
-
-    try:
-        meta_path = Path(meta_file)
-        meta_path.parent.mkdir(parents=True, exist_ok=True)
-        meta_path.write_text(
-            json.dumps(result, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-    except Exception:
-        pass
+            "productCategory": layer["productCategory"],
+        }
+        for _, name, layer in records
+    ]
+    return options, layers, options[0]["key"]
 
 
 def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
-    path = Path(file_path)
-    data_type = _source_name(data_type)
+    """解析 GRIB/GRIB2，仅生成 WebP 时序图和一个紧凑 meta.json。"""
+    source_path = Path(file_path).resolve()
+    if not source_path.exists():
+        raise ValueError(f"文件不存在：{source_path}")
+
     source = _source_name(data_type)
-    product = _product_name(data_type)
-    file_format = "GRIB2" if path.suffix.lower() == ".grib2" else "GRIB"
+    groups = _open_grib_groups(str(source_path))
+    variable_options, variable_layers, default_variable = _build_layers(source_path, groups)
+    default_layer = variable_layers[default_variable]
 
-    weather_info: dict[str, Any] = {
+    meta = {
+        "schema_version": SCHEMA_VERSION,
+        "dataset_id": source_path.name.replace(".", "_"),
         "source": source,
-        "product": product,
-        "element": "GRIB 变量",
-        "time": "待解析",
-        "level": "待解析",
-        "range": "待解析",
-        "resolution": "待解析",
-        "grid": "待解析",
-        "validGrid": "待解析",
-        "coverage": "待解析",
-        "missing": "待解析",
-        "unit": "待解析",
-        "variables": "待解析",
-        "steps": "待解析",
-        "status": "已接收",
-        "quality": "待解析",
-        "max": None,
-        "min": None,
-        "mean": None,
-        "alert": "无",
-        "update": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "bars": [0, 0, 0, 0, 0],
-        "trend": [],
-        "variable_options": [],
-        "variable_layers": {},
-        "default_variable": None,
-    }
-
-    extent: list[float] = []
-    bbox: dict[str, float] | None = None
-    png_file: str | None = None
-    png_url: str | None = None
-    png_files: list[str] = []
-    png_urls: list[str] = []
-    webp_file: str | None = None
-    webp_url: str | None = None
-    webp_files: list[str] = []
-    webp_urls: list[str] = []
-    image_file: str | None = None
-    image_url: str | None = None
-    image_files: list[str] = []
-    image_urls: list[str] = []
-    image_format = "png"
-    times: list[str] = []
-    variable_options: list[dict[str, Any]] = []
-    variable_layers: dict[str, Any] = {}
-    default_variable: str | None = None
-
-    try:
-        groups = _open_grib_groups(str(path))
-
-        variable_options, variable_layers, default_variable = _build_variable_layers(path, groups)
-        main_layer = variable_layers[default_variable]
-
-        extent = main_layer.get("extent", [])
-        bbox = main_layer.get("bbox")
-        png_file = main_layer.get("png")
-        png_url = main_layer.get("png_url")
-        png_files = main_layer.get("png_files", [])
-        png_urls = main_layer.get("png_urls", [])
-        webp_file = main_layer.get("webp")
-        webp_url = main_layer.get("webp_url")
-        webp_files = main_layer.get("webp_files", [])
-        webp_urls = main_layer.get("webp_urls", [])
-        image_file = main_layer.get("image", webp_file or png_file)
-        image_url = main_layer.get("image_url", webp_url or png_url)
-        image_files = main_layer.get("image_files", webp_files or png_files)
-        image_urls = main_layer.get("image_urls", webp_urls or png_urls)
-        image_format = main_layer.get("image_format", "webp" if webp_urls else "png")
-        times = main_layer.get("times", [])
-
-        weather_info = _build_weather_info_from_layer(
-            path=path,
-            groups=groups,
-            layer=main_layer,
-            variable_options=variable_options,
-            variable_layers=variable_layers,
-            default_variable=default_variable,
-            data_type=data_type,
-        )
-
-    except Exception as exc:
-        weather_info.update({
-            "status": "解析失败",
-            "quality": "异常",
-            "alert": "解析失败",
-            "error": str(exc),
-            "traceback": traceback.format_exc(),
-        })
-
-    result = process_basic_file(
-        str(path),
-        data_type=data_type,
-        file_format=file_format,
-        weather_info=weather_info,
-    )
-
-    if not isinstance(result, dict):
-        return weather_info
-
-    panel_meta = _build_panel_meta(
-        path=path,
-        weather_info=weather_info,
-        extent=extent,
-        png_url=png_url or "",
-        png_urls=png_urls,
-        times=times,
-    )
-
-    result["file_name"] = path.name
-    result["directory"] = str(path.parent).replace("\\", "/") + "/"
-    result["source"] = source
-    result["product"] = product
-    result["business_type"] = data_type
-    result["data_type"] = data_type
-
-    result["weather_info"] = weather_info
-    result["meta"] = panel_meta
-
-    result["bbox"] = bbox
-    result["extent"] = extent
-    result["times"] = times
-
-    # 兼容旧前端：默认变量仍然暴露为 png_url/png_urls。
-    result["png"] = png_file
-    result["png_url"] = png_url
-    result["png_files"] = png_files
-    result["png_urls"] = png_urls
-    result["webp"] = webp_file
-    result["webp_url"] = webp_url
-    result["webp_files"] = webp_files
-    result["webp_urls"] = webp_urls
-    result["image"] = image_file
-    result["image_url"] = image_url
-    result["image_files"] = image_files
-    result["image_urls"] = image_urls
-    result["image_format"] = image_format
-
-    # 新前端：多变量图层。
-    result["variable_options"] = variable_options
-    result["variable_layers"] = variable_layers
-    result["default_variable"] = default_variable
-
-    # WEBP 优先输出。binary_layer 字段保留用于兼容旧前端，但本适配器默认不再强制生成 float32。
-    result["render_mode"] = "webp"
-    result["binary_layer"] = weather_info.get("binary_layer", {})
-    result["binary_layers"] = weather_info.get("binary_layers", {})
-
-    result["extra"] = {
-        "parser": "adapters.gfs_adapter.process_file",
-        "main_variable": weather_info.get("mainVariable"),
-        "main_variable_name": weather_info.get("mainVariableName"),
-        "raw_unit": weather_info.get("rawUnit"),
-        "display_unit": weather_info.get("displayUnit"),
-        "conversion": weather_info.get("conversion"),
-        "extent": extent,
-        "bbox": bbox,
-        "png_url": png_url,
-        "png_urls": png_urls,
-        "webp_url": webp_url,
-        "webp_urls": webp_urls,
-        "image_url": image_url,
-        "image_urls": image_urls,
-        "image_format": image_format,
-        "grid_urls": weather_info.get("grid_urls", []),
-        "binary_urls": weather_info.get("binary_urls", weather_info.get("grid_urls", [])),
-        "binary_layers": weather_info.get("binary_layers", {}),
-        "gridShape": weather_info.get("gridShape", {}),
-        "step_stats": weather_info.get("step_stats", []),
-        "times": times,
-        "forecast_hours": weather_info.get("forecast_hours", []),
-        "forecast_labels": weather_info.get("forecast_labels", []),
-        "valid_times": weather_info.get("valid_times", []),
-        "valid_hours": weather_info.get("valid_hours", []),
-        "valid_time_hours": weather_info.get("valid_time_hours", []),
+        "business_type": source,
+        "data_type": source,
+        "product": _product_name(source),
+        "file_name": source_path.name,
+        "file_format": "GRIB2" if source_path.suffix.lower() == ".grib2" else "GRIB",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "run_time": default_layer.get("issue_time"),
+        "extent": default_layer.get("extent"),
+        "bbox": default_layer.get("bbox"),
+        "grid": default_layer.get("grid"),
+        "resolution": default_layer.get("resolution"),
+        "default_variable": default_variable,
         "variable_options": variable_options,
         "variable_layers": variable_layers,
-        "default_variable": default_variable,
+        "weather_info": {
+            "source": source,
+            "product": _product_name(source),
+            "element": default_layer.get("element"),
+            "time": default_layer.get("time"),
+            "level": default_layer.get("level"),
+            "range": default_layer.get("range"),
+            "resolution": default_layer.get("resolution"),
+            "grid": default_layer.get("gridText"),
+            "unit": default_layer.get("unit"),
+            "missing": default_layer.get("missingText"),
+            "status": "解析成功",
+            "quality": default_layer.get("quality"),
+            "min": default_layer.get("min"),
+            "mean": default_layer.get("mean"),
+            "max": default_layer.get("max"),
+            "mainVariable": default_variable,
+            "image_format": "webp",
+            "image_url": default_layer.get("image_url"),
+            "image_urls": default_layer.get("image_urls", []),
+            "render_mode": "webp",
+        },
+        "image_format": "webp",
+        "image_url": default_layer.get("image_url"),
+        "image_urls": default_layer.get("image_urls", []),
+        "render_mode": "webp",
     }
 
-    result.update(weather_info)
-
-    _write_meta_again(result)
-    return result
+    meta_path = source_path.with_name(f"{source_path.name}.meta.json")
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return meta
