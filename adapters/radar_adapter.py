@@ -22,21 +22,6 @@ DEFAULT_RENDER_VAR = "observation.base_ref_cor_log"
 FALLBACK_RENDER_VAR = "observation.prdt_crf_raw_log"
 RADAR_RENDER_CACHE_DIR = "_radar_renders_v2"
 
-RADAR_PRODUCT_INFO = {
-    "observation.base_ref_cor_log": ("DBZH", "反射率", "dBZ"),
-    "observation.base_vel_raw_lin": ("VRAD", "径向速度", "m/s"),
-    "observation.base_zdr_cor_log": ("ZDR", "差分反射率", "dB"),
-    "observation.base_rhv_flt_lin": ("RHV", "相关系数", ""),
-    "observation.base_kdp_lsf_x_lin": ("KDP", "差分传播相移率", "deg/km"),
-    "observation.prdt_hcl_flt_lin": ("HCL", "水凝物分类", ""),
-    "observation.prdt_mlt_hgt_pol": ("MLT", "融化层高度", "m"),
-    "observation.prdt_hcl_srf_lin": ("HCL_SRF", "地面水凝物分类", ""),
-    "observation.prdt_ccl_raw_lin": ("CCL", "云分类", ""),
-    "observation.prdt_crf_raw_log": ("CRF", "组合反射率", "dBZ"),
-    "observation.prdt_etp_raw_lin": ("ETP", "回波顶高", "km"),
-    "observation.prdt_qpr_mix_lin": ("QPR", "定量降水估测", "mm/h"),
-}
-
 RADAR_THRESHOLDS = np.array(
     [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70],
     dtype=np.float32,
@@ -195,8 +180,6 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
             _write_radar_webp(
                 output_file=webp_file,
                 values=render_data,
-                extent=extent,
-                stations=stations,
                 variable_name=render_name,
             )
 
@@ -534,8 +517,6 @@ def build_webp_catalog(source_file: str | Path, cache_dir: str | Path | None = N
                     _write_radar_webp(
                         output_file=webp_file,
                         values=level_spec["values"],
-                        extent=extent,
-                        stations=stations,
                         variable_name=variable_name,
                     )
 
@@ -608,8 +589,6 @@ def _make_render_data(data_array: xr.DataArray) -> tuple[np.ndarray, str]:
 def _write_radar_webp(
     output_file: Path,
     values: np.ndarray,
-    extent: list[float],
-    stations: list[dict[str, Any]],
     variable_name: str = DEFAULT_RENDER_VAR,
 ) -> None:
     output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -695,89 +674,6 @@ def _single_level_label(variable_name: str | None, level: float | None) -> str:
     return "单层"
 
 
-def _grid_shape(data_array: xr.DataArray) -> dict[str, int]:
-    if data_array.ndim == 3:
-        return {"nx": int(data_array.shape[2]), "ny": int(data_array.shape[1])}
-    if data_array.ndim == 2:
-        return {"nx": int(data_array.shape[1]), "ny": int(data_array.shape[0])}
-    raise ValueError(f"变量 {data_array.name} 的维度 {data_array.shape} 暂不支持渲染。")
-
-
-def _grid_level_options(data_array: xr.DataArray, levels: list[float]) -> list[dict[str, Any]]:
-    if data_array.ndim == 3 and data_array.shape[0] > 1:
-        options = [
-            {
-                "key": "max",
-                "label": "垂直最大值",
-                "mode": "vertical_max",
-                "level": None,
-            }
-        ]
-        options.extend(
-            {
-                "key": f"level-{index}",
-                "label": f"{level:g} m",
-                "mode": "single_level",
-                "level": level,
-            }
-            for index, level in enumerate(levels)
-        )
-        return options
-
-    if data_array.ndim == 3:
-        level = levels[0] if levels else None
-        return [
-            {
-                "key": "level-0",
-                "label": f"{level:g} m" if level is not None else "单层",
-                "mode": "single_level",
-                "level": level,
-            }
-        ]
-
-    if data_array.ndim == 2:
-        return [
-            {
-                "key": "surface",
-                "label": "单层",
-                "mode": "single_level",
-                "level": None,
-            }
-        ]
-
-    raise ValueError(f"变量 {data_array.name} 的维度 {data_array.shape} 暂不支持渲染。")
-
-
-def _select_grid_level(
-    values: np.ndarray,
-    levels: list[float],
-    level_key: str,
-) -> tuple[np.ndarray, str, str, float | None]:
-    if values.ndim == 3 and values.shape[0] > 1 and level_key == "max":
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RuntimeWarning)
-            return np.nanmax(values, axis=0), "垂直最大值", "vertical_max", None
-
-    if values.ndim == 3:
-        if level_key == "surface":
-            index = 0
-        else:
-            match = re.fullmatch(r"level-(\d+)", level_key)
-            if not match:
-                raise ValueError(f"不支持的高度层：{level_key}")
-            index = int(match.group(1))
-        if index < 0 or index >= values.shape[0]:
-            raise ValueError(f"高度层索引越界：{level_key}")
-        level = levels[index] if index < len(levels) else None
-        label = f"{level:g} m" if level is not None else f"第 {index + 1} 层"
-        return values[index], label, "single_level", level
-
-    if values.ndim == 2 and level_key in {"surface", "level-0", "max"}:
-        return values, "单层", "single_level", None
-
-    raise ValueError(f"变量维度 {values.shape} 不支持高度层 {level_key}。")
-
-
 def _needs_render(output_file: Path, source_file: Path) -> bool:
     return not output_file.exists() or output_file.stat().st_mtime < source_file.stat().st_mtime
 
@@ -794,10 +690,6 @@ def public_data_path(path: Path) -> str:
 def _webp_output_path(source_file: Path, variable_name: str, level_key: str) -> Path:
     cache_dir = source_file.parent / RADAR_RENDER_CACHE_DIR / source_file.stem
     return cache_dir / f"{source_file.stem}.{_safe_name(variable_name)}.{_safe_name(level_key)}.webp"
-
-
-def _webp_url(source_file: Path, variable_name: str, level_key: str = "max") -> str:
-    return public_data_path(_webp_output_path(source_file, variable_name, level_key))
 
 
 def _default_level_key(data_array: xr.DataArray, render_mode: str) -> str:
@@ -959,8 +851,6 @@ def _variables(dataset: xr.Dataset, source_file: Path) -> list[dict[str, Any]]:
                 "description": product_meta["description"] or None,
                 "description_en": product_meta["description_en"] or None,
                 "wavelength": None,
-                "webp": _webp_url(source_file, name, "max"),
-                "webp_url": _webp_url(source_file, name, "max"),
                 "netcdf": source_file.as_posix(),
                 "category": "雷达产品",
                 "definition": product_meta["description"],
@@ -982,10 +872,7 @@ def _product_info(name: str) -> tuple[str, str, str]:
 
 def _product_meta(name: str) -> dict[str, Any]:
     raw = RADAR_PRODUCT_INFO.get(name)
-    if isinstance(raw, tuple):
-        code, name_cn, unit = raw
-        base = {"code": code, "name_cn": name_cn, "name_en": code, "unit": unit}
-    elif isinstance(raw, dict):
+    if isinstance(raw, dict):
         base = dict(raw)
     else:
         code = name.split(".")[-1]
@@ -1072,9 +959,6 @@ def _color_scale_for_product(variable_name: str) -> tuple[np.ndarray, np.ndarray
 
 def _product_meta_without_legend(name: str) -> dict[str, Any]:
     raw = RADAR_PRODUCT_INFO.get(name)
-    if isinstance(raw, tuple):
-        code, name_cn, unit = raw
-        return {"code": code, "name_cn": name_cn, "unit": unit}
     if isinstance(raw, dict):
         return dict(raw)
     code = name.split(".")[-1]

@@ -72,23 +72,35 @@ def _public_url(value: Any) -> str | None:
     return text
 
 
+def _is_webp_url(value: str | None) -> bool:
+    if not value:
+        return False
+    text = str(value).split("?", 1)[0].lower()
+    return text.endswith(".webp") or text.startswith("data:image/webp")
+
+
+def _public_webp_url(value: Any) -> str | None:
+    url = _public_url(value)
+    return url if _is_webp_url(url) else None
+
+
 def _webp_from_item(item: dict[str, Any] | None) -> str | None:
     if not item:
         return None
 
-    for key in ("default_webp", "webp_url", "webp", "image_url"):
-        url = _public_url(item.get(key))
+    for key in ("default_webp", "webp_url", "webp"):
+        url = _public_webp_url(item.get(key))
         if url:
             return url
 
-    url = _public_url(item.get("webp_files"))
+    url = _public_webp_url(item.get("webp_files"))
     if url:
         return url
 
     weather_info = item.get("weather_info")
     if isinstance(weather_info, dict):
-        for key in ("webp_url", "webp", "image_url"):
-            url = _public_url(weather_info.get(key))
+        for key in ("webp_url", "webp"):
+            url = _public_webp_url(weather_info.get(key))
             if url:
                 return url
     return None
@@ -347,7 +359,7 @@ def _level_webp_url(default_webp: str | None, level_key: str) -> str | None:
 
 
 def _product_levels_from_meta(variable: dict[str, Any], meta_json: dict[str, Any]) -> list[dict[str, Any]]:
-    default_webp = _public_url(variable.get("webp_url") or variable.get("webp"))
+    default_webp = _public_webp_url(variable.get("webp_url") or variable.get("webp"))
     extent = meta_json.get("extent") or meta_json.get("bbox") or variable.get("extent")
     legend = variable.get("legend") or {}
     levels: list[dict[str, Any]] = []
