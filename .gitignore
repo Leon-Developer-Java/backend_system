@@ -19,6 +19,8 @@ data/ERA5/*.grib
 data/ERA5/*.grib2
 data/ERA5/*.meta.json
 data/ERA5/*.png
+data/ERA5/*.webp
+data/ERA5/era5_index.db
 
 data/.DS_Store
 data/Himawari/.DS_Store

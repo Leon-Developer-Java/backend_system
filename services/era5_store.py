@@ -466,7 +466,7 @@ def _insert_assets(
             if not isinstance(res_layer, dict):
                 continue
             bbox = _bbox(res_layer.get("extent") or layer.get("extent") or default_bbox)
-            urls = res_layer.get("webp_urls") or res_layer.get("image_urls") or res_layer.get("png_urls") or []
+            urls = res_layer.get("webp_urls") or res_layer.get("image_urls") or []
             stats = res_layer.get("stats") or []
             for frame_index, url in enumerate(urls):
                 stat = stats[frame_index] if frame_index < len(stats) and isinstance(stats[frame_index], dict) else {}
@@ -598,7 +598,7 @@ def _summary(meta: dict[str, Any]) -> dict[str, Any]:
     return {
         "weather_info": meta.get("weather_info") or {},
         "levels": meta.get("levels") or [],
-        "default_webp": meta.get("default_webp") or meta.get("default_png"),
+        "default_webp": meta.get("default_webp"),
         "quality_report": meta.get("quality_report") or meta.get("extra", {}).get("era5", {}).get("quality_report"),
     }
 

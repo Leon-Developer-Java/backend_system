@@ -2,25 +2,19 @@ import json
 from pathlib import Path
 from typing import Any
 
-import numpy as np
-import xarray as xr
-
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "ERA5"
 NODATA = -999999.0
-LAT_NAMES = ("latitude", "lat", "y")
-LON_NAMES = ("longitude", "lon", "x")
 
 
 def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[str, Any]:
     meta_json = _latest_meta(allow_empty=True)
-    png_files = sorted(DATA_DIR.glob("*.png"), key=lambda item: item.stat().st_mtime, reverse=True)
     webp_files = sorted(DATA_DIR.glob("*.webp"), key=lambda item: item.stat().st_mtime, reverse=True)
 
     variables = _display_variables(meta_json)
     selected = _primary_variable(meta_json, variable) if meta_json else ""
     layer = _layer_for_variable(meta_json, selected) if meta_json else None
-    first_image = _first_image(meta_json, layer, webp_files, png_files)
+    first_image = _first_image(meta_json, layer, webp_files)
 
     return {
         "business_type": "ERA5",
@@ -28,9 +22,7 @@ def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[
         "meta_json": meta_json,
         "webp": first_image,
         "image_url": first_image,
-        "png": first_image,
-        "webp_files": _all_images(meta_json, webp_files, png_files, prefer_webp=True),
-        "png_files": _all_pngs(meta_json, png_files),
+        "webp_files": _all_images(meta_json, webp_files),
         "variables": variables,
         "variable_options": meta_json.get("variable_options", variables) if meta_json else [],
         "variable_layers": meta_json.get("variable_layers", {}) if meta_json else {},
@@ -40,15 +32,6 @@ def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[
         "extent": meta_json.get("extent") or meta_json.get("bbox") if meta_json else None,
         "grid": _grid_descriptor(meta_json, selected, layer) if meta_json and layer else None,
     }
-
-
-def get_grid_data(variable: str | None = None, meta: dict[str, Any] | None = None) -> dict[str, Any]:
-    meta = meta or _latest_meta()
-    variable = _primary_variable(meta, variable)
-    layer = _layer_for_variable(meta, variable)
-    if layer:
-        return _grid_descriptor(meta, variable, layer)
-    return _legacy_grid_data(variable, meta)
 
 
 def _latest_meta(allow_empty: bool = False) -> dict[str, Any] | None:
@@ -107,65 +90,35 @@ def _first_image(
     meta: dict[str, Any] | None,
     layer: dict[str, Any] | None,
     webp_files: list[Path],
-    png_files: list[Path],
 ) -> str | None:
     if layer:
-        urls = layer.get("webp_urls") or layer.get("image_urls") or layer.get("png_urls") or []
+        urls = layer.get("webp_urls") or layer.get("image_urls") or []
         if urls:
             return _public_url(urls[0])
     if meta and meta.get("default_webp"):
         return _public_url(meta.get("default_webp"))
-    if meta and meta.get("default_png"):
-        return _public_url(meta.get("default_png"))
     if webp_files:
         return _path_string(webp_files[0])
-    if png_files:
-        return _path_string(png_files[0])
     return None
 
 
 def _all_images(
     meta: dict[str, Any] | None,
     webp_files: list[Path],
-    png_files: list[Path],
-    prefer_webp: bool = False,
 ) -> list[str]:
     result: list[str] = []
     if meta:
-        meta_fields = ("webp_files", "png_files") if prefer_webp else ("png_files", "webp_files")
-        layer_fields = ("webp_urls", "image_urls", "png_urls") if prefer_webp else ("png_urls", "webp_urls", "image_urls")
-        for field in meta_fields:
-            for item in meta.get(field) or []:
-                public = _public_url(item)
-                if public and public not in result:
-                    result.append(public)
-        for layer in (meta.get("variable_layers") or {}).values():
-            for field in layer_fields:
-                for item in layer.get(field) or []:
-                    public = _public_url(item)
-                    if public and public not in result:
-                        result.append(public)
-    files = [*webp_files, *png_files] if prefer_webp else [*png_files, *webp_files]
-    for path in files:
-        value = _path_string(path)
-        if value and value not in result:
-            result.append(value)
-    return result
-
-
-def _all_pngs(meta: dict[str, Any] | None, png_files: list[Path]) -> list[str]:
-    result: list[str] = []
-    if meta:
-        for item in meta.get("png_files") or []:
+        for item in meta.get("webp_files") or []:
             public = _public_url(item)
             if public and public not in result:
                 result.append(public)
         for layer in (meta.get("variable_layers") or {}).values():
-            for item in layer.get("png_urls") or []:
-                public = _public_url(item)
-                if public and public not in result:
-                    result.append(public)
-    for path in png_files:
+            for field in ("webp_urls", "image_urls"):
+                for item in layer.get(field) or []:
+                    public = _public_url(item)
+                    if public and public not in result:
+                        result.append(public)
+    for path in webp_files:
         value = _path_string(path)
         if value and value not in result:
             result.append(value)
@@ -235,9 +188,8 @@ def _layer_for_variable(meta: dict[str, Any] | None, variable: str) -> dict[str,
 def _grid_descriptor(meta: dict[str, Any], variable: str, layer: dict[str, Any]) -> dict[str, Any]:
     stats = layer.get("stats") or []
     first_stats = stats[0] if stats else {}
-    grid_urls = layer.get("grid_urls") or layer.get("float32_urls") or []
     webp_urls = layer.get("webp_urls") or layer.get("image_urls") or []
-    image_urls = webp_urls or layer.get("png_urls") or []
+    image_urls = webp_urls
     image_url = _public_url(image_urls[0]) if image_urls else None
     return {
         "business_type": "ERA5",
@@ -253,12 +205,10 @@ def _grid_descriptor(meta: dict[str, Any], variable: str, layer: dict[str, Any])
         "max": first_stats.get("max", 1.0),
         "mean": first_stats.get("mean", 0.0),
         "nodata": layer.get("nodata", NODATA),
-        "grid_urls": grid_urls,
         "webp_url": image_url,
         "image_url": image_url,
         "webp_urls": webp_urls,
         "image_urls": image_urls,
-        "png_urls": layer.get("png_urls") or [],
         "available_resolutions": layer.get("available_resolutions") or meta.get("available_resolutions") or [],
         "resolution_layers": layer.get("resolution_layers") or {},
         "resolution_status": layer.get("resolution_status") or {},
@@ -278,138 +228,3 @@ def _grid_descriptor(meta: dict[str, Any], variable: str, layer: dict[str, Any])
             "mean": first_stats.get("mean", 0.0),
         },
     }
-
-
-def _source_file(meta: dict[str, Any]) -> Path:
-    source = Path(str(meta.get("source_file", "")))
-    if source.exists():
-        return source
-
-    if source.name:
-        by_name = DATA_DIR / source.name
-        if by_name.exists():
-            return by_name
-
-    candidates = sorted(DATA_DIR.glob("*.nc"), key=lambda item: item.stat().st_mtime, reverse=True)
-    if not candidates:
-        raise ValueError("No ERA5 source NetCDF file found.")
-    return candidates[0]
-
-
-def _legacy_grid_data(variable: str | None, meta: dict[str, Any]) -> dict[str, Any]:
-    source_file = _source_file(meta)
-    variable = _primary_variable(meta, variable)
-
-    with _open_dataset(source_file) as dataset:
-        dataset = _normalize_longitude(dataset)
-        if variable not in dataset.data_vars:
-            variable = _first_grid_variable(dataset)
-
-        data_array = _select_first_slice(dataset[variable])
-        lat_name, lon_name = _lat_lon_names(dataset)
-        data_array = data_array.transpose(lat_name, lon_name)
-
-        lat = data_array[lat_name].values.astype("float64")
-        lon = data_array[lon_name].values.astype("float64")
-        values = data_array.values.astype("float32")
-
-        if lat[0] < lat[-1]:
-            values = np.flip(values, axis=0)
-            lat = np.flip(lat)
-
-        values = np.where(np.isfinite(values), values, np.nan).astype("float32")
-        finite = values[np.isfinite(values)]
-        min_value = float(np.nanmin(finite)) if finite.size else 0.0
-        max_value = float(np.nanmax(finite)) if finite.size else 1.0
-        mean_value = float(np.nanmean(finite)) if finite.size else 0.0
-        output = np.where(np.isfinite(values), values, NODATA).astype("float32")
-
-        attrs = data_array.attrs
-        label = str(attrs.get("GRIB_name") or attrs.get("long_name") or variable)
-        unit = str(attrs.get("units") or "")
-        extent = [
-            float(np.nanmin(lon)),
-            float(np.nanmin(lat)),
-            float(np.nanmax(lon)),
-            float(np.nanmax(lat)),
-        ]
-
-    return {
-        "business_type": "ERA5",
-        "dataset_id": meta.get("dataset_id"),
-        "file": source_file.name,
-        "variable": variable,
-        "label": label,
-        "unit": unit,
-        "width": int(output.shape[1]),
-        "height": int(output.shape[0]),
-        "extent": extent,
-        "min": round(min_value, 6),
-        "max": round(max_value, 6),
-        "mean": round(mean_value, 6),
-        "nodata": NODATA,
-        "values": output.reshape(-1).round(6).tolist(),
-        "variables": _display_variables(meta),
-    }
-
-
-def _normalize_longitude(dataset: xr.Dataset) -> xr.Dataset:
-    try:
-        _, lon_name = _lat_lon_names(dataset)
-    except KeyError:
-        return dataset
-
-    lon = dataset[lon_name].values
-    if np.any(lon > 180):
-        dataset = dataset.assign_coords({lon_name: (((lon + 180) % 360) - 180)})
-        dataset = dataset.sortby(lon_name)
-    return dataset
-
-
-def _coord_name(dataset: xr.Dataset, candidates: tuple[str, ...]) -> str:
-    for name in candidates:
-        if name in dataset.coords or name in dataset.variables:
-            return name
-    raise KeyError(f"ERA5 NetCDF missing coordinate: one of {', '.join(candidates)}")
-
-
-def _lat_lon_names(dataset: xr.Dataset) -> tuple[str, str]:
-    return _coord_name(dataset, LAT_NAMES), _coord_name(dataset, LON_NAMES)
-
-
-def _open_dataset(source_file: Path) -> xr.Dataset:
-    last_error: Exception | None = None
-    for engine in ("netcdf4", "h5netcdf", "scipy", None):
-        try:
-            if engine is None:
-                return xr.open_dataset(source_file)
-            return xr.open_dataset(source_file, engine=engine)
-        except Exception as exc:
-            last_error = exc
-    raise ValueError(f"ERA5 NetCDF could not be opened: {last_error}") from last_error
-
-
-def _first_grid_variable(dataset: xr.Dataset) -> str:
-    lat_name, lon_name = _lat_lon_names(dataset)
-    for name, data_array in dataset.data_vars.items():
-        dims = set(data_array.dims)
-        if {lat_name, lon_name}.issubset(dims):
-            return name
-    raise ValueError("No renderable ERA5 grid variable found.")
-
-
-def _select_first_slice(data_array: xr.DataArray) -> xr.DataArray:
-    lat_name = next((name for name in LAT_NAMES if name in data_array.dims), "latitude")
-    lon_name = next((name for name in LON_NAMES if name in data_array.dims), "longitude")
-    selectors = {}
-    for dim in data_array.dims:
-        if dim not in {lat_name, lon_name}:
-            selectors[dim] = 0
-
-    if selectors:
-        data_array = data_array.isel(selectors)
-
-    if not {lat_name, lon_name}.issubset(set(data_array.dims)):
-        raise ValueError(f"ERA5 variable {data_array.name} is not a latitude/longitude grid.")
-
-    return data_array
