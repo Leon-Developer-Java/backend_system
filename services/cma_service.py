@@ -72,7 +72,6 @@ def get_display_data(
                     stats=variable_item.get("stats"),
                 )
                 grid["webp_url"] = cma_adapter.public_data_path(webp_path)
-                grid["image_url"] = grid["webp_url"]
             stats = variable_item.get("stats") if isinstance(variable_item, dict) else None
             if isinstance(stats, dict):
                 grid["scale_min"] = stats.get("min")
@@ -90,8 +89,6 @@ def get_display_data(
         "business_type": "CMA",
         "meta_file": str(meta_path).replace("\\", "/") if meta_path else None,
         "meta_json": meta_json,
-        "png": meta_json.get("default_png") if isinstance(meta_json, dict) else None,
-        "png_files": meta_json.get("png_files", []) if isinstance(meta_json, dict) else [],
         "webp": grid.get("webp_url") if grid else (meta_json.get("default_webp") if isinstance(meta_json, dict) else None),
         "webp_files": meta_json.get("webp_files", []) if isinstance(meta_json, dict) else [],
         "variables": variables,
@@ -244,7 +241,6 @@ def _cached_display_grid(
         "total_count": int(width * height),
         "valid_ratio": 1.0,
         "webp_url": webp_url,
-        "image_url": webp_url,
         "cache_hit": True,
     }
 

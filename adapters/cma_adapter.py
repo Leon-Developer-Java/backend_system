@@ -81,8 +81,6 @@ def _process_files(paths: list[Path], data_type: str = "CMA") -> dict[str, Any]:
         "file_format": file_format,
         "source_file": source_files,
         "meta_file": meta_file.as_posix(),
-        "png_files": [],
-        "default_png": None,
         "webp_files": webp_files,
         "default_webp": webp_files[0] if webp_files else None,
         "default_variable": product["primary_variable"],
@@ -354,7 +352,6 @@ def _schema_variables(product: dict[str, Any], variable_docs: dict[str, dict[str
                 "wavelength": None,
                 "float32": None,
                 "netcdf": None,
-                "png": None,
                 "webp": _webp_url(product["files"][0], name, 0),
             }
         )
