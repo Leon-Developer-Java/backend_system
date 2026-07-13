@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import re
@@ -24,19 +24,24 @@ PRODUCT_VARIABLES = [
     "RAINNC",
 ]
 
-VARIABLE_LABELS = {
-    "PM2_5_DRY": ("PM2.5 干质量浓度", "近地面细颗粒物浓度，用于空气质量预报展示。"),
-    "PM10": ("PM10 颗粒物浓度", "可吸入颗粒物浓度，适合与 PM2.5 联合展示污染过程。"),
-    "AOD2D_OUT": ("气溶胶光学厚度", "柱积分气溶胶光学厚度，反映大气浑浊程度。"),
-    "T2": ("2 米气温", "近地面 2 米气温，可用于天气背景场展示。"),
-    "U10": ("10 米东西风", "10 米高度东西向风速，正值表示偏西风分量。"),
-    "V10": ("10 米南北风", "10 米高度南北向风速，正值表示偏南风分量。"),
-    "PSFC": ("地面气压", "模式地面气压场，可辅助判断天气系统。"),
-    "PBLH": ("边界层高度", "行星边界层高度，对污染扩散能力判断很关键。"),
-    "RAINC": ("累积对流降水", "对流降水累积量，用于识别强对流降水贡献。"),
-    "RAINNC": ("累积非对流降水", "非对流降水累积量，常用于连续性降水展示。"),
+TARGET_RESOLUTIONS = {
+    "1km": 1000.0,
+    "3km": 3000.0,
 }
+DEFAULT_RESOLUTION_KEY = "3km"
 
+VARIABLE_LABELS = {
+    "PM2_5_DRY": ("PM2.5 dry mass concentration", "Near-surface fine particulate matter concentration."),
+    "PM10": ("PM10 mass concentration", "Near-surface inhalable particulate matter concentration."),
+    "AOD2D_OUT": ("Aerosol optical depth", "Column-integrated aerosol optical depth."),
+    "T2": ("2m temperature", "Air temperature at 2 metres above ground."),
+    "U10": ("10m U wind", "East-west wind component at 10 metres."),
+    "V10": ("10m V wind", "North-south wind component at 10 metres."),
+    "PSFC": ("Surface pressure", "Model surface pressure."),
+    "PBLH": ("Planetary boundary layer height", "Boundary layer height used to assess mixing and dispersion."),
+    "RAINC": ("Accumulated convective precipitation", "Accumulated precipitation from convective processes."),
+    "RAINNC": ("Accumulated non-convective precipitation", "Accumulated precipitation from non-convective microphysics."),
+}
 SKIP_NAMES = {
     "Times",
     "XLAT",
@@ -68,72 +73,58 @@ def _resolve_path(path_str: str) -> Path:
 VARIABLE_INFORMATION = {
     "PM2_5_DRY": (
         "PM2.5 dry mass concentration",
-        "PM2.5干质量浓度，表示近地面细颗粒物质量浓度，可用于空气质量和污染过程分析。",
-        "Dry mass concentration of fine particulate matter with aerodynamic diameter below 2.5 micrometres, used for air-quality and pollution analysis.",
+        "Near-surface fine particulate matter concentration for air-quality analysis.",
+        "Dry mass concentration of fine particulate matter with aerodynamic diameter below 2.5 micrometres.",
     ),
     "PM10": (
         "PM10 mass concentration",
-        "PM10颗粒物浓度，表示可吸入颗粒物质量浓度，适合与PM2.5联合判断污染程度。",
+        "Near-surface inhalable particulate matter concentration.",
         "Mass concentration of inhalable particulate matter with aerodynamic diameter below 10 micrometres.",
     ),
     "AOD2D_OUT": (
         "Aerosol optical depth",
-        "气溶胶光学厚度，表示整层大气中气溶胶对太阳辐射的消光程度，数值越大通常说明大气越浑浊。",
-        "Aerosol optical depth, indicating column-integrated aerosol extinction of solar radiation.",
+        "Column aerosol optical depth for haze and aerosol loading analysis.",
+        "Aerosol optical depth indicating column-integrated aerosol extinction of solar radiation.",
     ),
     "T2": (
         "2 metre temperature",
-        "2米气温，表示距离地面约2米高度处的空气温度，是近地面热力状况的重要指标。",
+        "Air temperature at 2 metres above the surface.",
         "Air temperature at about 2 metres above the surface, describing near-surface thermal conditions.",
     ),
     "U10": (
         "10 metre U wind component",
-        "10米东西向风分量，正值通常表示向东的风分量，负值表示向西的风分量。",
+        "East-west wind component at 10 metres above the surface.",
         "East-west wind component at 10 metres above the surface; positive values usually indicate eastward flow.",
     ),
     "V10": (
         "10 metre V wind component",
-        "10米南北向风分量，正值通常表示向北的风分量，负值表示向南的风分量。",
+        "North-south wind component at 10 metres above the surface.",
         "North-south wind component at 10 metres above the surface; positive values usually indicate northward flow.",
     ),
     "PSFC": (
         "Surface pressure",
-        "地面气压，表示模式地表附近的大气压力，可用于分析天气系统和气压场变化。",
+        "Atmospheric pressure near the model surface.",
         "Surface pressure, representing atmospheric pressure near the model surface.",
     ),
     "PBLH": (
         "Planetary boundary layer height",
-        "边界层高度，表示大气边界层顶部高度，是判断污染扩散条件和近地层混合能力的重要变量。",
+        "Boundary layer height for mixing and pollutant dispersion assessment.",
         "Planetary boundary layer height, used to assess near-surface mixing and pollutant dispersion conditions.",
     ),
     "RAINC": (
         "Accumulated convective precipitation",
-        "累积对流降水，表示由对流过程产生的累积降水量。",
+        "Accumulated precipitation produced by convective processes.",
         "Accumulated precipitation produced by convective parameterization processes.",
     ),
     "RAINNC": (
         "Accumulated non-convective precipitation",
-        "累积非对流降水，表示由非对流云微物理过程产生的累积降水量。",
+        "Accumulated precipitation produced by non-convective cloud microphysics.",
         "Accumulated precipitation produced by non-convective cloud microphysics processes.",
     ),
-    "XLAT": (
-        "Latitude",
-        "纬度，表示每个模式格点对应的地理纬度坐标。",
-        "Latitude coordinate of each model grid point.",
-    ),
-    "XLONG": (
-        "Longitude",
-        "经度，表示每个模式格点对应的地理经度坐标。",
-        "Longitude coordinate of each model grid point.",
-    ),
-    "Times": (
-        "Valid time",
-        "有效时间，表示当前WRF输出文件对应的模拟或预报时刻。",
-        "Valid time of the WRF model output.",
-    ),
+    "XLAT": ("Latitude", "Latitude coordinate of each model grid point.", "Latitude coordinate of each model grid point."),
+    "XLONG": ("Longitude", "Longitude coordinate of each model grid point.", "Longitude coordinate of each model grid point."),
+    "Times": ("Valid time", "Valid time of the WRF model output.", "Valid time of the WRF model output."),
 }
-
-
 def _load_runtime():
     try:
         import matplotlib
@@ -144,10 +135,9 @@ def _load_runtime():
         from PIL import Image
     except ImportError as exc:
         raise RuntimeError(
-            "WRF adapter 需要安装 netCDF4、numpy、matplotlib、Pillow 后才能解析 wrfout 并生成 PNG。"
+            "WRF adapter requires netCDF4, numpy, matplotlib, and Pillow to parse wrfout and generate WebP."
         ) from exc
     return Dataset, Image, colormaps
-
 
 def _time_label(ds: Any) -> str:
     if "Times" not in ds.variables:
@@ -244,6 +234,51 @@ def _render_overlay(data: np.ndarray, image_cls: Any, colormaps: Any, cmap_name:
     return image_cls.fromarray(np.flipud(rgba), mode="RGBA")
 
 
+def _resample_grid(data: np.ndarray, source_dx: float, source_dy: float, target_meters: float) -> np.ndarray:
+    arr = np.asarray(data, dtype=float)
+    if arr.ndim != 2:
+        return arr
+    if source_dx <= 0 or source_dy <= 0 or target_meters <= 0:
+        return arr
+
+    height, width = arr.shape
+    new_width = max(2, int(round((width - 1) * source_dx / target_meters)) + 1)
+    new_height = max(2, int(round((height - 1) * source_dy / target_meters)) + 1)
+    if new_width == width and new_height == height:
+        return arr
+
+    x_old = np.arange(width, dtype=float)
+    y_old = np.arange(height, dtype=float)
+    x_new = np.linspace(0, width - 1, new_width)
+    y_new = np.linspace(0, height - 1, new_height)
+
+    finite = np.isfinite(arr)
+    filled = np.where(finite, arr, 0.0)
+    weights = finite.astype(float)
+
+    interp_values = np.vstack([np.interp(x_new, x_old, row) for row in filled])
+    interp_weights = np.vstack([np.interp(x_new, x_old, row) for row in weights])
+    interp_values = np.vstack([np.interp(y_new, y_old, interp_values[:, idx]) for idx in range(new_width)]).T
+    interp_weights = np.vstack([np.interp(y_new, y_old, interp_weights[:, idx]) for idx in range(new_width)]).T
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        result = interp_values / interp_weights
+    result[interp_weights <= 0] = np.nan
+    return result
+
+
+def _target_resolution_keys(dx: float, dy: float) -> list[str]:
+    if dx and dy and (dx < 1000 or dy < 1000):
+        return []
+    return list(TARGET_RESOLUTIONS.keys())
+
+
+def _default_resolution_key(products: dict[str, dict[str, Any]]) -> str:
+    if DEFAULT_RESOLUTION_KEY in products:
+        return DEFAULT_RESOLUTION_KEY
+    return next(iter(products), DEFAULT_RESOLUTION_KEY)
+
+
 def _domain_from_file(source_file: Path, ds: Any) -> str:
     name = source_file.name.lower()
     if "wrfout_d01" in name:
@@ -280,9 +315,7 @@ def _variable_information(ds: Any) -> list[dict[str, str]]:
             name,
             (
                 desc or name,
-                f"WRF模式输出变量，原始英文说明为“{desc or name}”。"
-                f"{f'单位为{units}。' if units else ''}"
-                f"{f'维度为{dims}。' if dims else ''}",
+                f"WRF model output variable {name}. Units: {units or 'unknown'}. Dimensions: {dims or 'unknown'}.",
                 desc or f"WRF model output variable {name}.",
             ),
         )
@@ -298,16 +331,11 @@ def _variable_information(ds: Any) -> list[dict[str, str]]:
         )
     return rows
 
-
 def _write_information_txt(rows: list[dict[str, str]]) -> None:
     DOCS_DIR.mkdir(parents=True, exist_ok=True)
     lines = [
-        "# 格式：变量名|英文标签|中文说明|英文说明",
-        "# 说明：",
-        "# 1. 第一列必须是程序匹配用的WRF变量名。",
-        "# 2. 第二列用于界面展示的英文标签。",
-        "# 3. 第三列用于中文说明，优先使用业务解释；未维护的变量根据WRF原始说明、单位和维度自动生成。",
-        "# 4. 第四列用于英文说明。",
+        "# Format: variable_name|english_label|description|english_description",
+        "# WRF variable information generated from adapter metadata.",
         "",
     ]
     lines.extend(
@@ -323,7 +351,6 @@ def _write_information_txt(rows: list[dict[str, str]]) -> None:
     )
     INFORMATION_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-
 def _cached_meta_if_ready(source_file: Path) -> dict[str, Any] | None:
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
     if not meta_file.exists():
@@ -336,8 +363,17 @@ def _cached_meta_if_ready(source_file: Path) -> dict[str, Any] | None:
     webp_files = meta.get("webp_files")
     if not isinstance(webp_files, list) or not webp_files:
         return None
+    products = meta.get("resolution_products")
+    if not isinstance(products, dict) or not products:
+        return None
     if any(not _resolve_path(str(item)).exists() for item in webp_files):
         return None
+    for product in products.values():
+        product_files = product.get("webp_files") if isinstance(product, dict) else None
+        if not isinstance(product_files, list) or not product_files:
+            return None
+        if any(not _resolve_path(str(item)).exists() for item in product_files):
+            return None
     return meta
 
 
@@ -366,9 +402,6 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
         return cached_meta
 
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
-    legacy_png_dir = source_file.parent / f"{source_file.name}.pngs"
-    if legacy_png_dir.exists():
-        shutil.rmtree(legacy_png_dir)
     webp_dir = source_file.parent / f"{source_file.name}.webps"
     if webp_dir.exists():
         shutil.rmtree(webp_dir)
@@ -388,8 +421,8 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
         domain = _domain_from_file(source_file, ds)
         dx = float(getattr(ds, "DX", 0) or 0)
         dy = float(getattr(ds, "DY", 0) or 0)
-        grid = f"{lat.shape[1]} × {lat.shape[0]}"
-        resolution = f"{dx / 1000:g} km" if dx else "未知"
+        grid = f"{lat.shape[1]} x {lat.shape[0]}"
+        resolution = f"{dx / 1000:g} km" if dx else "unknown"
 
         display_variables = [
             name for name in PRODUCT_VARIABLES
@@ -401,48 +434,102 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
                 if _can_display_variable(ds, name, lat.shape)
             ][:8]
 
-        variables: list[dict[str, Any]] = []
-        webp_files: list[str] = []
+        target_keys = _target_resolution_keys(dx, dy)
+        resolution_products: dict[str, dict[str, Any]] = {
+            key: {
+                "label": key,
+                "resolution": key.replace("km", " km"),
+                "target_meters": int(TARGET_RESOLUTIONS[key]),
+                "webp_files": [],
+                "variables": [],
+                "grid": "",
+                "is_resampled": TARGET_RESOLUTIONS[key] != dx or TARGET_RESOLUTIONS[key] != dy,
+            }
+            for key in target_keys
+        }
+        source_variables: list[dict[str, Any]] = []
         primary_stats = {"min": None, "max": None, "mean": None}
         primary_unit = ""
-        primary_element = "WRF 变量"
+        primary_element = "WRF variable"
 
         for name in display_variables:
             data, desc, units, var_id = _field_from_var(ds, name)
             label, business_desc = VARIABLE_LABELS.get(name, (desc or name, desc or name))
             stat = _stats(data)
-            variables.append(
+            source_variables.append(
                 {
                     "name": name,
                     "label": label,
                     "description": business_desc,
                     "units": units,
                     "shape": list(data.shape),
+                    "source_shape": list(data.shape),
+                    "source_resolution": resolution,
                     **stat,
                 }
             )
 
-            image = _render_overlay(data, Image, colormaps)
-            webp_path = webp_dir / f"{time_label.replace(':', '_')}_{var_id}.webp"
-            image.save(webp_path, format="WEBP", lossless=True, quality=90, method=6)
-            webp_files.append(_to_relative(webp_path))
+            for res_key, target_meters in TARGET_RESOLUTIONS.items():
+                if res_key not in resolution_products:
+                    continue
+                product = resolution_products[res_key]
+                output_data = _resample_grid(data, dx, dy, target_meters)
+                output_stat = _stats(output_data)
+                output_grid = f"{output_data.shape[1]} x {output_data.shape[0]}"
+                product["grid"] = output_grid
+                product["variables"].append(
+                    {
+                        "name": name,
+                        "label": label,
+                        "description": business_desc,
+                        "units": units,
+                        "shape": list(output_data.shape),
+                        "source_shape": list(data.shape),
+                        "source_resolution": resolution,
+                        "grid": output_grid,
+                        "resolution": product["resolution"],
+                        **output_stat,
+                    }
+                )
+
+                image = _render_overlay(output_data, Image, colormaps)
+                webp_path = webp_dir / res_key / f"{time_label.replace(':', '_')}_{var_id}.webp"
+                webp_path.parent.mkdir(parents=True, exist_ok=True)
+                image.save(webp_path, format="WEBP", lossless=True, quality=90, method=6)
+                product["webp_files"].append(_to_relative(webp_path))
 
             if name == display_variables[0]:
                 primary_stats = stat
                 primary_unit = units
-                primary_element = label
+        primary_element = "WRF variable"
+
+        default_resolution = _default_resolution_key(resolution_products)
+        default_product = resolution_products.get(default_resolution, {})
+        webp_files = list(default_product.get("webp_files", []))
+        variables = list(default_product.get("variables") or source_variables)
+        if variables:
+            first_variable = variables[0]
+            primary_stats = {
+                "min": first_variable.get("min"),
+                "max": first_variable.get("max"),
+                "mean": first_variable.get("mean"),
+            }
+            primary_unit = first_variable.get("units", primary_unit)
+        primary_element = "WRF variable"
 
         weather_info = {
             "source": "WRF",
-            "product": "WRF-Chem 模式产品图层",
+            "product": "WRF-Chem model layer",
             "element": primary_element,
             "time": time_label.replace("_", " "),
-            "level": "地面/近地面或第 0 层",
+            "level": "surface / near-surface or level 0",
             "range": (
-                f"{bbox['west']:.3f}°E-{bbox['east']:.3f}°E, "
-                f"{bbox['south']:.3f}°N-{bbox['north']:.3f}°N"
+                f"{bbox['west']:.3f}E-{bbox['east']:.3f}E, "
+                f"{bbox['south']:.3f}N-{bbox['north']:.3f}N"
             ),
             "resolution": resolution,
+            "displayResolution": default_resolution,
+            "sourceResolution": resolution,
             "grid": grid,
             "validGrid": f"{lat.size}",
             "coverage": domain,
@@ -450,12 +537,12 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
             "unit": primary_unit,
             "variables": str(len(display_variables)),
             "steps": "1",
-            "status": "已解析",
-            "quality": "已生成透明 WebP overlay",
+            "status": "parsed",
+            "quality": "transparent WebP overlay generated",
             "max": primary_stats["max"],
             "min": primary_stats["min"],
             "mean": primary_stats["mean"],
-            "alert": "无",
+            "alert": "none",
             "update": datetime.now(timezone.utc).isoformat(),
             "bars": [0, 0, 0, 0, 0],
             "trend": [],
@@ -468,6 +555,9 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
             "source_file": source_file.as_posix(),
             "meta_file": meta_file.as_posix(),
             "webp_files": webp_files,
+            "default_resolution": default_resolution,
+            "source_resolution": resolution,
+            "resolution_products": resolution_products,
             "variables": variables,
             "variable_information": variable_information,
             "times": [time_label],
@@ -480,8 +570,10 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
                 "domain": domain,
                 "dx": dx,
                 "dy": dy,
+                "default_resolution": default_resolution,
+                "target_resolutions": target_keys,
                 "webp_dir": _to_relative(webp_dir),
-                "note": "WRF adapter 已完成 NetCDF 解析，并生成前端地图叠加用透明 WebP。",
+                "note": "WRF adapter parsed NetCDF and generated transparent WebP overlays for the frontend map.",
             },
         }
 
@@ -500,6 +592,7 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
     first = metas[0]
     all_times: list[str] = []
     all_webp_files: list[str] = []
+    all_resolution_products: dict[str, dict[str, Any]] = {}
     source_files: list[str] = []
     bboxes = []
 
@@ -507,6 +600,24 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
         source_files.append(meta.get("source_file", ""))
         all_times.extend(str(item) for item in meta.get("times", []))
         all_webp_files.extend(str(item) for item in meta.get("webp_files", []))
+        for key, product in (meta.get("resolution_products") or {}).items():
+            target = all_resolution_products.setdefault(
+                key,
+                {
+                    "label": product.get("label", key),
+                    "resolution": product.get("resolution", key),
+                    "target_meters": product.get("target_meters"),
+                    "webp_files": [],
+                    "variables": product.get("variables", []),
+                    "grid": product.get("grid", ""),
+                    "is_resampled": product.get("is_resampled", True),
+                },
+            )
+            target["webp_files"].extend(str(item) for item in product.get("webp_files", []))
+            if not target.get("variables") and product.get("variables"):
+                target["variables"] = product.get("variables", [])
+            if not target.get("grid") and product.get("grid"):
+                target["grid"] = product.get("grid")
         if isinstance(meta.get("bbox"), dict):
             bboxes.append(meta["bbox"])
 
@@ -521,11 +632,16 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
 
     all_times = sorted(set(all_times))
     weather_info = dict(first.get("weather_info", {}))
+    default_resolution = first.get("default_resolution") or _default_resolution_key(all_resolution_products)
+    default_product = all_resolution_products.get(default_resolution, {})
+    if default_product.get("webp_files"):
+        all_webp_files = list(default_product["webp_files"])
     weather_info.update(
         {
             "time": f"{all_times[0].replace('_', ' ')} - {all_times[-1].replace('_', ' ')}",
             "steps": str(len(all_times)),
-            "status": "parsed_folder",
+            "displayResolution": default_resolution,
+            "status": "parsed",
             "update": datetime.now(timezone.utc).isoformat(),
         }
     )
@@ -540,7 +656,10 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
         "source_files": source_files,
         "meta_file": meta_file.as_posix(),
         "webp_files": all_webp_files,
-        "variables": first.get("variables", []),
+        "default_resolution": default_resolution,
+        "source_resolution": first.get("source_resolution"),
+        "resolution_products": all_resolution_products,
+        "variables": default_product.get("variables") or first.get("variables", []),
         "variable_information": first.get("variable_information", []),
         "times": all_times,
         "levels": first.get("levels", ["surface_or_level_0"]),
@@ -548,10 +667,11 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
         "weather_info": weather_info,
         "extra": {
             **first.get("extra", {}),
-            "status": "parsed_folder",
+            "status": "parsed",
             "file_count": len(metas),
             "generated_at": datetime.now(timezone.utc).isoformat(),
         },
     }
     write_meta(meta_file, combined)
     return combined
+
