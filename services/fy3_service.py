@@ -15,7 +15,7 @@ def _as_posix(path: Path | None) -> str | None:
     return str(path).replace("\\", "/") if path else None
 
 
-def _png_url(path: Path | None) -> str | None:
+def _webp_url(path: Path | None) -> str | None:
     if not path or not path.exists():
         return None
     try:
@@ -37,11 +37,50 @@ def _parse_time(value: str | None) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
+def _normalize_product_fields(item: dict[str, Any]) -> dict[str, Any]:
+    item_copy = {**item}
+    webp = item_copy.get("webp") or item_copy.get("png")
+    item_copy.pop("png", None)
+    item_copy.pop("float32", None)
+    if webp:
+        item_copy["webp"] = webp
+        item_copy["image"] = webp
+    assets = item_copy.get("resolution_assets")
+    if isinstance(assets, dict):
+        cleaned_assets = {}
+        for key, asset in assets.items():
+            if not isinstance(asset, dict):
+                continue
+            asset_copy = {**asset}
+            asset_webp = asset_copy.get("webp") or asset_copy.get("png")
+            asset_copy.pop("png", None)
+            asset_copy.pop("float32", None)
+            if asset_webp:
+                asset_copy["webp"] = asset_webp
+                asset_copy["image"] = asset_webp
+            cleaned_assets[key] = asset_copy
+        item_copy["resolution_assets"] = cleaned_assets
+    return item_copy
+
+
+def _normalize_meta_fields(meta: dict[str, Any]) -> dict[str, Any]:
+    meta_copy = {**meta}
+    meta_copy.pop("png", None)
+    meta_copy.pop("png_url", None)
+    meta_copy.pop("png_files", None)
+    meta_copy.pop("float32", None)
+    meta_copy["variables"] = [_normalize_product_fields(item) for item in meta_copy.get("variables") or [] if isinstance(item, dict)]
+    meta_copy["composites"] = [_normalize_product_fields(item) for item in meta_copy.get("composites") or [] if isinstance(item, dict)]
+    meta_copy["products"] = list(meta_copy.get("composites") or []) + list(meta_copy.get("variables") or [])
+    return meta_copy
+
+
 def _read_meta(meta_path: Path) -> dict[str, Any] | None:
     try:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
+    meta = _normalize_meta_fields(meta)
     observed = _parse_time(meta.get("observation_time"))
     return {"path": meta_path, "meta": meta, "observed": observed, "scene_id": meta.get("scene_id") or meta_path.parents[1].name}
 
@@ -77,17 +116,32 @@ def _existing_path(value: str | None, meta_path: Path | None) -> Path | None:
 def _with_urls(items: list[dict[str, Any]], meta_path: Path | None) -> list[dict[str, Any]]:
     enriched = []
     for item in items:
-        path = _existing_path(item.get("png"), meta_path)
+        path = _existing_path(item.get("webp") or item.get("png"), meta_path)
         if not path:
             continue
-        item_copy = {**item, "png_url": _png_url(path)}
+        item_copy = {**item}
+        item_copy.pop("png", None)
+        item_copy["webp"] = _as_posix(path)
+        item_copy["image"] = _as_posix(path)
+        item_copy["webp_url"] = _webp_url(path)
+        item_copy["image_url"] = _webp_url(path)
         assets = item.get("resolution_assets")
         if isinstance(assets, dict):
-            item_copy["resolution_assets"] = {
-                key: {**asset, "png_url": _png_url(_existing_path(asset.get("png"), meta_path))}
-                for key, asset in assets.items()
-                if isinstance(asset, dict) and _existing_path(asset.get("png"), meta_path)
-            }
+            cleaned_assets = {}
+            for key, asset in assets.items():
+                if not isinstance(asset, dict):
+                    continue
+                asset_path = _existing_path(asset.get("webp") or asset.get("png"), meta_path)
+                if not asset_path:
+                    continue
+                asset_copy = {**asset}
+                asset_copy.pop("png", None)
+                asset_copy["webp"] = _as_posix(asset_path)
+                asset_copy["image"] = _as_posix(asset_path)
+                asset_copy["webp_url"] = _webp_url(asset_path)
+                asset_copy["image_url"] = _webp_url(asset_path)
+                cleaned_assets[key] = asset_copy
+            item_copy["resolution_assets"] = cleaned_assets
         enriched.append(item_copy)
     return enriched
 
@@ -119,12 +173,13 @@ def _frame_item(entry: dict[str, Any]) -> dict[str, Any]:
     meta = entry["meta"]
     meta_path = entry["path"]
     product = _default_product(meta)
-    png_path = _existing_path(product.get("png") if product else None, meta_path)
+    webp_path = _existing_path((product.get("webp") or product.get("png")) if product else None, meta_path)
     return {
         "scene_id": entry["scene_id"],
         "time": meta.get("observation_time"),
         "extent": meta.get("extent"),
-        "png_url": _png_url(png_path),
+        "webp_url": _webp_url(webp_path),
+        "image_url": _webp_url(webp_path),
         "quality": meta.get("quality"),
     }
 
@@ -167,7 +222,10 @@ def get_display_data(scene_id: str | None = None, limit: int = 24) -> dict[str, 
         "variables": variables,
         "composites": composites,
         "products": composites + variables,
-        "png": None,
-        "png_url": selected_frame.get("png_url") if selected_frame else None,
-        "png_files": [frame["png_url"] for frame in frames if frame.get("png_url")],
+        "webp": None,
+        "webp_url": selected_frame.get("webp_url") if selected_frame else None,
+        "webp_files": [frame["webp_url"] for frame in frames if frame.get("webp_url")],
+        "image": None,
+        "image_url": selected_frame.get("image_url") if selected_frame else None,
+        "image_files": [frame["image_url"] for frame in frames if frame.get("image_url")],
     }

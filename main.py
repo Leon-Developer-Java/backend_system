@@ -250,17 +250,19 @@ def normalize_business_type(value: str) -> str:
     key = str(value or "").strip()
     upper = key.upper()
 
-    if key == "\u96f7\u8fbe":
+    if key == "雷达":
         return "Radar"
-    if key == "\u8475\u82b1":
+    if key == "葵花":
         return "Himawari"
+    if upper == "FY-3":
+        return "FY3"
     if upper == "HIMAWARI":
         return "Himawari"
     if upper == "RADAR":
         return "Radar"
     if upper == "ECMWF":
         return "ECMWF"
-    if upper in {"CMA", "ERA5", "GFS", "WRF"}:
+    if upper in {"CMA", "ERA5", "FY3", "GFS", "WRF"}:
         return upper
 
     return key
@@ -272,6 +274,8 @@ def infer_business_type(filename: str) -> str:
 
     if himawari_adapter.is_hsd_filename(filename):
         return "Himawari"
+    if fy3_adapter.is_fy3_filename(filename):
+        return "FY3"
     if name.startswith("z_radr") or "z_radr" in name:
         return "Radar"
     if "ecmwf" in name or "ifs" in name:
@@ -282,6 +286,8 @@ def infer_business_type(filename: str) -> str:
         return "ERA5"
     if "gfs" in name:
         return "GFS"
+    if "fy3" in name or "fy-3" in name:
+        return "FY3"
     if "himawari" in name or "hsd" in name:
         return "Himawari"
     if "radar" in name or "cinrad" in name:
@@ -291,6 +297,8 @@ def infer_business_type(filename: str) -> str:
 
     if suffix in {".grib", ".grib2"}:
         return "GFS"
+    if suffix == ".hdf" and "fy3" in name:
+        return "FY3"
     if suffix == ".hsd":
         return "Himawari"
     if suffix in {".cinrad", ".radar", ".bz2"}:
@@ -298,7 +306,7 @@ def infer_business_type(filename: str) -> str:
     if suffix == ".nc":
         return "ERA5"
 
-    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、ECMWF、Himawari、Radar 或 WRF。")
+    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、ECMWF、FY3、Himawari、Radar 或 WRF。")
 
 
 def save_upload_file(file: UploadFile, target_dir: Path, business_type: str | None = None) -> Path:
@@ -310,7 +318,7 @@ def save_upload_file(file: UploadFile, target_dir: Path, business_type: str | No
         target_dir = adapter.upload_target_dir(safe_name, target_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / safe_name
-    if business_type != "Radar":
+    if business_type not in {"Radar", "FY3", "Himawari"}:
         target_path = unique_upload_path(target_path)
 
     with target_path.open("wb") as output:
@@ -343,13 +351,45 @@ def infer_upload_business_type(files: list[UploadFile]) -> str:
         if item.filename and himawari_adapter.is_hsd_filename(Path(item.filename).name):
             return "Himawari"
     for item in files:
+        if item.filename and fy3_adapter.is_fy3_filename(Path(item.filename).name):
+            return "FY3"
+    for item in files:
         if not item.filename:
             continue
         try:
             return infer_business_type(item.filename)
         except ValueError:
             continue
-    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、ECMWF、Himawari、Radar 或 WRF。")
+    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、ECMWF、FY3、Himawari、Radar 或 WRF。")
+
+
+def _upload_files_from_params(
+    file: UploadFile | None,
+    files: list[UploadFile] | None,
+) -> list[UploadFile]:
+    return [item for item in ([file] if file else []) + (files or []) if item.filename]
+
+
+def _raw_upload_files_for_business(upload_files: list[UploadFile], business_type: str) -> list[UploadFile]:
+    if business_type == "FY3":
+        return [item for item in upload_files if item.filename and fy3_adapter.is_fy3_filename(item.filename)]
+    if business_type == "Himawari":
+        return [item for item in upload_files if item.filename and himawari_adapter.is_hsd_filename(item.filename)]
+    return upload_files
+
+
+def _raw_upload_file_mismatches(upload_files: list[UploadFile], business_type: str) -> list[str]:
+    accepted = _raw_upload_files_for_business(upload_files, business_type)
+    accepted_ids = {id(item) for item in accepted}
+    return [Path(item.filename or "").name for item in upload_files if id(item) not in accepted_ids]
+
+
+def _raw_scenes_for_business(business_type: str) -> list[dict[str, Any]]:
+    if business_type == "FY3":
+        return fy3_adapter.scan_raw_scenes(BUSINESS_DIRS["FY3"])
+    if business_type == "Himawari":
+        return himawari_adapter.scan_raw_scenes(BUSINESS_DIRS["Himawari"])
+    raise ValueError("raw 场景队列仅支持 FY3 和 Himawari。")
 
 
 @app.get("/")
@@ -386,27 +426,25 @@ def parse_file(
     data_type: str | None = Form(default=None),
 ) -> dict[str, Any]:
     try:
-        upload_files = [item for item in ([file] if file else []) + (files or []) if item.filename]
+        upload_files = _upload_files_from_params(file, files)
         if not upload_files:
             raise ValueError("请选择要解析的文件。")
         requested_type = normalize_business_type(business_type or data_type or "")
-        if requested_type:
-            if requested_type not in ADAPTERS:
-                raise ValueError(f"不支持的数据类型：{requested_type}")
-            resolved_business_type = requested_type
+        if requested_type and requested_type in ADAPTERS:
+            business_type = requested_type
         else:
-            resolved_business_type = infer_upload_business_type(upload_files)
-        adapter = ADAPTERS[resolved_business_type]
+            business_type = infer_upload_business_type(upload_files)
+        adapter = ADAPTERS[business_type]
         if hasattr(adapter, "select_upload_files"):
             upload_files = adapter.select_upload_files(upload_files)
-        saved_paths = save_upload_files(upload_files, BUSINESS_DIRS[resolved_business_type], resolved_business_type)
+        saved_paths = save_upload_files(upload_files, BUSINESS_DIRS[business_type], business_type)
         saved_path = saved_paths[0]
-        if resolved_business_type == "Radar" and len(saved_paths) > 1:
-            meta = radar_adapter.process_files([str(path) for path in saved_paths], data_type=resolved_business_type)
-        elif resolved_business_type == "CMA" and len(saved_paths) > 1:
-            meta = cma_adapter.process_files([str(path) for path in saved_paths], data_type=resolved_business_type)
+        if business_type == "Radar" and len(saved_paths) > 1:
+            meta = radar_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
+        elif business_type == "CMA" and len(saved_paths) > 1:
+            meta = cma_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
         else:
-            meta = ADAPTERS[resolved_business_type].process_file(str(saved_path), data_type=resolved_business_type)
+            meta = ADAPTERS[business_type].process_file(str(saved_path), data_type=business_type)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -415,11 +453,84 @@ def parse_file(
             "file_name": saved_path.name,
             "file_count": len(saved_paths),
             "directory": str(saved_path.parent).replace("\\", "/") + "/",
-            "business_type": resolved_business_type,
+            "business_type": business_type,
             "meta": meta,
             "weather_info": meta.get("weather_info", {}),
         }
     )
+
+
+@app.post("/api/files/raw-upload")
+def raw_upload_file(
+    file: UploadFile | None = File(default=None),
+    files: list[UploadFile] | None = File(default=None),
+    business_type: str | None = Form(default=None),
+    data_type: str | None = Form(default=None),
+) -> dict[str, Any]:
+    try:
+        upload_files = _upload_files_from_params(file, files)
+        if not upload_files:
+            raise ValueError("请选择要上传的 raw 文件。")
+        requested_type = normalize_business_type(business_type or data_type or "")
+        business = requested_type if requested_type in {"FY3", "Himawari"} else infer_upload_business_type(upload_files)
+        if business not in {"FY3", "Himawari"}:
+            raise ValueError("raw-only 上传当前仅支持 FY3 和 Himawari。")
+
+        mismatches = _raw_upload_file_mismatches(upload_files, business)
+        if mismatches:
+            raise ValueError(f"{business} raw 上传包含不匹配文件：{'、'.join(mismatches)}")
+
+        raw_files = _raw_upload_files_for_business(upload_files, business)
+        if not raw_files:
+            raise ValueError(f"未找到可识别的 {business} raw 文件。")
+
+        saved_paths = save_upload_files(raw_files, BUSINESS_DIRS[business], business)
+        scenes = _raw_scenes_for_business(business)
+        touched_dirs = {path.parent.as_posix() for path in saved_paths}
+        touched_scenes = [scene for scene in scenes if scene.get("raw_dir") in touched_dirs]
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return ok(
+        {
+            "business_type": business,
+            "file_count": len(saved_paths),
+            "files": [path.name for path in saved_paths],
+            "directories": sorted(touched_dirs),
+            "scenes": touched_scenes,
+            "all_scene_count": len(scenes),
+            "message": "raw 文件已保存，未触发解析。",
+        }
+    )
+
+
+@app.get("/api/display/{business_type}/raw-scenes")
+def raw_scenes(business_type: str) -> dict[str, Any]:
+    business = normalize_business_type(business_type)
+    try:
+        scenes = _raw_scenes_for_business(business)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ok({"business_type": business, "scene_count": len(scenes), "scenes": scenes})
+
+
+@app.post("/api/display/{business_type}/update")
+def update_display_from_raw(
+    business_type: str,
+    force: bool = Query(default=False),
+) -> dict[str, Any]:
+    business = normalize_business_type(business_type)
+    try:
+        if business == "FY3":
+            result = fy3_adapter.update_from_raw(BUSINESS_DIRS["FY3"], force=force)
+        elif business == "Himawari":
+            result = himawari_adapter.update_from_raw(BUSINESS_DIRS["Himawari"], BUSINESS_DIRS["Himawari"], force=force)
+        else:
+            raise ValueError("raw update 当前仅支持 FY3 和 Himawari。")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return ok({"business_type": business, **result})
 
 
 @app.post("/api/display/{business_type}/diff-build")

@@ -21,7 +21,6 @@ from typing import Any
 import numpy as np
 from PIL import Image
 from scipy.ndimage import map_coordinates
-import xarray as xr
 
 if __package__ in {None, ""}:
     sys.path.insert(0, Path(__file__).resolve().parents[1].as_posix())
@@ -150,6 +149,7 @@ def _grid_shape(item: dict[str, Any], grid: dict[str, Any]) -> list[int]:
 
 def _normalize_himawari_variable(item: dict[str, Any], grid: dict[str, Any]) -> dict[str, Any]:
     name = _product_name(item)
+    webp = item.get("webp") or item.get("png")
     unit = item.get("unit")
     display_unit = item.get("display_unit")
     if unit == "K" and display_unit == "degC":
@@ -177,9 +177,8 @@ def _normalize_himawari_variable(item: dict[str, Any], grid: dict[str, Any]) -> 
         "render_mode": item.get("render_mode") or "scalar",
         "is_rgb": bool(item.get("is_rgb", False)),
         "show_colorbar": bool(item.get("show_colorbar", True)),
-        "float32": item.get("float32"),
-        "netcdf": item.get("netcdf"),
-        "png": item.get("png"),
+        "webp": webp,
+        "image": webp,
         "vmin": item.get("vmin"),
         "vmax": item.get("vmax"),
         "legend_ticks": item.get("legend_ticks") or [],
@@ -198,6 +197,7 @@ def _composite_shape(item: dict[str, Any], grid: dict[str, Any]) -> list[int]:
 def _normalize_himawari_composite(item: dict[str, Any], grid: dict[str, Any] | None = None) -> dict[str, Any]:
     grid = grid or {}
     name = _product_name(item)
+    webp = item.get("webp") or item.get("png")
     description_zh, description_en = _description_pair(name, item)
     return {
         "name": name,
@@ -215,9 +215,8 @@ def _normalize_himawari_composite(item: dict[str, Any], grid: dict[str, Any] | N
         "shape": _composite_shape(item, grid),
         "dims": item.get("dims") or ["lat", "lon", "rgb"],
         "stats": _stats_template(item.get("stats")),
-        "float32": item.get("float32"),
-        "netcdf": item.get("netcdf"),
-        "png": item.get("png"),
+        "webp": webp,
+        "image": webp,
     }
 
 
@@ -235,19 +234,19 @@ def _default_himawari_variable(variables: list[dict[str, Any]]) -> str | None:
     return names[0] if names else None
 
 
-def _default_himawari_png(variables: list[dict[str, Any]], composites: list[dict[str, Any]], default_variable: str | None) -> str | None:
+def _default_himawari_webp(variables: list[dict[str, Any]], composites: list[dict[str, Any]], default_variable: str | None) -> str | None:
     for item in variables:
-        if _product_name(item) == default_variable and item.get("png"):
-            return item["png"]
+        if _product_name(item) == default_variable and item.get("webp"):
+            return item["webp"]
     for item in variables:
-        if _product_name(item) == "B13" and item.get("png"):
-            return item["png"]
+        if _product_name(item) == "B13" and item.get("webp"):
+            return item["webp"]
     for item in composites:
-        if _product_name(item) == "true_color" and item.get("png"):
-            return item["png"]
+        if _product_name(item) == "true_color" and item.get("webp"):
+            return item["webp"]
     for item in variables + composites:
-        if item.get("png"):
-            return item["png"]
+        if item.get("webp"):
+            return item["webp"]
     return None
 
 
@@ -304,8 +303,8 @@ def normalize_himawari_meta(meta: dict[str, Any], meta_path: str | Path | None =
     composites = [_normalize_himawari_composite(item, grid) for item in meta.get("composites", []) if _product_name(item)]
     loaded_bands = sorted({_product_name(item) for item in variables if _product_name(item).upper().startswith("B")}, key=_band_sort_key)
     default_variable = meta.get("default_variable") or _default_himawari_variable(variables)
-    png_files = [item["png"] for item in variables + composites if item.get("png")]
-    default_png = meta.get("default_png") or _default_himawari_png(variables, composites, default_variable)
+    webp_files = [item["webp"] for item in variables + composites if item.get("webp")]
+    default_webp = meta.get("default_webp") or meta.get("default_png") or _default_himawari_webp(variables, composites, default_variable)
     source_raw_dir = meta.get("source_raw_dir") or meta.get("source_file") or ""
     raw_file_count = int(meta.get("raw_file_count") or meta.get("extra", {}).get("himawari", {}).get("raw_file_count") or 0)
     retention_managed = bool(meta.get("retention_managed") or meta.get("extra", {}).get("himawari", {}).get("retention_managed"))
@@ -320,8 +319,10 @@ def normalize_himawari_meta(meta: dict[str, Any], meta_path: str | Path | None =
         "file_format": "HSD",
         "source_file": source_raw_dir,
         "meta_file": meta_file,
-        "png_files": png_files,
-        "default_png": default_png,
+        "webp_files": webp_files,
+        "image_files": webp_files,
+        "default_webp": default_webp,
+        "default_image": default_webp,
         "default_variable": default_variable,
         "times": [observation_time] if observation_time else [],
         "levels": [],
@@ -400,13 +401,12 @@ def _build_himawari_resolution_assets(
     for var in variables:
         name = _product_name(var)
         assets: dict[str, Any] = {
-            "original": _himawari_asset_entry("original", "原始", var.get("png"), var.get("float32"), grid),
+            "original": _himawari_asset_entry("original", "原始", var.get("webp"), grid),
         }
         for key in res_keys:
-            png_rel = f"diff/{key}/latlon/{name}.webp"
-            float32_rel = f"diff/{key}/latlon/{name}.float32"
-            if (scene_dir / png_rel).is_file():
-                assets[key] = _himawari_asset_entry(key, diff_methods.resolution_label_for_key(key), png_rel, float32_rel, grid)
+            webp_rel = f"diff/{key}/latlon/{name}.webp"
+            if (scene_dir / webp_rel).is_file():
+                assets[key] = _himawari_asset_entry(key, diff_methods.resolution_label_for_key(key), webp_rel, grid)
         if len(assets) > 1:
             enriched.append({**var, "resolution_assets": assets})
         else:
@@ -414,14 +414,12 @@ def _build_himawari_resolution_assets(
     return enriched, options
 
 
-def _himawari_asset_entry(
-    key: str, label: str, png: str | None, float32: str | None, grid: dict[str, Any]
-) -> dict[str, Any]:
+def _himawari_asset_entry(key: str, label: str, webp: str | None, grid: dict[str, Any]) -> dict[str, Any]:
     return {
         "key": key,
         "label": label,
-        "png": png,
-        "float32": float32,
+        "webp": webp,
+        "image": webp,
         "grid": {"nx": grid.get("nx"), "ny": grid.get("ny"), "resolution": grid.get("resolution")},
         "extent": grid.get("extent"),
         "resolution": grid.get("resolution"),
@@ -1344,7 +1342,11 @@ def _description_pair(name: str | None, item: dict[str, Any] | None = None) -> t
 
 
 def parse_hsd_filename(filename: str) -> dict[str, Any] | None:
-    match = HSD_FILENAME_RE.match(Path(filename).name)
+    name = Path(filename).name
+    duplicate_match = HSD_UPLOAD_DUPLICATE_RE.match(name)
+    if duplicate_match:
+        name = f"{duplicate_match.group('base')}{duplicate_match.group('suffix') or ''}"
+    match = HSD_FILENAME_RE.match(name)
     if not match:
         return None
     groups = match.groupdict()
@@ -1397,6 +1399,74 @@ def select_upload_files(files: list[Any]) -> list[Any]:
     return hsd_files or files
 
 
+def _describe_raw_scene(raw_dir: str | Path, bands: list[str] | None = None) -> dict[str, Any]:
+    raw_path = Path(raw_dir)
+    requested_filter = {item.upper() for item in bands} if bands else None
+    segments: dict[str, set[int]] = {}
+    totals: dict[str, int] = {}
+    files: list[Path] = []
+    infos: list[dict[str, Any]] = []
+
+    for file_path in sorted(raw_path.glob("HS_H*.DAT*")):
+        if file_path.name.endswith(".part"):
+            continue
+        info = parse_hsd_filename(file_path.name)
+        if not info or info["region"] != "FLDK":
+            continue
+        if requested_filter is not None and info["band"] not in requested_filter:
+            continue
+        files.append(file_path)
+        infos.append(info)
+        segments.setdefault(info["band"], set()).add(info["segment"])
+        totals[info["band"]] = info["total_segments"]
+
+    missing: list[str] = []
+    requested = sorted(requested_filter) if requested_filter is not None else sorted(segments)
+    for band in requested:
+        total = totals.get(band)
+        if not total:
+            missing.append(band)
+            continue
+        band_segments = segments.get(band, set())
+        missing_segments = [idx for idx in range(1, total + 1) if idx not in band_segments]
+        if missing_segments:
+            missing.append(f"{band}:{','.join(str(item) for item in missing_segments)}")
+
+    date = infos[0]["date"] if infos else raw_path.parent.parent.name
+    scene_time = infos[0]["time"] if infos else raw_path.parent.name
+    scene_dir = raw_path.parent
+    parsed = (scene_dir / "meta" / "scene.meta.json").exists()
+    complete = bool(infos) and not missing
+    status = "parsed" if parsed else ("ready_to_parse" if complete else "raw_incomplete")
+    return {
+        "business_type": "Himawari",
+        "scene_id": f"{date}_{scene_time}",
+        "date": date,
+        "time": scene_time,
+        "raw_dir": raw_path.as_posix(),
+        "file_count": len(files),
+        "bands": sorted(segments),
+        "complete": complete,
+        "missing": missing,
+        "parsed": parsed,
+        "status": status,
+    }
+
+
+def scan_raw_scenes(input_root: str | Path = DATA_DIR, bands: list[str] | None = None) -> list[dict[str, Any]]:
+    root = Path(input_root)
+    if not root.exists():
+        return []
+    scenes: list[dict[str, Any]] = []
+    for raw_dir in sorted(root.glob("*/*/raw")):
+        if not raw_dir.is_dir():
+            continue
+        scene = _describe_raw_scene(raw_dir, bands=bands)
+        if scene["file_count"]:
+            scenes.append(scene)
+    return scenes
+
+
 def scan_hsd_scenes(input_root: str | Path, min_files: int = 10) -> list[dict[str, Any]]:
     root = Path(input_root)
     scenes: list[dict[str, Any]] = []
@@ -1407,6 +1477,55 @@ def scan_hsd_scenes(input_root: str | Path, min_files: int = 10) -> list[dict[st
             continue
         scenes.append({"date": infos[0]["date"], "time": infos[0]["time"], "raw_dir": raw_dir, "file_count": len(files), "bands": sorted({item["band"] for item in infos})})
     return scenes
+
+
+def update_from_raw(
+    input_root: str | Path = DATA_DIR,
+    output_root: str | Path = DATA_DIR,
+    bands: list[str] | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
+    scenes = scan_raw_scenes(input_root, bands=bands)
+    results: list[dict[str, Any]] = []
+    for scene in scenes:
+        if not scene["complete"]:
+            results.append(
+                {
+                    "scene_id": scene["scene_id"],
+                    "status": "skipped",
+                    "reason": "raw_incomplete",
+                    "missing": scene["missing"],
+                }
+            )
+            continue
+        try:
+            meta = process_scene(
+                scene["raw_dir"],
+                output_root=output_root,
+                bands=bands,
+                retention_managed=False,
+            )
+            results.append(
+                {
+                    "scene_id": scene["scene_id"],
+                    "status": "ok",
+                    "bands": meta.get("loaded_bands", []),
+                    "variables": len(meta.get("variables", [])),
+                    "composites": len(meta.get("composites", [])),
+                }
+            )
+        except Exception as exc:
+            results.append({"scene_id": scene["scene_id"], "status": "error", "error": str(exc)})
+    return {
+        "source_dir": Path(input_root).expanduser().as_posix(),
+        "scene_count": len(scenes),
+        "ready_count": len([scene for scene in scenes if scene["complete"]]),
+        "incomplete_count": len([scene for scene in scenes if not scene["complete"]]),
+        "processed": len([item for item in results if item["status"] == "ok"]),
+        "cached": len([item for item in results if item["status"] == "cached"]),
+        "failed": len([item for item in results if item["status"] == "error"]),
+        "results": results,
+    }
 
 
 def build_latlon_grid(extent: list[float] | None = None, resolution: float = LATLON_RESOLUTION) -> dict[str, Any]:
@@ -1451,26 +1570,7 @@ def _render_webp(data: np.ndarray, webp_path: Path, catalog: dict[str, Any]) -> 
     Image.fromarray(rgba).save(webp_path, format=DISPLAY_IMAGE_FORMAT, lossless=True)
 
 
-def _latlon_coords(grid: dict[str, Any]) -> tuple[np.ndarray, np.ndarray]:
-    west, south, east, north = grid["extent"]
-    lon = np.linspace(west, east, grid["nx"], dtype=np.float32)
-    lat = np.linspace(north, south, grid["ny"], dtype=np.float32)
-    return lat, lon
-
-
-def _write_netcdf(data: np.ndarray, nc_path: Path, band: str, catalog: dict[str, Any], grid: dict[str, Any]) -> None:
-    nc_path.parent.mkdir(parents=True, exist_ok=True)
-    lat, lon = _latlon_coords(grid)
-    dataset = xr.Dataset(
-        data_vars={band: (("lat", "lon"), data, {"long_name": catalog["name_zh"], "plain_name": catalog["plain_name"], "units": catalog["unit"], "description": catalog["description"]})},
-        coords={"lat": lat, "lon": lon},
-        attrs={"projection": grid["projection"], "grid_type": grid["grid_type"], "extent": ",".join(str(item) for item in grid["extent"]), "resolution": grid["resolution"]},
-    )
-    dataset.to_netcdf(nc_path)
-    dataset.close()
-
-
-def write_latlon_variable(output_dir: str | Path, band: str, data: np.ndarray, grid: dict[str, Any], save_intermediates: bool = False) -> dict[str, Any] | None:
+def write_latlon_variable(output_dir: str | Path, band: str, data: np.ndarray, grid: dict[str, Any]) -> dict[str, Any] | None:
     """将重采样后的波段数据写入 WebP 图像并返回变量元数据。
 
     如果数据全为 NaN（例如单分段 HSD 文件不覆盖请求的地理范围），
@@ -1482,26 +1582,16 @@ def write_latlon_variable(output_dir: str | Path, band: str, data: np.ndarray, g
     band = band.upper()
     catalog = BAND_CATALOG[band]
     values = np.asarray(data, dtype=np.float32)
-    png_path = latlon_dir / f"{band}{DISPLAY_IMAGE_SUFFIX}"
-    float32_path = latlon_dir / f"{band}.float32"
-    nc_path = latlon_dir / f"{band}.nc"
+    webp_path = latlon_dir / f"{band}{DISPLAY_IMAGE_SUFFIX}"
 
     # 检测是否有有效数据（避免全 NaN → 全透明空壳图像）
     finite = values[np.isfinite(values)]
     if finite.size == 0:
-        for path in (png_path, float32_path, nc_path):
-            if path.exists():
-                path.unlink()
+        if webp_path.exists():
+            webp_path.unlink()
         return None
 
-    _render_webp(values, png_path, catalog)
-    if save_intermediates:
-        values.tofile(float32_path)
-        _write_netcdf(values, nc_path, band, catalog, grid)
-    else:
-        for path in (float32_path, nc_path):
-            if path.exists():
-                path.unlink()
+    _render_webp(values, webp_path, catalog)
     finite = values[np.isfinite(values)]
     stats = {"min": float(np.nanmin(finite)) if finite.size else None, "max": float(np.nanmax(finite)) if finite.size else None, "mean": float(np.nanmean(finite)) if finite.size else None, "std": None}
     vmin = float(catalog["vmin"])
@@ -1527,9 +1617,8 @@ def write_latlon_variable(output_dir: str | Path, band: str, data: np.ndarray, g
         "vmin": vmin,
         "vmax": vmax,
         "legend_ticks": _legend_ticks(vmin, vmax),
-        "png": png_path.as_posix(),
-        "float32": float32_path.as_posix() if save_intermediates else None,
-        "netcdf": nc_path.as_posix() if save_intermediates else None,
+        "webp": webp_path.as_posix(),
+        "image": webp_path.as_posix(),
     }
 
 
@@ -1628,8 +1717,8 @@ def _read_reusable_scene_metadata(scene_dir: Path) -> dict[str, Any] | None:
     if not products:
         return None
     for item in products:
-        png = item.get("png")
-        if png and not Path(png).exists():
+        webp = item.get("webp") or item.get("png")
+        if webp and not Path(webp).exists():
             return None
     return meta
 
@@ -1944,8 +2033,8 @@ def write_composites(scene_dir: str | Path, arrays: dict[str, np.ndarray]) -> li
         rgb = _rgb_from_composite(key, arrays)
         if rgb is None:
             continue
-        png_path = scene_dir / "composites" / f"{key}{DISPLAY_IMAGE_SUFFIX}"
-        _save_rgb_webp(rgb, png_path)
+        webp_path = scene_dir / "composites" / f"{key}{DISPLAY_IMAGE_SUFFIX}"
+        _save_rgb_webp(rgb, webp_path)
         description_zh, description_en = _description_pair(key, catalog)
         output.append(
             {
@@ -1964,9 +2053,8 @@ def write_composites(scene_dir: str | Path, arrays: dict[str, np.ndarray]) -> li
                 "shape": [rgb.shape[0], rgb.shape[1], rgb.shape[2]],
                 "dims": ["lat", "lon", "rgb"],
                 "stats": {"min": None, "max": None, "mean": None, "std": None},
-                "float32": None,
-                "netcdf": None,
-                "png": png_path.as_posix(),
+                "webp": webp_path.as_posix(),
+                "image": webp_path.as_posix(),
             }
         )
     return output
@@ -1984,7 +2072,6 @@ def process_scene(
     progress_callback: Any = None,
     phase: str | None = None,
     retention_managed: bool = False,
-    save_intermediates: bool | None = None,
 ) -> dict[str, Any]:
     raw_dir = _find_raw_dir(input_root, date, time)
     normalize_himawari_upload_filenames(raw_dir)
@@ -1997,8 +2084,6 @@ def process_scene(
     scene_id = f"{date}_{time}"
     grid = build_latlon_grid(extent=extent, resolution=resolution)
     scene_dir = Path(output_root) / date / time
-    if save_intermediates is None:
-        save_intermediates = os.environ.get("HIMAWARI_OUTPUT_MODE", "display").strip().lower() == "debug"
     if bands is None and extent is None and resolution == LATLON_RESOLUTION and composites:
         if meta := _read_reusable_scene_metadata(scene_dir):
             # 检查缓存结果是否覆盖了 raw 文件中的所有波段
@@ -2040,7 +2125,7 @@ def process_scene(
                 queue_total=len(load_bands),
             )
             values = _resample_dataset_to_latlon(scene[band], grid)
-            var_meta = write_latlon_variable(scene_dir, band, values, grid, save_intermediates=save_intermediates)
+            var_meta = write_latlon_variable(scene_dir, band, values, grid)
             if var_meta is not None:
                 variables.append(var_meta)
                 if composites:
@@ -2066,8 +2151,8 @@ def process_scene(
         obs_time = f"{date[:4]}-{date[4:6]}-{date[6:8]}T{time[:2]}:{time[2:4]}:00Z"
         rgb = _create_rayleigh_corrected_true_color(resampled_arrays, grid, observation_time=obs_time)
         if rgb is not None:
-            png_path = scene_dir / "composites" / f"true_color{DISPLAY_IMAGE_SUFFIX}"
-            _save_rgb_webp(rgb, png_path)
+            webp_path = scene_dir / "composites" / f"true_color{DISPLAY_IMAGE_SUFFIX}"
+            _save_rgb_webp(rgb, webp_path)
             catalog = COMPOSITE_CATALOG.get("true_color", {})
             desc_zh, desc_en = _description_pair("true_color", catalog)
             tc_meta = {
@@ -2086,9 +2171,8 @@ def process_scene(
                 "shape": [rgb.shape[0], rgb.shape[1], rgb.shape[2]],
                 "dims": ["lat", "lon", "rgb"],
                 "stats": {"min": None, "max": None, "mean": None, "std": None},
-                "float32": None,
-                "netcdf": None,
-                "png": png_path.as_posix(),
+                "webp": webp_path.as_posix(),
+                "image": webp_path.as_posix(),
             }
             # 替换已有 true_color 条目（来自 write_composites 的空壳）
             composite_meta = [c for c in composite_meta if c.get("name") != "true_color"]

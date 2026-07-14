@@ -135,6 +135,58 @@ def discover_fy3_pairs(source_dir: str | Path) -> list[FY3FilePair]:
     return pairs
 
 
+def scan_raw_scenes(source_dir: str | Path = DATA_DIR) -> list[dict[str, Any]]:
+    root = Path(source_dir).expanduser()
+    if not root.exists():
+        return []
+
+    scenes: dict[str, dict[str, Any]] = {}
+    for path in sorted(root.rglob("*.HDF")):
+        parsed = _match_scene(path)
+        if not parsed:
+            continue
+        scene_id, satellite, role = parsed
+        scene = scenes.setdefault(
+            scene_id,
+            {
+                "business_type": "FY3",
+                "scene_id": scene_id,
+                "satellite": satellite,
+                "date": scene_id.split("_")[0],
+                "time": scene_id.split("_")[1],
+                "raw_dir": path.parent.as_posix(),
+                "files": [],
+                "roles": set(),
+            },
+        )
+        scene["files"].append(path.name)
+        scene["roles"].add(role)
+        if role == "science":
+            scene["science_file"] = path.name
+        elif role == "geo":
+            scene["geo_file"] = path.name
+
+    result: list[dict[str, Any]] = []
+    for scene_id in sorted(scenes):
+        scene = scenes[scene_id]
+        roles = set(scene.pop("roles"))
+        missing = [role for role in ("science", "geo") if role not in roles]
+        scene_dir = root / scene["date"] / scene["time"]
+        parsed = (scene_dir / "meta" / "scene.meta.json").exists()
+        status = "parsed" if parsed else ("ready_to_parse" if not missing else "raw_incomplete")
+        result.append(
+            {
+                **scene,
+                "file_count": len(scene["files"]),
+                "complete": not missing,
+                "missing": missing,
+                "parsed": parsed,
+                "status": status,
+            }
+        )
+    return result
+
+
 def select_upload_files(files: list[Any]) -> list[Any]:
     by_scene: dict[str, dict[str, Any]] = {}
     for item in files:
@@ -379,8 +431,8 @@ def _base_resolution_asset(variable: dict[str, Any], grid: dict[str, Any]) -> di
     return {
         "key": "original",
         "label": "原始",
-        "png": variable.get("png"),
-        "float32": variable.get("float32"),
+        "webp": variable.get("webp"),
+        "image": variable.get("webp"),
         "grid": {"nx": grid["nx"], "ny": grid["ny"], "resolution": grid["resolution"]},
         "extent": grid["extent"],
         "resolution": grid["resolution"],
@@ -403,17 +455,13 @@ def _write_diff_resolution_assets(
         key = diff_methods.resolution_key_for_target(target_resolution)
         resampled, target_grid = diff_methods.resample_to_resolution(data, grid, target_resolution)
         latlon_dir = scene_dir / "diff" / key / "latlon"
-        float32_dir = scene_dir / "diff" / key / "float32"
-        png_path = latlon_dir / f"{band_name}.webp"
-        float32_path = float32_dir / f"{band_name}.float32"
-        float32_path.parent.mkdir(parents=True, exist_ok=True)
-        resampled.astype(np.float32).tofile(float32_path)
-        _write_webp(resampled, png_path, vmin, vmax)
+        webp_path = latlon_dir / f"{band_name}.webp"
+        _write_webp(resampled, webp_path, vmin, vmax)
         assets[key] = {
             "key": key,
             "label": diff_methods.resolution_label_for_key(key),
-            "png": _scene_relative(png_path, scene_dir),
-            "float32": _scene_relative(float32_path, scene_dir),
+            "webp": _scene_relative(webp_path, scene_dir),
+            "image": _scene_relative(webp_path, scene_dir),
             "grid": {"nx": target_grid["nx"], "ny": target_grid["ny"], "resolution": target_grid["resolution"]},
             "extent": target_grid["extent"],
             "resolution": target_grid["resolution"],
@@ -430,10 +478,10 @@ def _quality(data: np.ndarray) -> dict[str, Any]:
     return {"valid_pixel_ratio": ratio, "warnings": warnings}
 
 
-def _scene_dirs(pair: FY3FilePair) -> tuple[Path, Path, Path, Path]:
+def _scene_dirs(pair: FY3FilePair) -> tuple[Path, Path, Path]:
     date, time = pair.scene_id.split("_")
     scene_dir = DATA_DIR / date / time
-    return scene_dir, scene_dir / "latlon", scene_dir / "float32", scene_dir / "meta"
+    return scene_dir, scene_dir / "latlon", scene_dir / "meta"
 
 
 def _band_names(bands: list[int] | None) -> list[str]:
@@ -441,7 +489,7 @@ def _band_names(bands: list[int] | None) -> list[str]:
 
 
 def _read_scene_meta(pair: FY3FilePair) -> dict[str, Any] | None:
-    _scene_dir, _latlon_dir, _float32_dir, meta_dir = _scene_dirs(pair)
+    _scene_dir, _latlon_dir, meta_dir = _scene_dirs(pair)
     meta_path = meta_dir / "scene.meta.json"
     try:
         return json.loads(meta_path.read_text(encoding="utf-8"))
@@ -475,9 +523,8 @@ def process_files(
 ) -> dict[str, Any]:
     pair = pair_fy3_files(paths)
     resolution = target_resolution or _configured_resolution()
-    scene_dir, latlon_dir, float32_dir, meta_dir = _scene_dirs(pair)
+    scene_dir, latlon_dir, meta_dir = _scene_dirs(pair)
     latlon_dir.mkdir(parents=True, exist_ok=True)
-    float32_dir.mkdir(parents=True, exist_ok=True)
     meta_dir.mkdir(parents=True, exist_ok=True)
 
     with h5py.File(pair.geo_path, "r") as geo_hdf:
@@ -497,11 +544,9 @@ def process_files(
             points, values = _sample_valid_points(lon, lat, data, extent, sensor_zenith)
             gridded = _interpolate_to_grid(points, values, grid)
             band_name = f"B{band:02d}"
-            float32_path = float32_dir / f"{band_name}.float32"
-            png_path = latlon_dir / f"{band_name}.webp"
-            gridded.astype(np.float32).tofile(float32_path)
+            webp_path = latlon_dir / f"{band_name}.webp"
             name_cn, unit, vmin, vmax = BAND_META[band]
-            _write_webp(gridded, png_path, vmin, vmax)
+            _write_webp(gridded, webp_path, vmin, vmax)
             band_quality = _quality(gridded)
             qualities.append(band_quality["valid_pixel_ratio"])
             variable = {
@@ -517,8 +562,8 @@ def process_files(
                 "vmin": vmin,
                 "vmax": vmax,
                 "legend_ticks": [f"{vmin:g}", f"{(vmin + vmax) / 2:g}", f"{vmax:g}"],
-                "float32": _scene_relative(float32_path, scene_dir),
-                "png": _scene_relative(png_path, scene_dir),
+                "webp": _scene_relative(webp_path, scene_dir),
+                "image": _scene_relative(webp_path, scene_dir),
                 "quality": band_quality,
             }
             resolution_assets = {"original": _base_resolution_asset(variable, grid)}
@@ -619,6 +664,24 @@ def process_directory(
         "cached": cached,
         "failed": failed,
         "results": results,
+    }
+
+
+def update_from_raw(
+    source_dir: str | Path = DATA_DIR,
+    target_resolution: float | None = None,
+    bands: list[int] | None = None,
+    force: bool = False,
+) -> dict[str, Any]:
+    scenes = scan_raw_scenes(source_dir)
+    incomplete = [scene for scene in scenes if not scene["complete"]]
+    result = process_directory(source_dir, target_resolution=target_resolution, bands=bands, force=force)
+    return {
+        **result,
+        "scene_count": len(scenes),
+        "ready_count": len([scene for scene in scenes if scene["complete"]]),
+        "incomplete_count": len(incomplete),
+        "incomplete": incomplete,
     }
 
 

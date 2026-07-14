@@ -21,7 +21,7 @@ def _as_posix(path: Path | None) -> str | None:
     return str(path).replace("\\", "/") if path else None
 
 
-def _png_url(path: Path | None) -> str | None:
+def _webp_url(path: Path | None) -> str | None:
     if not path or not path.exists():
         return None
     try:
@@ -78,43 +78,53 @@ def _existing_path(value: str | None, meta_path: Path | None = None) -> Path | N
     return None
 
 
-def _select_default_png(meta_json: dict[str, Any] | None, fallback: list[Path], meta_path: Path | None = None) -> Path | None:
+def _select_default_webp(meta_json: dict[str, Any] | None, fallback: list[Path], meta_path: Path | None = None) -> Path | None:
     if not meta_json:
         return None
 
     for key in ("B13", "B14", "B08"):
         for item in meta_json.get("variables", []):
-            if _product_name(item) == key and (path := _existing_path(item.get("png"), meta_path)):
+            if _product_name(item) == key and (path := _existing_path(item.get("webp") or item.get("png"), meta_path)):
                 return path
 
     for key in ("true_color", "natural_color", "water_vapor_enhanced"):
         for item in meta_json.get("composites", []):
-            if _product_name(item) == key and (path := _existing_path(item.get("png"), meta_path)):
+            if _product_name(item) == key and (path := _existing_path(item.get("webp") or item.get("png"), meta_path)):
                 return path
 
     return fallback[0] if fallback else None
 
 
-def _with_png_urls(items: list[dict[str, Any]], meta_path: Path | None = None) -> list[dict[str, Any]]:
+def _with_webp_urls(items: list[dict[str, Any]], meta_path: Path | None = None) -> list[dict[str, Any]]:
     enriched = []
     for item in items:
-        path = _existing_path(item.get("png"), meta_path)
+        path = _existing_path(item.get("webp") or item.get("png"), meta_path)
         if not path:
             continue
         item_copy = {**item}
         item_copy.pop("png_data_url", None)
-        item_copy["png_url"] = _png_url(path)
-        # 为 resolution_assets 注入 png_url
+        item_copy.pop("png", None)
+        item_copy["webp"] = _as_posix(path)
+        item_copy["image"] = _as_posix(path)
+        item_copy["webp_url"] = _webp_url(path)
+        item_copy["image_url"] = _webp_url(path)
         assets = item.get("resolution_assets")
         if isinstance(assets, dict):
-            item_copy["resolution_assets"] = {
-                key: {
-                    **asset,
-                    "png_url": _png_url(_existing_path(asset.get("png"), meta_path)),
-                }
-                for key, asset in assets.items()
-                if isinstance(asset, dict)
-            }
+            cleaned_assets = {}
+            for key, asset in assets.items():
+                if not isinstance(asset, dict):
+                    continue
+                asset_path = _existing_path(asset.get("webp") or asset.get("png"), meta_path)
+                if not asset_path:
+                    continue
+                asset_copy = {**asset}
+                asset_copy.pop("png", None)
+                asset_copy["webp"] = _as_posix(asset_path)
+                asset_copy["image"] = _as_posix(asset_path)
+                asset_copy["webp_url"] = _webp_url(asset_path)
+                asset_copy["image_url"] = _webp_url(asset_path)
+                cleaned_assets[key] = asset_copy
+            item_copy["resolution_assets"] = cleaned_assets
         enriched.append(item_copy)
     return enriched
 
@@ -241,10 +251,10 @@ def get_display_data(
         meta_json = selected["meta"]
 
     meta_path = selected["path"] if selected else None
-    png_files = _scene_webp_files(meta_path)
-    png_path = _select_default_png(meta_json, png_files, meta_path)
-    variables = _with_png_urls(meta_json.get("variables", []), meta_path) if meta_json else []
-    composites = _with_png_urls(meta_json.get("composites", []), meta_path) if meta_json else []
+    webp_files = _scene_webp_files(meta_path)
+    webp_path = _select_default_webp(meta_json, webp_files, meta_path)
+    variables = _with_webp_urls(meta_json.get("variables", []), meta_path) if meta_json else []
+    composites = _with_webp_urls(meta_json.get("composites", []), meta_path) if meta_json else []
 
     return {
         "business_type": "Himawari",
@@ -259,7 +269,10 @@ def get_display_data(
         "variables": variables,
         "composites": composites,
         "products": composites + variables,
-        "png": _as_posix(png_path),
-        "png_url": _png_url(png_path),
-        "png_files": [_as_posix(path) for path in png_files],
+        "webp": _as_posix(webp_path),
+        "webp_url": _webp_url(webp_path),
+        "webp_files": [_as_posix(path) for path in webp_files],
+        "image": _as_posix(webp_path),
+        "image_url": _webp_url(webp_path),
+        "image_files": [_as_posix(path) for path in webp_files],
     }
