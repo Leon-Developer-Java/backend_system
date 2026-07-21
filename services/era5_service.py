@@ -1,14 +1,30 @@
+from copy import deepcopy
 import json
+import math
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "ERA5"
 NODATA = -999999.0
+WIND_PRODUCT = "10m_wind"
+WIND_COMPONENTS = {"u": "u10", "v": "v10"}
+
+
+class WindDisplayContractError(ValueError):
+    def __init__(self, code: str, frame_index: int | None = None):
+        super().__init__(code)
+        self.code = code
+        self.frame_index = frame_index
 
 
 def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[str, Any]:
-    meta_json = _latest_meta(allow_empty=True)
+    stored_meta = _latest_meta(allow_empty=True)
+    wind_field = _display_wind_field(stored_meta)
+    meta_json = deepcopy(stored_meta) if stored_meta else None
+    if meta_json is not None:
+        meta_json["wind_field"] = wind_field
     webp_files = sorted(DATA_DIR.glob("*.webp"), key=lambda item: item.stat().st_mtime, reverse=True)
 
     variables = _display_variables(meta_json)
@@ -26,6 +42,7 @@ def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[
         "variables": variables,
         "variable_options": meta_json.get("variable_options", variables) if meta_json else [],
         "variable_layers": meta_json.get("variable_layers", {}) if meta_json else {},
+        "wind_field": wind_field,
         "available_resolutions": meta_json.get("available_resolutions", []) if meta_json else [],
         "default_variable": selected,
         "times": meta_json.get("times", []) if meta_json else [],
@@ -84,6 +101,280 @@ def _public_url(path: str | Path | None) -> str | None:
     marker = "/data/"
     idx = normalized.rfind(marker)
     return normalized[idx:] if idx >= 0 else normalized
+
+
+def _unavailable_wind_field(
+    reason: str,
+    *,
+    raw: dict[str, Any] | None = None,
+    code: str | None = None,
+    frame_index: int | None = None,
+) -> dict[str, Any]:
+    raw = raw or {}
+    detail = raw.get("detail") if isinstance(raw.get("detail"), dict) else {}
+    if code:
+        detail = {"code": code}
+        if frame_index is not None:
+            detail["frame_index"] = frame_index
+    components = raw.get("components")
+    if not isinstance(components, dict):
+        components = dict(WIND_COMPONENTS)
+    return {
+        "schema_version": str(raw.get("schema_version") or "1.0"),
+        "available": False,
+        "product": str(raw.get("product") or WIND_PRODUCT),
+        "components": deepcopy(components),
+        "reason": reason,
+        "detail": deepcopy(detail),
+    }
+
+
+def _wind_asset(value: Any) -> tuple[str, Path]:
+    if value is None:
+        raise WindDisplayContractError("asset_url_missing")
+    text = unquote(str(value).strip()).replace("\\", "/")
+    if not text or "\x00" in text:
+        raise WindDisplayContractError("asset_url_invalid")
+
+    raw_path = Path(text)
+    try:
+        parsed = urlsplit(text)
+    except ValueError as exc:
+        raise WindDisplayContractError("asset_url_invalid") from exc
+    if (
+        parsed.netloc
+        or parsed.query
+        or parsed.fragment
+        or (parsed.scheme and not raw_path.is_absolute())
+    ):
+        raise WindDisplayContractError("asset_url_not_local")
+
+    marker = "/data/"
+    marker_index = text.rfind(marker)
+    if marker_index >= 0:
+        relative_text = text[marker_index + len(marker):]
+        candidate = DATA_DIR.parent / Path(relative_text)
+    else:
+        candidate = raw_path if raw_path.is_absolute() else DATA_DIR / raw_path
+
+    try:
+        root = DATA_DIR.resolve()
+        resolved = candidate.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise WindDisplayContractError("asset_path_unreadable") from exc
+    if not resolved.is_relative_to(root):
+        raise WindDisplayContractError("asset_path_outside_era5")
+    if resolved.suffix.lower() != ".float32":
+        raise WindDisplayContractError("asset_extension_invalid")
+    relative = resolved.relative_to(root).as_posix()
+    return f"/data/ERA5/{relative}", resolved
+
+
+def _positive_int(value: Any, code: str) -> int:
+    try:
+        number = int(value)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise WindDisplayContractError(code) from exc
+    if number <= 0:
+        raise WindDisplayContractError(code)
+    return number
+
+
+def _wind_speed_contract(
+    meta: dict[str, Any],
+    raw: dict[str, Any],
+    times: list[str],
+) -> tuple[str | None, dict[str, float] | None, list[str] | None]:
+    speed_value = raw.get("speed_variable")
+    range_value = raw.get("display_range")
+    palette_value = raw.get("palette")
+    if speed_value is None and range_value is None and palette_value is None:
+        return None, None, None
+
+    speed_variable = str(speed_value or "").strip()
+    if not speed_variable:
+        raise WindDisplayContractError("speed_variable_invalid")
+    layers = meta.get("variable_layers")
+    if not isinstance(layers, dict):
+        raise WindDisplayContractError("speed_layer_missing")
+    layer = layers.get(speed_variable)
+    if not isinstance(layer, dict):
+        raise WindDisplayContractError("speed_layer_missing")
+    unit = str(layer.get("display_unit") or layer.get("unit") or "").strip().lower()
+    if unit not in {"m/s", "m s-1", "m s**-1"}:
+        raise WindDisplayContractError("speed_layer_unit_invalid")
+    layer_times = layer.get("times")
+    if not isinstance(layer_times, list) or [str(item) for item in layer_times] != times:
+        raise WindDisplayContractError("speed_layer_times_invalid")
+
+    if not isinstance(range_value, dict):
+        raise WindDisplayContractError("speed_display_range_invalid")
+    try:
+        range_min = float(range_value.get("min"))
+        range_max = float(range_value.get("max"))
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise WindDisplayContractError("speed_display_range_invalid") from exc
+    if (
+        not math.isfinite(range_min)
+        or not math.isfinite(range_max)
+        or range_min != 0.0
+        or range_max <= range_min
+    ):
+        raise WindDisplayContractError("speed_display_range_invalid")
+
+    if (
+        not isinstance(palette_value, list)
+        or len(palette_value) != 5
+        or any(not isinstance(item, str) or not item.strip() for item in palette_value)
+    ):
+        raise WindDisplayContractError("speed_palette_invalid")
+    layer_range = layer.get("display_range")
+    layer_palette = layer.get("palette")
+    if layer_range != range_value or layer_palette != palette_value:
+        raise WindDisplayContractError("speed_style_mismatch")
+    return speed_variable, {"min": range_min, "max": range_max}, list(palette_value)
+
+
+def _display_wind_field(meta: dict[str, Any] | None) -> dict[str, Any]:
+    raw = meta.get("wind_field") if isinstance(meta, dict) else None
+    if not isinstance(raw, dict):
+        return _unavailable_wind_field("not_provided")
+    if raw.get("available") is not True:
+        return _unavailable_wind_field(str(raw.get("reason") or "not_available"), raw=raw)
+
+    try:
+        components = raw.get("components")
+        if (
+            not isinstance(components, dict)
+            or not str(components.get("u") or "")
+            or not str(components.get("v") or "")
+        ):
+            raise WindDisplayContractError("components_invalid")
+
+        grid = raw.get("grid")
+        if not isinstance(grid, dict):
+            raise WindDisplayContractError("grid_missing")
+        width = _positive_int(grid.get("width"), "grid_width_invalid")
+        height = _positive_int(grid.get("height"), "grid_height_invalid")
+        extent = grid.get("extent")
+        if not isinstance(extent, (list, tuple)) or len(extent) != 4:
+            raise WindDisplayContractError("grid_extent_invalid")
+        try:
+            numeric_extent = [float(item) for item in extent]
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise WindDisplayContractError("grid_extent_invalid") from exc
+        if not all(math.isfinite(item) for item in numeric_extent):
+            raise WindDisplayContractError("grid_extent_invalid")
+
+        encoding = raw.get("encoding")
+        if not isinstance(encoding, dict):
+            raise WindDisplayContractError("encoding_missing")
+        if str(encoding.get("dtype") or "").lower() != "float32":
+            raise WindDisplayContractError("encoding_dtype_invalid")
+        if str(encoding.get("byte_order") or "").lower() != "little":
+            raise WindDisplayContractError("encoding_byte_order_invalid")
+        if str(encoding.get("layout") or "").lower() != "component_separated":
+            raise WindDisplayContractError("encoding_layout_invalid")
+        bytes_per_value = _positive_int(
+            encoding.get("bytes_per_value"),
+            "encoding_bytes_per_value_invalid",
+        )
+        if bytes_per_value != 4:
+            raise WindDisplayContractError("encoding_bytes_per_value_invalid")
+        component_byte_length = width * height * bytes_per_value
+
+        times_value = raw.get("times")
+        frames_value = raw.get("frames")
+        if not isinstance(times_value, list) or not isinstance(frames_value, list):
+            raise WindDisplayContractError("frames_or_times_missing")
+        times = [str(item) for item in times_value]
+        if not times or len(frames_value) != len(times):
+            raise WindDisplayContractError("frame_time_count_mismatch")
+
+        speed_variable, display_range, palette = _wind_speed_contract(meta, raw, times)
+
+        normalized_frames: list[dict[str, Any]] = []
+        for frame_index, frame in enumerate(frames_value):
+            if not isinstance(frame, dict):
+                raise WindDisplayContractError("frame_invalid", frame_index)
+            try:
+                stored_index = int(frame.get("index"))
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise WindDisplayContractError("frame_index_invalid", frame_index) from exc
+            if stored_index != frame_index:
+                raise WindDisplayContractError("frame_index_invalid", frame_index)
+            if str(frame.get("time") or "") != times[frame_index]:
+                raise WindDisplayContractError("frame_time_mismatch", frame_index)
+            try:
+                stored_byte_length = int(frame.get("component_byte_length"))
+            except (TypeError, ValueError, OverflowError) as exc:
+                raise WindDisplayContractError("frame_byte_length_invalid", frame_index) from exc
+            if stored_byte_length != component_byte_length:
+                raise WindDisplayContractError("frame_byte_length_invalid", frame_index)
+
+            try:
+                u_url, u_path = _wind_asset(frame.get("u_url"))
+                v_url, v_path = _wind_asset(frame.get("v_url"))
+            except WindDisplayContractError as exc:
+                raise WindDisplayContractError(exc.code, frame_index) from exc
+            for asset_path in (u_path, v_path):
+                try:
+                    if not asset_path.is_file():
+                        raise WindDisplayContractError("asset_missing", frame_index)
+                    if asset_path.stat().st_size != component_byte_length:
+                        raise WindDisplayContractError("asset_byte_length_mismatch", frame_index)
+                except WindDisplayContractError:
+                    raise
+                except (OSError, RuntimeError) as exc:
+                    raise WindDisplayContractError("asset_unreadable", frame_index) from exc
+
+            normalized_frame = deepcopy(frame)
+            normalized_frame.update({
+                "index": frame_index,
+                "time": times[frame_index],
+                "u_url": u_url,
+                "v_url": v_url,
+                "component_byte_length": component_byte_length,
+            })
+            normalized_frames.append(normalized_frame)
+
+        descriptor = deepcopy(raw)
+        descriptor.update({
+            "schema_version": str(raw.get("schema_version") or "1.0"),
+            "available": True,
+            "product": str(raw.get("product") or WIND_PRODUCT),
+            "components": deepcopy(components),
+            "times": times,
+            "grid": {**deepcopy(grid), "width": width, "height": height, "extent": numeric_extent},
+            "encoding": {
+                **deepcopy(encoding),
+                "dtype": "float32",
+                "byte_order": "little",
+                "layout": "component_separated",
+                "bytes_per_value": 4,
+            },
+            "frames": normalized_frames,
+        })
+        if speed_variable is not None:
+            descriptor.update({
+                "speed_variable": speed_variable,
+                "display_range": display_range,
+                "palette": palette,
+            })
+        return descriptor
+    except WindDisplayContractError as exc:
+        return _unavailable_wind_field(
+            "display_contract_invalid",
+            raw=raw,
+            code=exc.code,
+            frame_index=exc.frame_index,
+        )
+    except (OSError, RuntimeError, OverflowError):
+        return _unavailable_wind_field(
+            "display_contract_invalid",
+            raw=raw,
+            code="wind_validation_failed",
+        )
 
 
 def _first_image(

@@ -20,6 +20,11 @@ data/ERA5/*.grib2
 data/ERA5/*.meta.json
 data/ERA5/*.png
 data/ERA5/*.webp
+data/ERA5/*.float32
+data/ERA5/.*.float32.*.tmp
+data/ERA5/.*.float32.*.backup
+data/ERA5/.*.webp.*.tmp
+data/ERA5/.*.webp.*.backup
 data/ERA5/era5_index.db
 
 data/.DS_Store
