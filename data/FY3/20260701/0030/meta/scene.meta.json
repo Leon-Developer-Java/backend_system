@@ -27,17 +27,26 @@
     {
       "key": "original",
       "label": "原始",
-      "resolution": 0.25
+      "resolution": 0.25,
+      "derived": false,
+      "method": "source_grid",
+      "source_resolution": 0.25
     },
     {
       "key": "3km",
-      "label": "3km",
-      "resolution": 0.03
+      "label": "显示插值 3km",
+      "resolution": 0.03,
+      "derived": true,
+      "method": "bilinear",
+      "source_resolution": 0.25
     },
     {
       "key": "1km",
-      "label": "1km",
-      "resolution": 0.01
+      "label": "显示插值 1km",
+      "resolution": 0.01,
+      "derived": true,
+      "method": "bilinear",
+      "source_resolution": 0.25
     }
   ],
   "grid": {
@@ -73,8 +82,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B01.float32",
-      "png": "latlon/B01.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -83,8 +90,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B01.webp",
-          "float32": "float32/B01.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -97,13 +102,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B01.webp",
+          "image": "latlon/B01.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B01.webp",
-          "float32": "diff/3km/float32/B01.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -116,13 +124,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B01.webp",
+          "image": "diff/3km/latlon/B01.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B01.webp",
-          "float32": "diff/1km/float32/B01.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -135,9 +146,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B01.webp",
+          "image": "diff/1km/latlon/B01.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B01.webp",
+      "image": "latlon/B01.webp"
     },
     {
       "name": "B02",
@@ -167,8 +185,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B02.float32",
-      "png": "latlon/B02.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -177,8 +193,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B02.webp",
-          "float32": "float32/B02.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -191,13 +205,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B02.webp",
+          "image": "latlon/B02.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B02.webp",
-          "float32": "diff/3km/float32/B02.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -210,13 +227,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B02.webp",
+          "image": "diff/3km/latlon/B02.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B02.webp",
-          "float32": "diff/1km/float32/B02.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -229,9 +249,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B02.webp",
+          "image": "diff/1km/latlon/B02.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B02.webp",
+      "image": "latlon/B02.webp"
     },
     {
       "name": "B03",
@@ -261,8 +288,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B03.float32",
-      "png": "latlon/B03.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -271,8 +296,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B03.webp",
-          "float32": "float32/B03.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -285,13 +308,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B03.webp",
+          "image": "latlon/B03.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B03.webp",
-          "float32": "diff/3km/float32/B03.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -304,13 +330,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B03.webp",
+          "image": "diff/3km/latlon/B03.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B03.webp",
-          "float32": "diff/1km/float32/B03.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -323,9 +352,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B03.webp",
+          "image": "diff/1km/latlon/B03.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B03.webp",
+      "image": "latlon/B03.webp"
     },
     {
       "name": "B04",
@@ -355,8 +391,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B04.float32",
-      "png": "latlon/B04.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -365,8 +399,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B04.webp",
-          "float32": "float32/B04.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -379,13 +411,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B04.webp",
+          "image": "latlon/B04.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B04.webp",
-          "float32": "diff/3km/float32/B04.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -398,13 +433,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B04.webp",
+          "image": "diff/3km/latlon/B04.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B04.webp",
-          "float32": "diff/1km/float32/B04.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -417,9 +455,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B04.webp",
+          "image": "diff/1km/latlon/B04.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B04.webp",
+      "image": "latlon/B04.webp"
     },
     {
       "name": "B05",
@@ -449,8 +494,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B05.float32",
-      "png": "latlon/B05.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -459,8 +502,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B05.webp",
-          "float32": "float32/B05.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -473,13 +514,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B05.webp",
+          "image": "latlon/B05.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B05.webp",
-          "float32": "diff/3km/float32/B05.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -492,13 +536,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B05.webp",
+          "image": "diff/3km/latlon/B05.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B05.webp",
-          "float32": "diff/1km/float32/B05.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -511,9 +558,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B05.webp",
+          "image": "diff/1km/latlon/B05.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B05.webp",
+      "image": "latlon/B05.webp"
     },
     {
       "name": "B06",
@@ -543,8 +597,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B06.float32",
-      "png": "latlon/B06.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -553,8 +605,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B06.webp",
-          "float32": "float32/B06.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -567,13 +617,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B06.webp",
+          "image": "latlon/B06.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B06.webp",
-          "float32": "diff/3km/float32/B06.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -586,13 +639,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B06.webp",
+          "image": "diff/3km/latlon/B06.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B06.webp",
-          "float32": "diff/1km/float32/B06.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -605,9 +661,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B06.webp",
+          "image": "diff/1km/latlon/B06.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B06.webp",
+      "image": "latlon/B06.webp"
     },
     {
       "name": "B07",
@@ -637,8 +700,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B07.float32",
-      "png": "latlon/B07.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -647,8 +708,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B07.webp",
-          "float32": "float32/B07.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -661,13 +720,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B07.webp",
+          "image": "latlon/B07.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B07.webp",
-          "float32": "diff/3km/float32/B07.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -680,13 +742,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B07.webp",
+          "image": "diff/3km/latlon/B07.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B07.webp",
-          "float32": "diff/1km/float32/B07.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -699,9 +764,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B07.webp",
+          "image": "diff/1km/latlon/B07.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B07.webp",
+      "image": "latlon/B07.webp"
     },
     {
       "name": "B08",
@@ -731,8 +803,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B08.float32",
-      "png": "latlon/B08.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -741,8 +811,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B08.webp",
-          "float32": "float32/B08.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -755,13 +823,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B08.webp",
+          "image": "latlon/B08.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B08.webp",
-          "float32": "diff/3km/float32/B08.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -774,13 +845,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B08.webp",
+          "image": "diff/3km/latlon/B08.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B08.webp",
-          "float32": "diff/1km/float32/B08.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -793,9 +867,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B08.webp",
+          "image": "diff/1km/latlon/B08.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B08.webp",
+      "image": "latlon/B08.webp"
     },
     {
       "name": "B09",
@@ -825,8 +906,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B09.float32",
-      "png": "latlon/B09.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -835,8 +914,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B09.webp",
-          "float32": "float32/B09.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -849,13 +926,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B09.webp",
+          "image": "latlon/B09.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B09.webp",
-          "float32": "diff/3km/float32/B09.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -868,13 +948,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B09.webp",
+          "image": "diff/3km/latlon/B09.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B09.webp",
-          "float32": "diff/1km/float32/B09.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -887,9 +970,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B09.webp",
+          "image": "diff/1km/latlon/B09.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B09.webp",
+      "image": "latlon/B09.webp"
     },
     {
       "name": "B10",
@@ -919,8 +1009,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B10.float32",
-      "png": "latlon/B10.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -929,8 +1017,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B10.webp",
-          "float32": "float32/B10.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -943,13 +1029,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B10.webp",
+          "image": "latlon/B10.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B10.webp",
-          "float32": "diff/3km/float32/B10.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -962,13 +1051,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B10.webp",
+          "image": "diff/3km/latlon/B10.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B10.webp",
-          "float32": "diff/1km/float32/B10.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -981,9 +1073,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B10.webp",
+          "image": "diff/1km/latlon/B10.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B10.webp",
+      "image": "latlon/B10.webp"
     },
     {
       "name": "B11",
@@ -1013,8 +1112,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B11.float32",
-      "png": "latlon/B11.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1023,8 +1120,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B11.webp",
-          "float32": "float32/B11.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1037,13 +1132,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B11.webp",
+          "image": "latlon/B11.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B11.webp",
-          "float32": "diff/3km/float32/B11.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1056,13 +1154,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B11.webp",
+          "image": "diff/3km/latlon/B11.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B11.webp",
-          "float32": "diff/1km/float32/B11.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -1075,9 +1176,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B11.webp",
+          "image": "diff/1km/latlon/B11.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B11.webp",
+      "image": "latlon/B11.webp"
     },
     {
       "name": "B12",
@@ -1107,8 +1215,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B12.float32",
-      "png": "latlon/B12.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1117,8 +1223,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B12.webp",
-          "float32": "float32/B12.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1131,13 +1235,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B12.webp",
+          "image": "latlon/B12.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B12.webp",
-          "float32": "diff/3km/float32/B12.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1150,13 +1257,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B12.webp",
+          "image": "diff/3km/latlon/B12.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B12.webp",
-          "float32": "diff/1km/float32/B12.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -1169,9 +1279,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B12.webp",
+          "image": "diff/1km/latlon/B12.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B12.webp",
+      "image": "latlon/B12.webp"
     },
     {
       "name": "B13",
@@ -1201,8 +1318,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B13.float32",
-      "png": "latlon/B13.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1211,8 +1326,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B13.webp",
-          "float32": "float32/B13.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1225,13 +1338,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B13.webp",
+          "image": "latlon/B13.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B13.webp",
-          "float32": "diff/3km/float32/B13.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1244,13 +1360,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B13.webp",
+          "image": "diff/3km/latlon/B13.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B13.webp",
-          "float32": "diff/1km/float32/B13.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -1263,9 +1382,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B13.webp",
+          "image": "diff/1km/latlon/B13.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B13.webp",
+      "image": "latlon/B13.webp"
     },
     {
       "name": "B14",
@@ -1295,8 +1421,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B14.float32",
-      "png": "latlon/B14.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1305,8 +1429,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B14.webp",
-          "float32": "float32/B14.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1319,13 +1441,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B14.webp",
+          "image": "latlon/B14.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B14.webp",
-          "float32": "diff/3km/float32/B14.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1338,13 +1463,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B14.webp",
+          "image": "diff/3km/latlon/B14.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B14.webp",
-          "float32": "diff/1km/float32/B14.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -1357,9 +1485,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B14.webp",
+          "image": "diff/1km/latlon/B14.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B14.webp",
+      "image": "latlon/B14.webp"
     },
     {
       "name": "B15",
@@ -1389,8 +1524,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B15.float32",
-      "png": "latlon/B15.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1399,8 +1532,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B15.webp",
-          "float32": "float32/B15.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1413,13 +1544,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B15.webp",
+          "image": "latlon/B15.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B15.webp",
-          "float32": "diff/3km/float32/B15.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1432,13 +1566,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B15.webp",
+          "image": "diff/3km/latlon/B15.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B15.webp",
-          "float32": "diff/1km/float32/B15.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -1451,9 +1588,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B15.webp",
+          "image": "diff/1km/latlon/B15.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B15.webp",
+      "image": "latlon/B15.webp"
     },
     {
       "name": "B16",
@@ -1483,8 +1627,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B16.float32",
-      "png": "latlon/B16.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1493,8 +1635,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B16.webp",
-          "float32": "float32/B16.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1507,13 +1647,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B16.webp",
+          "image": "latlon/B16.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B16.webp",
-          "float32": "diff/3km/float32/B16.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1526,13 +1669,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B16.webp",
+          "image": "diff/3km/latlon/B16.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B16.webp",
-          "float32": "diff/1km/float32/B16.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -1545,9 +1691,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B16.webp",
+          "image": "diff/1km/latlon/B16.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B16.webp",
+      "image": "latlon/B16.webp"
     },
     {
       "name": "B17",
@@ -1577,8 +1730,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B17.float32",
-      "png": "latlon/B17.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1587,8 +1738,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B17.webp",
-          "float32": "float32/B17.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1601,13 +1750,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B17.webp",
+          "image": "latlon/B17.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B17.webp",
-          "float32": "diff/3km/float32/B17.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1620,13 +1772,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B17.webp",
+          "image": "diff/3km/latlon/B17.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B17.webp",
-          "float32": "diff/1km/float32/B17.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -1639,9 +1794,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B17.webp",
+          "image": "diff/1km/latlon/B17.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B17.webp",
+      "image": "latlon/B17.webp"
     },
     {
       "name": "B18",
@@ -1671,8 +1833,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B18.float32",
-      "png": "latlon/B18.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1681,8 +1841,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B18.webp",
-          "float32": "float32/B18.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1695,13 +1853,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B18.webp",
+          "image": "latlon/B18.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B18.webp",
-          "float32": "diff/3km/float32/B18.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1714,13 +1875,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B18.webp",
+          "image": "diff/3km/latlon/B18.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B18.webp",
-          "float32": "diff/1km/float32/B18.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -1733,9 +1897,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B18.webp",
+          "image": "diff/1km/latlon/B18.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B18.webp",
+      "image": "latlon/B18.webp"
     },
     {
       "name": "B19",
@@ -1765,8 +1936,6 @@
         "50",
         "100"
       ],
-      "float32": "float32/B19.float32",
-      "png": "latlon/B19.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1775,8 +1944,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B19.webp",
-          "float32": "float32/B19.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1789,13 +1956,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B19.webp",
+          "image": "latlon/B19.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B19.webp",
-          "float32": "diff/3km/float32/B19.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1808,13 +1978,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B19.webp",
+          "image": "diff/3km/latlon/B19.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B19.webp",
-          "float32": "diff/1km/float32/B19.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -1827,9 +2000,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B19.webp",
+          "image": "diff/1km/latlon/B19.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B19.webp",
+      "image": "latlon/B19.webp"
     },
     {
       "name": "B20",
@@ -1859,8 +2039,6 @@
         "60",
         "120"
       ],
-      "float32": "float32/B20.float32",
-      "png": "latlon/B20.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1869,8 +2047,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B20.webp",
-          "float32": "float32/B20.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1883,13 +2059,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B20.webp",
+          "image": "latlon/B20.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B20.webp",
-          "float32": "diff/3km/float32/B20.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1902,13 +2081,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B20.webp",
+          "image": "diff/3km/latlon/B20.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B20.webp",
-          "float32": "diff/1km/float32/B20.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -1921,9 +2103,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B20.webp",
+          "image": "diff/1km/latlon/B20.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B20.webp",
+      "image": "latlon/B20.webp"
     },
     {
       "name": "B21",
@@ -1953,8 +2142,6 @@
         "60",
         "120"
       ],
-      "float32": "float32/B21.float32",
-      "png": "latlon/B21.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -1963,8 +2150,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B21.webp",
-          "float32": "float32/B21.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -1977,13 +2162,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B21.webp",
+          "image": "latlon/B21.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B21.webp",
-          "float32": "diff/3km/float32/B21.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -1996,13 +2184,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B21.webp",
+          "image": "diff/3km/latlon/B21.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B21.webp",
-          "float32": "diff/1km/float32/B21.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -2015,9 +2206,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B21.webp",
+          "image": "diff/1km/latlon/B21.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B21.webp",
+      "image": "latlon/B21.webp"
     },
     {
       "name": "B22",
@@ -2047,8 +2245,6 @@
         "60",
         "120"
       ],
-      "float32": "float32/B22.float32",
-      "png": "latlon/B22.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -2057,8 +2253,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B22.webp",
-          "float32": "float32/B22.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -2071,13 +2265,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B22.webp",
+          "image": "latlon/B22.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B22.webp",
-          "float32": "diff/3km/float32/B22.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -2090,13 +2287,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B22.webp",
+          "image": "diff/3km/latlon/B22.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B22.webp",
-          "float32": "diff/1km/float32/B22.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -2109,9 +2309,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B22.webp",
+          "image": "diff/1km/latlon/B22.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B22.webp",
+      "image": "latlon/B22.webp"
     },
     {
       "name": "B23",
@@ -2141,8 +2348,6 @@
         "60",
         "120"
       ],
-      "float32": "float32/B23.float32",
-      "png": "latlon/B23.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -2151,8 +2356,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B23.webp",
-          "float32": "float32/B23.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -2165,13 +2368,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B23.webp",
+          "image": "latlon/B23.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B23.webp",
-          "float32": "diff/3km/float32/B23.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -2184,13 +2390,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B23.webp",
+          "image": "diff/3km/latlon/B23.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B23.webp",
-          "float32": "diff/1km/float32/B23.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -2203,9 +2412,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B23.webp",
+          "image": "diff/1km/latlon/B23.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B23.webp",
+      "image": "latlon/B23.webp"
     },
     {
       "name": "B24",
@@ -2235,8 +2451,6 @@
         "150",
         "300"
       ],
-      "float32": "float32/B24.float32",
-      "png": "latlon/B24.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -2245,8 +2459,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B24.webp",
-          "float32": "float32/B24.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -2259,13 +2471,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B24.webp",
+          "image": "latlon/B24.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B24.webp",
-          "float32": "diff/3km/float32/B24.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -2278,13 +2493,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B24.webp",
+          "image": "diff/3km/latlon/B24.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B24.webp",
-          "float32": "diff/1km/float32/B24.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -2297,9 +2515,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B24.webp",
+          "image": "diff/1km/latlon/B24.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B24.webp",
+      "image": "latlon/B24.webp"
     },
     {
       "name": "B25",
@@ -2329,8 +2554,6 @@
         "150",
         "300"
       ],
-      "float32": "float32/B25.float32",
-      "png": "latlon/B25.webp",
       "quality": {
         "valid_pixel_ratio": 1.0,
         "warnings": []
@@ -2339,8 +2562,6 @@
         "original": {
           "key": "original",
           "label": "原始",
-          "png": "latlon/B25.webp",
-          "float32": "float32/B25.float32",
           "grid": {
             "nx": 166,
             "ny": 93,
@@ -2353,13 +2574,16 @@
             -29.410411834716797
           ],
           "resolution": 0.25,
-          "spatial_resolution": "0.25°"
+          "spatial_resolution": "0.25°",
+          "webp": "latlon/B25.webp",
+          "image": "latlon/B25.webp",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.25
         },
         "3km": {
           "key": "3km",
-          "label": "3km",
-          "png": "diff/3km/latlon/B25.webp",
-          "float32": "diff/3km/float32/B25.float32",
+          "label": "显示插值 3km",
           "grid": {
             "nx": 1376,
             "ny": 772,
@@ -2372,13 +2596,16 @@
             -29.410411834716797
           ],
           "resolution": 0.03,
-          "spatial_resolution": "0.03°"
+          "spatial_resolution": "0.03°",
+          "webp": "diff/3km/latlon/B25.webp",
+          "image": "diff/3km/latlon/B25.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         },
         "1km": {
           "key": "1km",
-          "label": "1km",
-          "png": "diff/1km/latlon/B25.webp",
-          "float32": "diff/1km/float32/B25.float32",
+          "label": "显示插值 1km",
           "grid": {
             "nx": 4127,
             "ny": 2313,
@@ -2391,9 +2618,16 @@
             -29.410411834716797
           ],
           "resolution": 0.01,
-          "spatial_resolution": "0.01°"
+          "spatial_resolution": "0.01°",
+          "webp": "diff/1km/latlon/B25.webp",
+          "image": "diff/1km/latlon/B25.webp",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.25
         }
-      }
+      },
+      "webp": "latlon/B25.webp",
+      "image": "latlon/B25.webp"
     }
   ],
   "composites": [],
@@ -2428,10 +2662,67 @@
     "valid_pixel_ratio": 1.0,
     "warnings": []
   },
-  "source_raw_dir": "/Users/shaoyongjin/code/zhihuiqixiang/backend_system/raw_data/FY3/20260701/0030",
+  "source_raw_dir": "../../raw",
   "source_files": [
-    "/Users/shaoyongjin/code/zhihuiqixiang/backend_system/raw_data/FY3/20260701/0030/FY3D_MERSI_GBAL_L1_20260701_0030_1000M_MS.HDF",
-    "/Users/shaoyongjin/code/zhihuiqixiang/backend_system/raw_data/FY3/20260701/0030/FY3D_MERSI_GBAL_L1_20260701_0030_GEO1K_MS.HDF"
+    "../../raw/FY3D_MERSI_GBAL_L1_20260701_0030_1000M_MS.HDF",
+    "../../raw/FY3D_MERSI_GBAL_L1_20260701_0030_GEO1K_MS.HDF"
   ],
-  "generated_at": "2026-07-08T12:30:09.846948+00:00"
+  "generated_at": "2026-07-08T12:30:09.846948+00:00",
+  "schema_version": "1.1",
+  "meta_file": "meta/scene.meta.json",
+  "source_file": "raw",
+  "webp_files": [
+    "latlon/B01.webp",
+    "latlon/B02.webp",
+    "latlon/B03.webp",
+    "latlon/B04.webp",
+    "latlon/B05.webp",
+    "latlon/B06.webp",
+    "latlon/B07.webp",
+    "latlon/B08.webp",
+    "latlon/B09.webp",
+    "latlon/B10.webp",
+    "latlon/B11.webp",
+    "latlon/B12.webp",
+    "latlon/B13.webp",
+    "latlon/B14.webp",
+    "latlon/B15.webp",
+    "latlon/B16.webp",
+    "latlon/B17.webp",
+    "latlon/B18.webp",
+    "latlon/B19.webp",
+    "latlon/B20.webp",
+    "latlon/B21.webp",
+    "latlon/B22.webp",
+    "latlon/B23.webp",
+    "latlon/B24.webp",
+    "latlon/B25.webp"
+  ],
+  "image_files": [
+    "latlon/B01.webp",
+    "latlon/B02.webp",
+    "latlon/B03.webp",
+    "latlon/B04.webp",
+    "latlon/B05.webp",
+    "latlon/B06.webp",
+    "latlon/B07.webp",
+    "latlon/B08.webp",
+    "latlon/B09.webp",
+    "latlon/B10.webp",
+    "latlon/B11.webp",
+    "latlon/B12.webp",
+    "latlon/B13.webp",
+    "latlon/B14.webp",
+    "latlon/B15.webp",
+    "latlon/B16.webp",
+    "latlon/B17.webp",
+    "latlon/B18.webp",
+    "latlon/B19.webp",
+    "latlon/B20.webp",
+    "latlon/B21.webp",
+    "latlon/B22.webp",
+    "latlon/B23.webp",
+    "latlon/B24.webp",
+    "latlon/B25.webp"
+  ]
 }

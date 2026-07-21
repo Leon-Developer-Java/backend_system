@@ -1,14 +1,23 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from threading import Lock
 from typing import Any
+from uuid import uuid4
+
+from adapters import fy3_adapter
 
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "FY3"
 STATIC_PREFIX = "/data/FY3"
 BEIJING_OFFSET = timedelta(hours=8)
+PARSE_TASK_LOCK = Lock()
+PARSE_TASK_LIMIT = 100
+PARSE_TASK_ACTIVE_STATES = {"queued", "running"}
+_PARSE_TASKS: dict[str, dict[str, Any]] = {}
 
 
 def _as_posix(path: Path | None) -> str | None:
@@ -166,6 +175,8 @@ def _timeline_item(entry: dict[str, Any]) -> dict[str, Any]:
         "label_timezone": "Asia/Shanghai",
         "extent": meta.get("extent"),
         "quality": meta.get("quality"),
+        "status": meta.get("status") or "parsed",
+        "displayable": meta.get("status") != "no_coverage",
     }
 
 
@@ -174,13 +185,26 @@ def _frame_item(entry: dict[str, Any]) -> dict[str, Any]:
     meta_path = entry["path"]
     product = _default_product(meta)
     webp_path = _existing_path((product.get("webp") or product.get("png")) if product else None, meta_path)
+    resolution_assets = product.get("resolution_assets") if isinstance(product, dict) else None
+    available_resolutions = ["original"]
+    if isinstance(resolution_assets, dict):
+        available_resolutions = [
+            key
+            for key, asset in resolution_assets.items()
+            if isinstance(asset, dict) and _existing_path(asset.get("webp") or asset.get("png"), meta_path)
+        ]
+        if "original" not in available_resolutions and webp_path:
+            available_resolutions.insert(0, "original")
     return {
         "scene_id": entry["scene_id"],
         "time": meta.get("observation_time"),
         "extent": meta.get("extent"),
         "webp_url": _webp_url(webp_path),
         "image_url": _webp_url(webp_path),
+        "available_resolutions": available_resolutions,
         "quality": meta.get("quality"),
+        "status": meta.get("status") or "parsed",
+        "displayable": meta.get("status") != "no_coverage",
     }
 
 
@@ -200,7 +224,11 @@ def get_display_data(scene_id: str | None = None, limit: int = 24) -> dict[str, 
     entries = _entries()
     selected = next((entry for entry in entries if entry["scene_id"] == scene_id), None) if scene_id else None
     if limit > 0:
-        entries = entries[-limit:]
+        if selected:
+            selected_index = entries.index(selected)
+            entries = entries[max(0, selected_index - limit + 1) : selected_index + 1]
+        else:
+            entries = entries[-limit:]
     selected = selected or (entries[-1] if entries else None)
     meta = selected["meta"] if selected else {}
     meta_path = selected["path"] if selected else None
@@ -213,7 +241,7 @@ def get_display_data(scene_id: str | None = None, limit: int = 24) -> dict[str, 
         "meta_file": _as_posix(meta_path),
         "meta_json": meta or None,
         "weather_info": meta.get("weather_info"),
-        "extent": _union_extent(frames) or meta.get("extent"),
+        "extent": (selected_frame or {}).get("extent") or meta.get("extent") or _union_extent(frames),
         "grid": meta.get("grid"),
         "resolution": meta.get("resolution"),
         "resolutions": meta.get("resolutions") or {"original": meta.get("resolution")},
@@ -229,3 +257,192 @@ def get_display_data(scene_id: str | None = None, limit: int = 24) -> dict[str, 
         "image_url": selected_frame.get("image_url") if selected_frame else None,
         "image_files": [frame["image_url"] for frame in frames if frame.get("image_url")],
     }
+
+
+def _utc_iso() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _task_copy(task: dict[str, Any]) -> dict[str, Any]:
+    return deepcopy(task)
+
+
+def _prune_parse_tasks_locked() -> None:
+    if len(_PARSE_TASKS) <= PARSE_TASK_LIMIT:
+        return
+    completed = [
+        task_id
+        for task_id, task in _PARSE_TASKS.items()
+        if task.get("state") not in PARSE_TASK_ACTIVE_STATES
+    ]
+    for task_id in completed[: max(0, len(_PARSE_TASKS) - PARSE_TASK_LIMIT)]:
+        _PARSE_TASKS.pop(task_id, None)
+
+
+def list_parse_tasks(active_only: bool = False) -> list[dict[str, Any]]:
+    with PARSE_TASK_LOCK:
+        tasks = [
+            _task_copy(task)
+            for task in _PARSE_TASKS.values()
+            if not active_only or task.get("state") in PARSE_TASK_ACTIVE_STATES
+        ]
+    return sorted(tasks, key=lambda item: str(item.get("created_at") or ""), reverse=True)
+
+
+def get_parse_task(task_id: str) -> dict[str, Any]:
+    with PARSE_TASK_LOCK:
+        task = _PARSE_TASKS.get(task_id)
+        if task is None:
+            raise ValueError("FY-3 解析任务不存在。")
+        return _task_copy(task)
+
+
+def create_parse_task(
+    source_dir: str | Path,
+    scene_ids: list[str] | None,
+    force: bool = False,
+) -> tuple[dict[str, Any], bool]:
+    scenes = fy3_adapter.scan_raw_scenes(source_dir)
+    scene_map = {str(scene.get("scene_id")): scene for scene in scenes}
+    requested = list(dict.fromkeys(str(item) for item in (scene_ids or []) if str(item)))
+    if not requested:
+        requested = [str(scene["scene_id"]) for scene in scenes if scene.get("complete")]
+    if not requested:
+        raise ValueError("没有可解析的 FY-3 完整场景。")
+
+    unknown = [scene_id for scene_id in requested if scene_id not in scene_map]
+    if unknown:
+        raise ValueError(f"未找到 FY-3 raw 场景：{'、'.join(unknown)}")
+    incomplete = [scene_map[scene_id] for scene_id in requested if not scene_map[scene_id].get("complete")]
+    if incomplete:
+        details = [
+            f"{scene['scene_id']} 缺少 {'、'.join(scene.get('missing') or [])}"
+            for scene in incomplete
+        ]
+        raise ValueError("；".join(details))
+
+    requested_set = set(requested)
+    with PARSE_TASK_LOCK:
+        for task in _PARSE_TASKS.values():
+            if task.get("state") not in PARSE_TASK_ACTIVE_STATES:
+                continue
+            overlap = requested_set.intersection(task.get("scene_ids") or [])
+            if not overlap:
+                continue
+            if requested_set.issubset(set(task.get("scene_ids") or [])):
+                return _task_copy(task), False
+            raise ValueError(f"场景正在其他任务中解析：{'、'.join(sorted(overlap))}")
+
+        task_id = f"fy3_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
+        task = {
+            "task_id": task_id,
+            "business_type": "FY3",
+            "state": "queued",
+            "stage": "queued",
+            "progress": 0.0,
+            "force": bool(force),
+            "scene_ids": requested,
+            "scene_total": len(requested),
+            "scene_done": 0,
+            "current_scene": None,
+            "current_band": None,
+            "band_index": 0,
+            "band_total": len(fy3_adapter.CORE_BANDS),
+            "created_at": _utc_iso(),
+            "started_at": None,
+            "finished_at": None,
+            "result": None,
+            "error": None,
+        }
+        _PARSE_TASKS[task_id] = task
+        _prune_parse_tasks_locked()
+        return _task_copy(task), True
+
+
+def _update_parse_task_progress(task_id: str, event: dict[str, Any]) -> None:
+    with PARSE_TASK_LOCK:
+        task = _PARSE_TASKS.get(task_id)
+        if task is None or task.get("state") not in PARSE_TASK_ACTIVE_STATES:
+            return
+        scene_total = max(1, int(event.get("scene_total") or task.get("scene_total") or 1))
+        scene_index = max(1, int(event.get("scene_index") or 1))
+        band_total = max(1, int(event.get("band_total") or task.get("band_total") or 1))
+        band_index = max(0, int(event.get("band_index") or 0))
+        stage = str(event.get("stage") or task.get("stage") or "running")
+        if stage in {"scene_completed", "scene_failed"}:
+            progress = scene_index / scene_total * 100
+            scene_done = scene_index
+        else:
+            progress = ((scene_index - 1) + band_index / band_total) / scene_total * 100
+            scene_done = max(0, scene_index - 1)
+        task.update({
+            "stage": stage,
+            "progress": round(min(max(progress, 0.0), 99.9), 1),
+            "scene_total": scene_total,
+            "scene_done": scene_done,
+            "current_scene": event.get("scene_id") or task.get("current_scene"),
+            "current_band": event.get("band") or task.get("current_band"),
+            "band_index": band_index,
+            "band_total": band_total,
+        })
+
+
+def run_parse_task(task_id: str, source_dir: str | Path = DATA_DIR) -> None:
+    with PARSE_TASK_LOCK:
+        task = _PARSE_TASKS.get(task_id)
+        if task is None:
+            return
+        task.update({"state": "running", "stage": "starting", "started_at": _utc_iso(), "error": None})
+        scene_ids = list(task.get("scene_ids") or [])
+        force = bool(task.get("force"))
+
+    try:
+        result = fy3_adapter.update_from_raw(
+            source_dir,
+            force=force,
+            scene_ids=scene_ids,
+            progress_callback=lambda event: _update_parse_task_progress(task_id, event),
+        )
+        rows = list(result.get("results") or [])
+        displayable_ids = [
+            str(item.get("scene_id"))
+            for item in rows
+            if item.get("status") in {"ok", "cached"} and item.get("displayable")
+        ]
+        no_coverage_ids = [
+            str(item.get("scene_id"))
+            for item in rows
+            if item.get("status") in {"ok", "cached"} and not item.get("displayable")
+        ]
+        failed_rows = [item for item in rows if item.get("status") == "error"]
+        result = {
+            **result,
+            "displayable_scene_ids": displayable_ids,
+            "no_coverage_scene_ids": no_coverage_ids,
+        }
+        with PARSE_TASK_LOCK:
+            task = _PARSE_TASKS.get(task_id)
+            if task is not None:
+                task.update({
+                    "state": "partial" if failed_rows else "completed",
+                    "stage": "completed",
+                    "progress": 100.0,
+                    "scene_done": len(rows),
+                    "current_band": None,
+                    "finished_at": _utc_iso(),
+                    "result": result,
+                    "error": "；".join(
+                        f"{item.get('scene_id')}：{item.get('error') or '解析失败'}"
+                        for item in failed_rows
+                    ) or None,
+                })
+    except Exception as exc:
+        with PARSE_TASK_LOCK:
+            task = _PARSE_TASKS.get(task_id)
+            if task is not None:
+                task.update({
+                    "state": "failed",
+                    "stage": "failed",
+                    "finished_at": _utc_iso(),
+                    "error": str(exc),
+                })

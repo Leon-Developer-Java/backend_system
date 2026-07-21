@@ -2,7 +2,7 @@
 
 FastAPI 后台。当前版本只做一件事：接收前端上传的气象文件，按业务类型保存到 `data/`，调用对应 adapter 生成 `meta.json`，并把展示面板需要的数据返回给前端。
 
-Himawari 当前已经接入自动下载、HSD 解析、等经纬度 PNG/meta 生成和前端展示窗口补齐逻辑。其他业务仍按各自 adapter/service 维护。
+Himawari 当前已经接入自动下载、HSD 解析、等经纬度 WebP/meta 生成和前端展示窗口补齐逻辑。其他业务仍按各自 adapter/service 维护。
 
 ## 目录结构
 
@@ -21,7 +21,12 @@ backend/
 │  ├─ CMA/
 │  ├─ ERA5/
 │  ├─ GFS/
+│  ├─ FY3/
+│  │  ├─ raw/              # 所有 FY-3 HDF 原始文件，不按日期分目录
+│  │  └─ YYYYMMDD/HHMM/    # 仅存解析后的 WebP 和 scene.meta.json
 │  ├─ Himawari/
+│  │  ├─ raw/              # 所有 HSD 原始文件和续传 part，不按日期分目录
+│  │  └─ YYYYMMDD/HHMM/    # 仅存解析后的 WebP 和 scene.meta.json
 │  ├─ Radar/
 │  └─ WRF/
 ├─ services/                # 前端按数据类型读取展示数据
@@ -112,7 +117,9 @@ def process_file(file_path: str, data_type: str) -> dict:
     ...
 ```
 
-Himawari adapter 已实现 HSD raw 分段下载、断点续传、等经纬度网格重采样、PNG/meta 输出和解析成功后 raw 清理。其他 adapter 按各自业务继续维护。
+FY-3 与 Himawari 的原始文件统一集中到各自的 `data/<类型>/raw/`；日期/时次目录只保存解析后的 WebP 和 `meta/scene.meta.json`。Himawari adapter 已实现 HSD raw 分段下载、断点续传和等经纬度网格重采样。raw 默认保留，不会随服务启动或解析结果自动删除。
+
+所有上传入口使用同名原子覆盖：先写入同目录的 `.upload.part`，完整写入后再替换正式文件。重复上传不会生成 `_1`、`_2` 后缀；上传中断时原正式文件保持不变。
 
 ## Himawari 自动下载与解析
 
@@ -127,25 +134,23 @@ export HIMAWARI_FTP_PASSWORD="你的 FTP 密码"
 
 | 环境变量 | 默认值 | 说明 |
 |---|---:|---|
-| `HIMAWARI_AUTO_DOWNLOAD` | `1` | 后端启动后自动下载；设为 `0/false/no/off` 可关闭 |
-| `HIMAWARI_WINDOW_HOURS` | `24` | 展示窗口和补齐窗口长度 |
+| `HIMAWARI_AUTO_DOWNLOAD` | `0` | 默认关闭；显式设为 `1` 且提供 FTP 凭据后启动 |
+| `HIMAWARI_WINDOW_HOURS` | `1` | 展示窗口和补齐窗口长度 |
 | `HIMAWARI_LATEST_DELAY_MINUTES` | `60` | 当前时间向前延迟后作为窗口右边界 |
 | `HIMAWARI_DOWNLOAD_INTERVAL_MINUTES` | `10` | 下载时次间隔 |
 | `HIMAWARI_DOWNLOAD_INTERVAL_SECONDS` | `60` | 自动任务轮询间隔 |
-| `HIMAWARI_DOWNLOAD_MAX_JOBS_PER_RUN` | `12` | 每轮最多处理的时次/通道任务数；`0` 表示不限量 |
+| `HIMAWARI_DOWNLOAD_MAX_JOBS_PER_RUN` | `7` | 每轮最多处理的时次任务数；`0` 表示不限量 |
 | `HIMAWARI_FILE_WORKERS` | `4` | 单个时次 HSD 分段文件并发下载上限 |
-| `HIMAWARI_BANDS` | `B13,B03,B02,B01` | 当前只建议使用这四个通道 |
+| `HIMAWARI_BANDS` | `B13,B03,B02,B01` | 默认下载和解析四个核心通道 |
 
 当前策略：
 
-- 自动窗口右边界为“当前时间 - 60 分钟”的 10 分钟整点，向前覆盖 24 小时。
-- 优先补齐最新缺失时次的 `B13` 红外窗口亮温。
-- 白天时次再补 `B03/B02/B01`，用于生成真彩色云图。
-- 不再自动下载 `B04-B16` 全通道。
-- 下载失败时保留较新的 `.part/raw` 供下一轮断点续传；解析成功后删除对应 raw。
-- 过期解析结果按滚动 24 小时窗口清理。
+- 自动窗口右边界为“当前时间 - 60 分钟”的 10 分钟整点，向前覆盖 1 小时。
+- 每个时次补齐 `B13/B03/B02/B01`，用于红外显示和真彩色合成。
+- 下载、解析失败和解析成功后都保留 `.part/raw`，供续传、复核和重新解析。
+- 展示接口按 1 小时时间窗筛选，但不会自动删除过期 raw 或正式解析结果。
 
-HSD 原始数据不提交到 Git；需要别人拉取后看到效果时，只提交必要的解析结果 `meta.json + PNG`，不要提交 raw、`.part`、`.float32` 或 `.nc` 中间文件。
+HSD 原始数据不提交到 Git；需要别人拉取后看到效果时，只提交必要的解析结果 `scene.meta.json + WebP`，不要提交 raw、`.part`、`.float32` 或 `.nc` 中间文件。
 
 ## 启动
 

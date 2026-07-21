@@ -1,35 +1,60 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "dataset_id": "20260701_0030_himawari_hsd",
   "data_type": "Himawari",
   "file_format": "HSD",
-  "source_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/raw",
-  "meta_file": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/meta/scene.meta.json",
-  "png_files": [
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B01.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B02.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B03.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B04.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B05.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B06.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B07.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B08.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B09.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B10.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B11.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B12.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B13.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B14.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B15.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B16.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/true_color.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/natural_color.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/air_mass.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/dust.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/night_microphysics.webp",
-    "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/water_vapor_enhanced.webp"
+  "source_file": null,
+  "meta_file": "meta/scene.meta.json",
+  "webp_files": [
+    "latlon/B01.webp",
+    "latlon/B02.webp",
+    "latlon/B03.webp",
+    "latlon/B04.webp",
+    "latlon/B05.webp",
+    "latlon/B06.webp",
+    "latlon/B07.webp",
+    "latlon/B08.webp",
+    "latlon/B09.webp",
+    "latlon/B10.webp",
+    "latlon/B11.webp",
+    "latlon/B12.webp",
+    "latlon/B13.webp",
+    "latlon/B14.webp",
+    "latlon/B15.webp",
+    "latlon/B16.webp",
+    "composites/natural_color.webp",
+    "composites/air_mass.webp",
+    "composites/dust.webp",
+    "composites/night_microphysics.webp",
+    "composites/water_vapor_enhanced.webp",
+    "composites/true_color.webp"
   ],
-  "default_png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B13.webp",
+  "image_files": [
+    "latlon/B01.webp",
+    "latlon/B02.webp",
+    "latlon/B03.webp",
+    "latlon/B04.webp",
+    "latlon/B05.webp",
+    "latlon/B06.webp",
+    "latlon/B07.webp",
+    "latlon/B08.webp",
+    "latlon/B09.webp",
+    "latlon/B10.webp",
+    "latlon/B11.webp",
+    "latlon/B12.webp",
+    "latlon/B13.webp",
+    "latlon/B14.webp",
+    "latlon/B15.webp",
+    "latlon/B16.webp",
+    "composites/natural_color.webp",
+    "composites/air_mass.webp",
+    "composites/dust.webp",
+    "composites/night_microphysics.webp",
+    "composites/water_vapor_enhanced.webp",
+    "composites/true_color.webp"
+  ],
+  "default_webp": "latlon/B13.webp",
+  "default_image": "latlon/B13.webp",
   "default_variable": "B13",
   "times": [
     "2026-07-01T00:30:00Z"
@@ -55,7 +80,16 @@
   "resolution": 0.04,
   "grid": {
     "nx": 31,
-    "ny": 39
+    "ny": 39,
+    "extent": [
+      118.2,
+      31.2,
+      119.4,
+      32.7
+    ],
+    "resolution": 0.04,
+    "projection": "EPSG:4326",
+    "grid_type": "regular_latlon"
   },
   "variables": [
     {
@@ -91,9 +125,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B01.webp",
+      "webp": "latlon/B01.webp",
+      "image": "latlon/B01.webp",
       "vmin": 0.0,
       "vmax": 120.0,
       "legend_ticks": [
@@ -101,7 +134,75 @@
         "40",
         "80",
         "120"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B01.webp",
+          "image": "latlon/B01.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B01.webp",
+          "image": "diff/1km/latlon/B01.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B01.webp",
+          "image": "diff/3km/latlon/B01.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B02",
@@ -136,9 +237,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B02.webp",
+      "webp": "latlon/B02.webp",
+      "image": "latlon/B02.webp",
       "vmin": 0.0,
       "vmax": 120.0,
       "legend_ticks": [
@@ -146,7 +246,75 @@
         "40",
         "80",
         "120"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B02.webp",
+          "image": "latlon/B02.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B02.webp",
+          "image": "diff/1km/latlon/B02.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B02.webp",
+          "image": "diff/3km/latlon/B02.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B03",
@@ -181,9 +349,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B03.webp",
+      "webp": "latlon/B03.webp",
+      "image": "latlon/B03.webp",
       "vmin": 0.0,
       "vmax": 120.0,
       "legend_ticks": [
@@ -191,7 +358,75 @@
         "40",
         "80",
         "120"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B03.webp",
+          "image": "latlon/B03.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B03.webp",
+          "image": "diff/1km/latlon/B03.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B03.webp",
+          "image": "diff/3km/latlon/B03.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B04",
@@ -226,9 +461,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B04.webp",
+      "webp": "latlon/B04.webp",
+      "image": "latlon/B04.webp",
       "vmin": 0.0,
       "vmax": 120.0,
       "legend_ticks": [
@@ -236,7 +470,75 @@
         "40",
         "80",
         "120"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B04.webp",
+          "image": "latlon/B04.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B04.webp",
+          "image": "diff/1km/latlon/B04.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B04.webp",
+          "image": "diff/3km/latlon/B04.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B05",
@@ -271,9 +573,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B05.webp",
+      "webp": "latlon/B05.webp",
+      "image": "latlon/B05.webp",
       "vmin": 0.0,
       "vmax": 120.0,
       "legend_ticks": [
@@ -281,7 +582,75 @@
         "40",
         "80",
         "120"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B05.webp",
+          "image": "latlon/B05.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B05.webp",
+          "image": "diff/1km/latlon/B05.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B05.webp",
+          "image": "diff/3km/latlon/B05.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B06",
@@ -316,9 +685,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B06.webp",
+      "webp": "latlon/B06.webp",
+      "image": "latlon/B06.webp",
       "vmin": 0.0,
       "vmax": 120.0,
       "legend_ticks": [
@@ -326,7 +694,75 @@
         "40",
         "80",
         "120"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B06.webp",
+          "image": "latlon/B06.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B06.webp",
+          "image": "diff/1km/latlon/B06.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B06.webp",
+          "image": "diff/3km/latlon/B06.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B07",
@@ -361,9 +797,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B07.webp",
+      "webp": "latlon/B07.webp",
+      "image": "latlon/B07.webp",
       "vmin": 200.0,
       "vmax": 330.0,
       "legend_ticks": [
@@ -371,7 +806,75 @@
         "243.333",
         "286.667",
         "330"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B07.webp",
+          "image": "latlon/B07.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B07.webp",
+          "image": "diff/1km/latlon/B07.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B07.webp",
+          "image": "diff/3km/latlon/B07.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B08",
@@ -406,9 +909,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B08.webp",
+      "webp": "latlon/B08.webp",
+      "image": "latlon/B08.webp",
       "vmin": 200.0,
       "vmax": 300.0,
       "legend_ticks": [
@@ -416,7 +918,75 @@
         "233.333",
         "266.667",
         "300"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B08.webp",
+          "image": "latlon/B08.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B08.webp",
+          "image": "diff/1km/latlon/B08.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B08.webp",
+          "image": "diff/3km/latlon/B08.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B09",
@@ -451,9 +1021,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B09.webp",
+      "webp": "latlon/B09.webp",
+      "image": "latlon/B09.webp",
       "vmin": 200.0,
       "vmax": 300.0,
       "legend_ticks": [
@@ -461,7 +1030,75 @@
         "233.333",
         "266.667",
         "300"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B09.webp",
+          "image": "latlon/B09.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B09.webp",
+          "image": "diff/1km/latlon/B09.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B09.webp",
+          "image": "diff/3km/latlon/B09.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B10",
@@ -496,9 +1133,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B10.webp",
+      "webp": "latlon/B10.webp",
+      "image": "latlon/B10.webp",
       "vmin": 200.0,
       "vmax": 310.0,
       "legend_ticks": [
@@ -506,7 +1142,75 @@
         "236.667",
         "273.333",
         "310"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B10.webp",
+          "image": "latlon/B10.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B10.webp",
+          "image": "diff/1km/latlon/B10.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B10.webp",
+          "image": "diff/3km/latlon/B10.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B11",
@@ -541,9 +1245,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B11.webp",
+      "webp": "latlon/B11.webp",
+      "image": "latlon/B11.webp",
       "vmin": 200.0,
       "vmax": 320.0,
       "legend_ticks": [
@@ -551,7 +1254,75 @@
         "240",
         "280",
         "320"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B11.webp",
+          "image": "latlon/B11.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B11.webp",
+          "image": "diff/1km/latlon/B11.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B11.webp",
+          "image": "diff/3km/latlon/B11.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B12",
@@ -586,9 +1357,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B12.webp",
+      "webp": "latlon/B12.webp",
+      "image": "latlon/B12.webp",
       "vmin": 200.0,
       "vmax": 320.0,
       "legend_ticks": [
@@ -596,7 +1366,75 @@
         "240",
         "280",
         "320"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B12.webp",
+          "image": "latlon/B12.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B12.webp",
+          "image": "diff/1km/latlon/B12.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B12.webp",
+          "image": "diff/3km/latlon/B12.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B13",
@@ -631,9 +1469,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B13.webp",
+      "webp": "latlon/B13.webp",
+      "image": "latlon/B13.webp",
       "vmin": 200.0,
       "vmax": 320.0,
       "legend_ticks": [
@@ -641,7 +1478,75 @@
         "240",
         "280",
         "320"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B13.webp",
+          "image": "latlon/B13.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B13.webp",
+          "image": "diff/1km/latlon/B13.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B13.webp",
+          "image": "diff/3km/latlon/B13.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B14",
@@ -676,9 +1581,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B14.webp",
+      "webp": "latlon/B14.webp",
+      "image": "latlon/B14.webp",
       "vmin": 200.0,
       "vmax": 320.0,
       "legend_ticks": [
@@ -686,7 +1590,75 @@
         "240",
         "280",
         "320"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B14.webp",
+          "image": "latlon/B14.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B14.webp",
+          "image": "diff/1km/latlon/B14.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B14.webp",
+          "image": "diff/3km/latlon/B14.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B15",
@@ -721,9 +1693,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B15.webp",
+      "webp": "latlon/B15.webp",
+      "image": "latlon/B15.webp",
       "vmin": 200.0,
       "vmax": 320.0,
       "legend_ticks": [
@@ -731,7 +1702,75 @@
         "240",
         "280",
         "320"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B15.webp",
+          "image": "latlon/B15.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B15.webp",
+          "image": "diff/1km/latlon/B15.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B15.webp",
+          "image": "diff/3km/latlon/B15.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     },
     {
       "name": "B16",
@@ -766,9 +1805,8 @@
       "render_mode": "scalar",
       "is_rgb": false,
       "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B16.webp",
+      "webp": "latlon/B16.webp",
+      "image": "latlon/B16.webp",
       "vmin": 200.0,
       "vmax": 310.0,
       "legend_ticks": [
@@ -776,7 +1814,75 @@
         "236.667",
         "273.333",
         "310"
-      ]
+      ],
+      "resolution_assets": {
+        "original": {
+          "key": "original",
+          "label": "原始",
+          "webp": "latlon/B16.webp",
+          "image": "latlon/B16.webp",
+          "grid": {
+            "nx": 31,
+            "ny": 39,
+            "resolution": 0.04
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.04,
+          "spatial_resolution": "0.04°",
+          "derived": false,
+          "method": "source_grid",
+          "source_resolution": 0.04
+        },
+        "1km": {
+          "key": "1km",
+          "label": "显示插值 1km",
+          "webp": "diff/1km/latlon/B16.webp",
+          "image": "diff/1km/latlon/B16.webp",
+          "grid": {
+            "nx": 121,
+            "ny": 151,
+            "resolution": 0.01
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.01,
+          "spatial_resolution": "0.01°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        },
+        "3km": {
+          "key": "3km",
+          "label": "显示插值 3km",
+          "webp": "diff/3km/latlon/B16.webp",
+          "image": "diff/3km/latlon/B16.webp",
+          "grid": {
+            "nx": 41,
+            "ny": 51,
+            "resolution": 0.03
+          },
+          "extent": [
+            118.2,
+            31.2,
+            119.4,
+            32.7
+          ],
+          "resolution": 0.03,
+          "spatial_resolution": "0.03°",
+          "derived": true,
+          "method": "bilinear",
+          "source_resolution": 0.04
+        }
+      }
     }
   ],
   "composites": [
@@ -813,9 +1919,8 @@
         "mean": null,
         "std": null
       },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/natural_color.webp"
+      "webp": "composites/natural_color.webp",
+      "image": "composites/natural_color.webp"
     },
     {
       "name": "air_mass",
@@ -851,9 +1956,8 @@
         "mean": null,
         "std": null
       },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/air_mass.webp"
+      "webp": "composites/air_mass.webp",
+      "image": "composites/air_mass.webp"
     },
     {
       "name": "dust",
@@ -889,9 +1993,8 @@
         "mean": null,
         "std": null
       },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/dust.webp"
+      "webp": "composites/dust.webp",
+      "image": "composites/dust.webp"
     },
     {
       "name": "night_microphysics",
@@ -926,9 +2029,8 @@
         "mean": null,
         "std": null
       },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/night_microphysics.webp"
+      "webp": "composites/night_microphysics.webp",
+      "image": "composites/night_microphysics.webp"
     },
     {
       "name": "water_vapor_enhanced",
@@ -963,9 +2065,8 @@
         "mean": null,
         "std": null
       },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/water_vapor_enhanced.webp"
+      "webp": "composites/water_vapor_enhanced.webp",
+      "image": "composites/water_vapor_enhanced.webp"
     },
     {
       "name": "true_color",
@@ -1000,955 +2101,8 @@
         "mean": null,
         "std": null
       },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/true_color.webp"
-    }
-  ],
-  "products": [
-    {
-      "name": "natural_color",
-      "name_cn": "自然色云图",
-      "description": "比真彩色更强调地表和云的差异。",
-      "description_zh": "比真彩色更强调地表和云的差异。",
-      "description_en": "Daytime RGB composite that enhances land, water, vegetation and cloud differences.",
-      "source_bands": [
-        "B05",
-        "B04",
-        "B03"
-      ],
-      "product_type": "composite",
-      "render_mode": "rgb",
-      "is_rgb": true,
-      "show_colorbar": false,
-      "unit": "-",
-      "display_unit": "RGB合成",
-      "shape": [
-        39,
-        31,
-        3
-      ],
-      "dims": [
-        "lat",
-        "lon",
-        "rgb"
-      ],
-      "stats": {
-        "min": null,
-        "max": null,
-        "mean": null,
-        "std": null
-      },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/natural_color.webp"
-    },
-    {
-      "name": "air_mass",
-      "name_cn": "气团 RGB",
-      "description": "通过水汽和臭氧吸收带差异突出不同气团和高空动力结构。",
-      "description_zh": "通过水汽和臭氧吸收带差异突出不同气团和高空动力结构。",
-      "description_en": "RGB composite for dry intrusions, upper-air dynamics and air-mass contrast.",
-      "source_bands": [
-        "B08",
-        "B10",
-        "B12",
-        "B13"
-      ],
-      "product_type": "composite",
-      "render_mode": "rgb",
-      "is_rgb": true,
-      "show_colorbar": false,
-      "unit": "-",
-      "display_unit": "RGB合成",
-      "shape": [
-        39,
-        31,
-        3
-      ],
-      "dims": [
-        "lat",
-        "lon",
-        "rgb"
-      ],
-      "stats": {
-        "min": null,
-        "max": null,
-        "mean": null,
-        "std": null
-      },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/air_mass.webp"
-    },
-    {
-      "name": "dust",
-      "name_cn": "沙尘 RGB",
-      "description": "通过分裂窗和红外通道差异增强沙尘及薄云信号。",
-      "description_zh": "通过分裂窗和红外通道差异增强沙尘及薄云信号。",
-      "description_en": "RGB composite that enhances dust, thin cloud and low-level feature signals.",
-      "source_bands": [
-        "B11",
-        "B13",
-        "B14",
-        "B15"
-      ],
-      "product_type": "composite",
-      "render_mode": "rgb",
-      "is_rgb": true,
-      "show_colorbar": false,
-      "unit": "-",
-      "display_unit": "RGB合成",
-      "shape": [
-        39,
-        31,
-        3
-      ],
-      "dims": [
-        "lat",
-        "lon",
-        "rgb"
-      ],
-      "stats": {
-        "min": null,
-        "max": null,
-        "mean": null,
-        "std": null
-      },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/dust.webp"
-    },
-    {
-      "name": "night_microphysics",
-      "name_cn": "夜间微物理 RGB",
-      "description": "利用短波红外和长波红外差异，在夜间辅助识别低云雾。",
-      "description_zh": "利用短波红外和长波红外差异，在夜间辅助识别低云雾。",
-      "description_en": "Nighttime RGB composite for low cloud, fog and cloud microphysics context.",
-      "source_bands": [
-        "B07",
-        "B13",
-        "B15"
-      ],
-      "product_type": "composite",
-      "render_mode": "rgb",
-      "is_rgb": true,
-      "show_colorbar": false,
-      "unit": "-",
-      "display_unit": "RGB合成",
-      "shape": [
-        39,
-        31,
-        3
-      ],
-      "dims": [
-        "lat",
-        "lon",
-        "rgb"
-      ],
-      "stats": {
-        "min": null,
-        "max": null,
-        "mean": null,
-        "std": null
-      },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/night_microphysics.webp"
-    },
-    {
-      "name": "water_vapor_enhanced",
-      "name_cn": "水汽增强图",
-      "description": "将多个水汽通道组合，突出中高层大气干湿结构。",
-      "description_zh": "将多个水汽通道组合，突出中高层大气干湿结构。",
-      "description_en": "RGB composite that enhances mid-to-upper-level water vapor structure.",
-      "source_bands": [
-        "B08",
-        "B09",
-        "B10"
-      ],
-      "product_type": "composite",
-      "render_mode": "rgb",
-      "is_rgb": true,
-      "show_colorbar": false,
-      "unit": "-",
-      "display_unit": "RGB合成",
-      "shape": [
-        39,
-        31,
-        3
-      ],
-      "dims": [
-        "lat",
-        "lon",
-        "rgb"
-      ],
-      "stats": {
-        "min": null,
-        "max": null,
-        "mean": null,
-        "std": null
-      },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/water_vapor_enhanced.webp"
-    },
-    {
-      "name": "B01",
-      "long_name": "白天云和地表颜色辅助通道",
-      "short_name": "B01",
-      "raw_name": "B01",
-      "name_cn": "蓝光反射率",
-      "unit": "%",
-      "display_unit": "%",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 15.78105354309082,
-        "max": 63.77473831176758,
-        "mean": 31.86133575439453,
-        "std": null
-      },
-      "category": "可见光反射率",
-      "description": "反映云、海洋和地表对蓝光的反射强弱，数值越大通常越亮。",
-      "description_zh": "反映云、海洋和地表对蓝光的反射强弱，数值越大通常越亮。",
-      "description_en": "Blue-band reflectance for daytime cloud and surface color reference.",
-      "wavelength": "0.47um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B01.webp",
-      "vmin": 0.0,
-      "vmax": 120.0,
-      "legend_ticks": [
-        "0",
-        "40",
-        "80",
-        "120"
-      ]
-    },
-    {
-      "name": "B02",
-      "long_name": "白天自然颜色辅助通道",
-      "short_name": "B02",
-      "raw_name": "B02",
-      "name_cn": "绿光反射率",
-      "unit": "%",
-      "display_unit": "%",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 12.842803001403809,
-        "max": 60.612571716308594,
-        "mean": 28.688291549682617,
-        "std": null
-      },
-      "category": "可见光反射率",
-      "description": "反映目标对绿光的反射强弱，是真彩色合成的重要组成部分。",
-      "description_zh": "反映目标对绿光的反射强弱，是真彩色合成的重要组成部分。",
-      "description_en": "Green-band reflectance used for daytime natural color and true color products.",
-      "wavelength": "0.51um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B02.webp",
-      "vmin": 0.0,
-      "vmax": 120.0,
-      "legend_ticks": [
-        "0",
-        "40",
-        "80",
-        "120"
-      ]
-    },
-    {
-      "name": "B03",
-      "long_name": "白天高分辨率云图通道",
-      "short_name": "B03",
-      "raw_name": "B03",
-      "name_cn": "红光反射率",
-      "unit": "%",
-      "display_unit": "%",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 8.616519927978516,
-        "max": 63.1866569519043,
-        "mean": 25.317468643188477,
-        "std": null
-      },
-      "category": "可见光反射率",
-      "description": "红光反射率能清楚显示白天云的纹理和边界。",
-      "description_zh": "红光反射率能清楚显示白天云的纹理和边界。",
-      "description_en": "Red-band reflectance that highlights daytime cloud texture and boundaries.",
-      "wavelength": "0.64um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B03.webp",
-      "vmin": 0.0,
-      "vmax": 120.0,
-      "legend_ticks": [
-        "0",
-        "40",
-        "80",
-        "120"
-      ]
-    },
-    {
-      "name": "B04",
-      "long_name": "植被和云相态辅助通道",
-      "short_name": "B04",
-      "raw_name": "B04",
-      "name_cn": "近红外反射率",
-      "unit": "%",
-      "display_unit": "%",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 14.936156272888184,
-        "max": 67.27045440673828,
-        "mean": 31.462263107299805,
-        "std": null
-      },
-      "category": "近红外反射率",
-      "description": "对植被、水体和部分云相态差异比较敏感。",
-      "description_zh": "对植被、水体和部分云相态差异比较敏感。",
-      "description_en": "Near-infrared reflectance for vegetation, water and cloud phase context.",
-      "wavelength": "0.86um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B04.webp",
-      "vmin": 0.0,
-      "vmax": 120.0,
-      "legend_ticks": [
-        "0",
-        "40",
-        "80",
-        "120"
-      ]
-    },
-    {
-      "name": "B05",
-      "long_name": "雪冰和云粒子大小辅助通道",
-      "short_name": "B05",
-      "raw_name": "B05",
-      "name_cn": "雪冰云粒子反射率",
-      "unit": "%",
-      "display_unit": "%",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 7.476004600524902,
-        "max": 40.6049690246582,
-        "mean": 19.878087997436523,
-        "std": null
-      },
-      "category": "近红外反射率",
-      "description": "对雪冰、云粒子大小和低云特征较敏感。",
-      "description_zh": "对雪冰、云粒子大小和低云特征较敏感。",
-      "description_en": "Near-infrared reflectance sensitive to snow, ice and cloud particle size.",
-      "wavelength": "1.6um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B05.webp",
-      "vmin": 0.0,
-      "vmax": 120.0,
-      "legend_ticks": [
-        "0",
-        "40",
-        "80",
-        "120"
-      ]
-    },
-    {
-      "name": "B06",
-      "long_name": "云粒子和地表反射辅助通道",
-      "short_name": "B06",
-      "raw_name": "B06",
-      "name_cn": "短波近红外反射率",
-      "unit": "%",
-      "display_unit": "%",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 4.955852031707764,
-        "max": 26.207199096679688,
-        "mean": 14.680582046508789,
-        "std": null
-      },
-      "category": "近红外反射率",
-      "description": "对云粒子和地表类型差异有响应，常用于组合产品。",
-      "description_zh": "对云粒子和地表类型差异有响应，常用于组合产品。",
-      "description_en": "Shortwave near-infrared reflectance for cloud particle and surface type contrast.",
-      "wavelength": "2.3um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B06.webp",
-      "vmin": 0.0,
-      "vmax": 120.0,
-      "legend_ticks": [
-        "0",
-        "40",
-        "80",
-        "120"
-      ]
-    },
-    {
-      "name": "B07",
-      "long_name": "夜间低云雾和热点辅助通道",
-      "short_name": "B07",
-      "raw_name": "B07",
-      "name_cn": "短波红外亮温",
-      "unit": "K",
-      "display_unit": "K",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 264.9352111816406,
-        "max": 304.2619934082031,
-        "mean": 288.48944091796875,
-        "std": null
-      },
-      "category": "红外亮温",
-      "description": "夜间常用于低云雾和热点识别，白天会受太阳反射影响。",
-      "description_zh": "夜间常用于低云雾和热点识别，白天会受太阳反射影响。",
-      "description_en": "Shortwave infrared brightness temperature for nighttime low cloud, fog and hot spot context.",
-      "wavelength": "3.9um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B07.webp",
-      "vmin": 200.0,
-      "vmax": 330.0,
-      "legend_ticks": [
-        "200",
-        "243.333",
-        "286.667",
-        "330"
-      ]
-    },
-    {
-      "name": "B08",
-      "long_name": "高空水汽分布通道",
-      "short_name": "B08",
-      "raw_name": "B08",
-      "name_cn": "高层水汽亮温",
-      "unit": "K",
-      "display_unit": "K",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 222.78182983398438,
-        "max": 232.9931640625,
-        "mean": 229.54998779296875,
-        "std": null
-      },
-      "category": "水汽亮温",
-      "description": "主要反映对流层中高层水汽和云的辐射特征。",
-      "description_zh": "主要反映对流层中高层水汽和云的辐射特征。",
-      "description_en": "Upper-level water vapor brightness temperature for high-tropospheric moisture patterns.",
-      "wavelength": "6.2um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B08.webp",
-      "vmin": 200.0,
-      "vmax": 300.0,
-      "legend_ticks": [
-        "200",
-        "233.333",
-        "266.667",
-        "300"
-      ]
-    },
-    {
-      "name": "B09",
-      "long_name": "中高空水汽结构通道",
-      "short_name": "B09",
-      "raw_name": "B09",
-      "name_cn": "中高层水汽亮温",
-      "unit": "K",
-      "display_unit": "K",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 227.567626953125,
-        "max": 242.9108123779297,
-        "mean": 237.4635772705078,
-        "std": null
-      },
-      "category": "水汽亮温",
-      "description": "用于观察中高层水汽和云系结构。",
-      "description_zh": "用于观察中高层水汽和云系结构。",
-      "description_en": "Mid-to-upper-level water vapor brightness temperature for moisture structure.",
-      "wavelength": "6.9um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B09.webp",
-      "vmin": 200.0,
-      "vmax": 300.0,
-      "legend_ticks": [
-        "200",
-        "233.333",
-        "266.667",
-        "300"
-      ]
-    },
-    {
-      "name": "B10",
-      "long_name": "中层大气水汽通道",
-      "short_name": "B10",
-      "raw_name": "B10",
-      "name_cn": "中层水汽亮温",
-      "unit": "K",
-      "display_unit": "K",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 231.14117431640625,
-        "max": 253.8339385986328,
-        "mean": 244.9639434814453,
-        "std": null
-      },
-      "category": "水汽亮温",
-      "description": "辅助判断中层干湿和云系发展环境。",
-      "description_zh": "辅助判断中层干湿和云系发展环境。",
-      "description_en": "Mid-level water vapor brightness temperature for moisture and cloud environment analysis.",
-      "wavelength": "7.3um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B10.webp",
-      "vmin": 200.0,
-      "vmax": 310.0,
-      "legend_ticks": [
-        "200",
-        "236.667",
-        "273.333",
-        "310"
-      ]
-    },
-    {
-      "name": "B11",
-      "long_name": "云相态和沙尘辅助通道",
-      "short_name": "B11",
-      "raw_name": "B11",
-      "name_cn": "云相态红外亮温",
-      "unit": "K",
-      "display_unit": "K",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 239.9349365234375,
-        "max": 289.54229736328125,
-        "mean": 268.203857421875,
-        "std": null
-      },
-      "category": "红外亮温",
-      "description": "常和窗口通道组合，用于区分云、沙尘和云相态差异。",
-      "description_zh": "常和窗口通道组合，用于区分云、沙尘和云相态差异。",
-      "description_en": "Infrared brightness temperature used with window channels for cloud phase and dust context.",
-      "wavelength": "8.6um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B11.webp",
-      "vmin": 200.0,
-      "vmax": 320.0,
-      "legend_ticks": [
-        "200",
-        "240",
-        "280",
-        "320"
-      ]
-    },
-    {
-      "name": "B12",
-      "long_name": "气团和高空动力辅助通道",
-      "short_name": "B12",
-      "raw_name": "B12",
-      "name_cn": "臭氧吸收带亮温",
-      "unit": "K",
-      "display_unit": "K",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 234.77557373046875,
-        "max": 263.7713317871094,
-        "mean": 251.01318359375,
-        "std": null
-      },
-      "category": "红外亮温",
-      "description": "受臭氧吸收影响，常用于气团 RGB。",
-      "description_zh": "受臭氧吸收影响，常用于气团 RGB。",
-      "description_en": "Ozone absorption band brightness temperature used in air-mass RGB products.",
-      "wavelength": "9.6um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B12.webp",
-      "vmin": 200.0,
-      "vmax": 320.0,
-      "legend_ticks": [
-        "200",
-        "240",
-        "280",
-        "320"
-      ]
-    },
-    {
-      "name": "B13",
-      "long_name": "云顶温度观测通道",
-      "short_name": "B13",
-      "raw_name": "B13",
-      "name_cn": "红外窗口亮温",
-      "unit": "K",
-      "display_unit": "K",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 239.75436401367188,
-        "max": 291.69183349609375,
-        "mean": 269.0754089355469,
-        "std": null
-      },
-      "category": "红外亮温",
-      "description": "温度越低，通常表示云顶越高或越冷。",
-      "description_zh": "温度越低，通常表示云顶越高或越冷。",
-      "description_en": "Infrared window brightness temperature; colder values usually indicate higher or colder cloud tops.",
-      "wavelength": "10.4um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B13.webp",
-      "vmin": 200.0,
-      "vmax": 320.0,
-      "legend_ticks": [
-        "200",
-        "240",
-        "280",
-        "320"
-      ]
-    },
-    {
-      "name": "B14",
-      "long_name": "标准红外云图通道",
-      "short_name": "B14",
-      "raw_name": "B14",
-      "name_cn": "长波红外窗口亮温",
-      "unit": "K",
-      "display_unit": "K",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 237.84747314453125,
-        "max": 289.97509765625,
-        "mean": 267.0694274902344,
-        "std": null
-      },
-      "category": "红外亮温",
-      "description": "适合全天候观察云顶温度和大范围云系。",
-      "description_zh": "适合全天候观察云顶温度和大范围云系。",
-      "description_en": "Longwave infrared window brightness temperature for all-day cloud-top observation.",
-      "wavelength": "11.2um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B14.webp",
-      "vmin": 200.0,
-      "vmax": 320.0,
-      "legend_ticks": [
-        "200",
-        "240",
-        "280",
-        "320"
-      ]
-    },
-    {
-      "name": "B15",
-      "long_name": "水汽和沙尘差异辅助通道",
-      "short_name": "B15",
-      "raw_name": "B15",
-      "name_cn": "分裂窗红外亮温",
-      "unit": "K",
-      "display_unit": "K",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 236.0680389404297,
-        "max": 285.1173095703125,
-        "mean": 263.4867248535156,
-        "std": null
-      },
-      "category": "红外亮温",
-      "description": "常与 10.4um 或 11.2um 通道做差。",
-      "description_zh": "常与 10.4um 或 11.2um 通道做差。",
-      "description_en": "Split-window infrared brightness temperature used with other channels for dust and thin cloud signals.",
-      "wavelength": "12.4um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B15.webp",
-      "vmin": 200.0,
-      "vmax": 320.0,
-      "legend_ticks": [
-        "200",
-        "240",
-        "280",
-        "320"
-      ]
-    },
-    {
-      "name": "B16",
-      "long_name": "高云和云顶高度辅助通道",
-      "short_name": "B16",
-      "raw_name": "B16",
-      "name_cn": "二氧化碳吸收带亮温",
-      "unit": "K",
-      "display_unit": "K",
-      "shape": [
-        39,
-        31
-      ],
-      "dims": [
-        "lat",
-        "lon"
-      ],
-      "level": null,
-      "missing": null,
-      "stats": {
-        "min": 231.46841430664062,
-        "max": 268.450439453125,
-        "mean": 252.82598876953125,
-        "std": null
-      },
-      "category": "红外亮温",
-      "description": "对高层云和云顶高度相关信息较敏感。",
-      "description_zh": "对高层云和云顶高度相关信息较敏感。",
-      "description_en": "Carbon dioxide absorption band brightness temperature for high-cloud and cloud-top height context.",
-      "wavelength": "13.3um",
-      "product_type": "variable",
-      "render_mode": "scalar",
-      "is_rgb": false,
-      "show_colorbar": true,
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/latlon/B16.webp",
-      "vmin": 200.0,
-      "vmax": 310.0,
-      "legend_ticks": [
-        "200",
-        "236.667",
-        "273.333",
-        "310"
-      ]
-    },
-    {
-      "name": "true_color",
-      "name_cn": "真彩色云图",
-      "description": "用于直观看云、陆地、水体和大范围天气系统。",
-      "description_zh": "用于直观看云、陆地、水体和大范围天气系统。",
-      "description_en": "Daytime RGB composite that approximates natural visual cloud, land and water colors.",
-      "source_bands": [
-        "B03",
-        "B02",
-        "B01"
-      ],
-      "product_type": "composite",
-      "render_mode": "rgb",
-      "is_rgb": true,
-      "show_colorbar": false,
-      "unit": "-",
-      "display_unit": "RGB合成（瑞利校正）",
-      "shape": [
-        39,
-        31,
-        3
-      ],
-      "dims": [
-        "lat",
-        "lon",
-        "rgb"
-      ],
-      "stats": {
-        "min": null,
-        "max": null,
-        "mean": null,
-        "std": null
-      },
-      "float32": null,
-      "netcdf": null,
-      "png": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/composites/true_color.webp"
+      "webp": "composites/true_color.webp",
+      "image": "composites/true_color.webp"
     }
   ],
   "weather_info": {
@@ -2011,7 +2165,7 @@
         "B16"
       ],
       "raw_file_count": 320,
-      "source_raw_dir": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/raw",
+      "source_raw_dir": null,
       "retention_managed": false
     },
     "radar": {},
@@ -2035,8 +2189,40 @@
     "B15",
     "B16"
   ],
-  "source_raw_dir": "/Users/shaoyongjin/code/zhihuiqixiang/zhihuiqixiangSQL/backend_system/data/Himawari/20260701/0030/raw",
+  "source_raw_dir": null,
   "raw_file_count": 320,
   "retention_managed": false,
-  "generated_at": "2026-07-03T13:05:18.256079+00:00"
+  "generated_at": "2026-07-03T13:05:18.256079+00:00",
+  "resolution_options": [
+    {
+      "key": "original",
+      "label": "原始",
+      "resolution": 0.04,
+      "derived": false,
+      "method": "source_grid",
+      "source_resolution": 0.04
+    },
+    {
+      "key": "3km",
+      "label": "显示插值 3km",
+      "resolution": 0.03,
+      "derived": true,
+      "method": "bilinear",
+      "source_resolution": 0.04
+    },
+    {
+      "key": "1km",
+      "label": "显示插值 1km",
+      "resolution": 0.01,
+      "derived": true,
+      "method": "bilinear",
+      "source_resolution": 0.04
+    }
+  ],
+  "resolutions": {
+    "original": 0.04,
+    "3km": 0.03,
+    "1km": 0.01
+  },
+  "source_files": []
 }
