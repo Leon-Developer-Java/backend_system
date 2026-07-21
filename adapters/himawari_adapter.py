@@ -25,8 +25,7 @@ from scipy.ndimage import map_coordinates
 if __package__ in {None, ""}:
     sys.path.insert(0, Path(__file__).resolve().parents[1].as_posix())
 
-from adapters.base import process_basic_file
-from adapters import diff_methods
+from adapters.base import process_basic_file, resolution_for_key, resolution_label_for_key
 
 
 HSD_FILENAME_RE = re.compile(
@@ -51,6 +50,7 @@ FTP_ROOT = "/jma/hsd"
 FTP_PORT = 21
 FTP_TIMEOUT = 60
 HIMAWARI_TARGET_BANDS = [f"B{i:02d}" for i in range(1, 17)]
+HIMAWARI_DEFAULT_BANDS = ["B13", "B03", "B02", "B01"]
 TRUE_COLOR_BANDS = ["B03", "B02", "B01"]
 PARTIAL_MAX_AGE_HOURS = 6
 DEFAULT_WINDOW_HOURS = 1
@@ -297,7 +297,16 @@ def normalize_himawari_meta(meta: dict[str, Any], meta_path: str | Path | None =
     grid = meta.get("grid") if isinstance(meta.get("grid"), dict) else {}
     if not grid:
         grid = build_latlon_grid(extent, float(meta.get("resolution") or LATLON_RESOLUTION))
-    grid = {"nx": int(grid.get("nx")), "ny": int(grid.get("ny"))} if grid.get("nx") and grid.get("ny") else grid
+    if grid.get("nx") and grid.get("ny"):
+        grid = {
+            **grid,
+            "nx": int(grid.get("nx")),
+            "ny": int(grid.get("ny")),
+            "extent": extent,
+            "resolution": float(meta.get("resolution") or grid.get("resolution") or LATLON_RESOLUTION),
+            "projection": meta.get("projection") or grid.get("projection") or "EPSG:4326",
+            "grid_type": meta.get("grid_type") or grid.get("grid_type") or "regular_latlon",
+        }
     generated_at = meta.get("generated_at") or meta.get("extra", {}).get("generated_at") or datetime.now(timezone.utc).isoformat()
     variables = [_normalize_himawari_variable(item, grid) for item in meta.get("variables", []) if _product_name(item)]
     composites = [_normalize_himawari_composite(item, grid) for item in meta.get("composites", []) if _product_name(item)]
@@ -395,18 +404,37 @@ def _build_himawari_resolution_assets(
     src_res = float(grid.get("resolution", LATLON_RESOLUTION))
     options = [{"key": "original", "label": "原始", "resolution": src_res}]
     for key in res_keys:
-        options.append({"key": key, "label": diff_methods.resolution_label_for_key(key), "resolution": src_res})
+        target_resolution = resolution_for_key(key)
+        if target_resolution is None:
+            continue
+        options.append({
+            "key": key,
+            "label": resolution_label_for_key(key),
+            "resolution": target_resolution,
+            "derived": True,
+            "method": "bilinear",
+            "source_resolution": src_res,
+        })
 
     enriched = []
     for var in variables:
         name = _product_name(var)
         assets: dict[str, Any] = {
-            "original": _himawari_asset_entry("original", "原始", var.get("webp"), grid),
+            "original": _himawari_asset_entry("original", "原始", var.get("webp"), grid, src_res),
         }
         for key in res_keys:
+            target_resolution = resolution_for_key(key)
+            if target_resolution is None:
+                continue
             webp_rel = f"diff/{key}/latlon/{name}.webp"
             if (scene_dir / webp_rel).is_file():
-                assets[key] = _himawari_asset_entry(key, diff_methods.resolution_label_for_key(key), webp_rel, grid)
+                assets[key] = _himawari_asset_entry(
+                    key,
+                    resolution_label_for_key(key),
+                    webp_rel,
+                    grid,
+                    target_resolution,
+                )
         if len(assets) > 1:
             enriched.append({**var, "resolution_assets": assets})
         else:
@@ -414,16 +442,29 @@ def _build_himawari_resolution_assets(
     return enriched, options
 
 
-def _himawari_asset_entry(key: str, label: str, webp: str | None, grid: dict[str, Any]) -> dict[str, Any]:
+def _himawari_asset_entry(
+    key: str,
+    label: str,
+    webp: str | None,
+    grid: dict[str, Any],
+    resolution: float,
+) -> dict[str, Any]:
+    extent = grid.get("extent") or HIMAWARI_DEFAULT_EXTENT
+    west, south, east, north = [float(item) for item in extent]
+    nx = int(round((east - west) / resolution)) + 1
+    ny = int(round((north - south) / resolution)) + 1
     return {
         "key": key,
         "label": label,
         "webp": webp,
         "image": webp,
-        "grid": {"nx": grid.get("nx"), "ny": grid.get("ny"), "resolution": grid.get("resolution")},
-        "extent": grid.get("extent"),
-        "resolution": grid.get("resolution"),
-        "spatial_resolution": f"{grid.get('resolution', '')}°" if grid.get("resolution") else "",
+        "grid": {"nx": nx, "ny": ny, "resolution": resolution},
+        "extent": extent,
+        "resolution": resolution,
+        "spatial_resolution": f"{resolution:g}°",
+        "derived": key != "original",
+        "method": "bilinear" if key != "original" else "source_grid",
+        "source_resolution": float(grid.get("resolution") or resolution),
     }
 
 
@@ -454,7 +495,7 @@ def _merge_scene_metadata(
             "variables": merged_variables,
             "composites": merged_composites,
             "loaded_bands": loaded_bands,
-            "raw_file_count": int(existing.get("raw_file_count") or 0) + raw_file_count,
+            "raw_file_count": max(int(existing.get("raw_file_count") or 0), raw_file_count),
             "retention_managed": bool(existing.get("retention_managed")) or retention_managed,
         }
     )
@@ -627,7 +668,7 @@ def download_himawari_hsd_scene(
     bands: list[str] | None = None,
     overwrite: bool = False,
     parse_after_download: bool = False,
-    delete_raw_after_parse: bool = True,
+    delete_raw_after_parse: bool = False,
     retention_hours: int = DEFAULT_WINDOW_HOURS,
     ftp_factory: Any = ftplib.FTP,
     host: str | None = None,
@@ -641,6 +682,7 @@ def download_himawari_hsd_scene(
     latest_delay_minutes: int = 0,
 ) -> dict[str, Any]:
     date, time = _validate_hsd_date_time(date, time)
+    bands = _ordered_unique_bands(bands or HIMAWARI_DEFAULT_BANDS)
     env = os.environ
     host = (host or env.get("HIMAWARI_FTP_HOST", FTP_HOST)).strip()
     user = (user or env.get("HIMAWARI_FTP_USER") or "").strip()
@@ -649,7 +691,7 @@ def download_himawari_hsd_scene(
     if not user or not password:
         raise ValueError("请设置 HIMAWARI_FTP_USER 和 HIMAWARI_FTP_PASSWORD 后再下载 Himawari HSD。")
     remote_dirs = build_himawari_remote_dirs(date, time, remote_root)
-    raw_dir = Path(output_root) / date / time / "raw"
+    raw_dir = Path(output_root) / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     scene_id = f"{date}_{time}"
 
@@ -762,13 +804,15 @@ def download_himawari_hsd_scene(
         "file_count": len(downloaded) + len(skipped),
     }
     if parse_after_download:
-        if not _raw_scene_has_complete_bands(raw_dir, bands=bands):
+        if not _raw_scene_has_complete_bands(raw_dir, bands=bands, date=date, time=time):
             result["parse_skipped"] = "HSD raw 分段未完整，等待下一轮自动补齐后再解析。"
             _emit_progress(progress_callback, stage="downloaded", phase=phase, scene_id=scene_id, detail="raw 分段不完整，保留给下一轮续传")
             return result
         result["parsed"] = process_downloaded_himawari_scene(
             raw_dir,
             output_root,
+            date=date,
+            time=time,
             delete_raw=delete_raw_after_parse,
             retention_hours=retention_hours,
             latest_delay_minutes=latest_delay_minutes,
@@ -891,37 +935,45 @@ def cleanup_himawari_retention(
 def process_downloaded_himawari_scene(
     raw_dir: str | Path,
     output_root: str | Path = DATA_DIR,
-    delete_raw: bool = True,
+    delete_raw: bool = False,
     retention_hours: int = DEFAULT_WINDOW_HOURS,
     now: datetime | None = None,
     latest_delay_minutes: int = 0,
+    date: str | None = None,
+    time: str | None = None,
     **process_kwargs: Any,
 ) -> dict[str, Any]:
     raw_path = Path(raw_dir)
     progress_callback = process_kwargs.pop("progress_callback", None)
     phase = process_kwargs.pop("phase", None)
-    date_name = raw_path.parent.parent.name
-    time_name = raw_path.parent.name
-    scene_id = f"{date_name}_{time_name}" if re.fullmatch(r"\d{8}", date_name) and re.fullmatch(r"\d{4}", time_name) else raw_path.parent.name
+    if not date or not time:
+        scene_keys = {
+            (info["date"], info["time"])
+            for path in raw_path.glob("HS_H*.DAT*")
+            if (info := parse_hsd_filename(path.name))
+        }
+        if len(scene_keys) != 1:
+            raise ValueError("根 raw 目录包含多个 Himawari 时次，解析时必须指定 date 和 time。")
+        date, time = next(iter(scene_keys))
+    date, time = _validate_hsd_date_time(date, time)
+    scene_id = f"{date}_{time}"
     _emit_progress(progress_callback, stage="parsing", phase=phase, scene_id=scene_id, detail="解析 HSD raw")
     try:
-        meta = process_scene(raw_path, output_root=output_root, progress_callback=progress_callback, phase=phase, retention_managed=True, **process_kwargs)
+        meta = process_scene(
+            raw_path,
+            output_root=output_root,
+            date=date,
+            time=time,
+            progress_callback=progress_callback,
+            phase=phase,
+            retention_managed=True,
+            **process_kwargs,
+        )
     except Exception as exc:
-        if delete_raw and raw_path.exists():
-            _emit_progress(progress_callback, stage="cleanup_raw", phase=phase, scene_id=scene_id, detail="解析失败，删除 raw")
-            shutil.rmtree(raw_path, ignore_errors=True)
-            _remove_empty_scene_dirs(raw_path.parent)
         _emit_progress(progress_callback, stage="failed", phase=phase, scene_id=scene_id, detail=str(exc))
         raise
-    if delete_raw and raw_path.exists():
-        _emit_progress(progress_callback, stage="cleanup_raw", phase=phase, scene_id=meta.get("scene_id"), detail="解析成功，删除 raw")
-        shutil.rmtree(raw_path)
-        try:
-            if raw_path.parent.is_dir() and not any(raw_path.parent.iterdir()):
-                raw_path.parent.rmdir()
-        except OSError:
-            pass
-    cleanup_himawari_retention(output_root, retention_hours=retention_hours, now=now, delay_minutes=latest_delay_minutes)
+    if delete_raw:
+        _emit_progress(progress_callback, stage="parsed", phase=phase, scene_id=meta.get("scene_id"), detail="raw 集中存储策略已启用，忽略删除参数")
     _emit_progress(progress_callback, stage="parsed", phase=phase, scene_id=meta.get("scene_id"), detail="WebP/meta 生成完成")
     return meta
 
@@ -936,7 +988,10 @@ def cleanup_partial_himawari_downloads(
         current = current.replace(tzinfo=timezone.utc)
     cutoff = current.timestamp() - max(0, max_age_hours) * 3600
     removed: list[str] = []
-    for path in sorted(Path(output_root).glob("*/*/raw/*.part")):
+    root = Path(output_root)
+    part_files = list((root / "raw").glob("*.part"))
+    part_files.extend(root.glob("*/*/raw/*.part"))
+    for path in sorted(part_files):
         if _is_preserved_himawari_path(path, output_root):
             continue
         try:
@@ -1039,9 +1094,14 @@ def build_himawari_download_jobs(
     return jobs
 
 
-def _raw_scene_has_complete_bands(raw_dir: str | Path, bands: list[str] | None = None) -> bool:
+def _raw_scene_has_complete_bands(
+    raw_dir: str | Path,
+    bands: list[str] | None = None,
+    date: str | None = None,
+    time: str | None = None,
+) -> bool:
     raw_path = Path(raw_dir)
-    requested = {item.upper() for item in bands} if bands else set(BAND_CATALOG)
+    requested = {item.upper() for item in (bands or HIMAWARI_DEFAULT_BANDS)}
     segments: dict[str, set[int]] = {}
     totals: dict[str, int] = {}
     for file_path in raw_path.glob("HS_H*.DAT*"):
@@ -1049,6 +1109,10 @@ def _raw_scene_has_complete_bands(raw_dir: str | Path, bands: list[str] | None =
             continue
         info = parse_hsd_filename(file_path.name)
         if not info or info["band"] not in requested:
+            continue
+        if date and info["date"] != date:
+            continue
+        if time and info["time"] != time:
             continue
         if info["region"] != "FLDK":
             continue
@@ -1087,8 +1151,8 @@ def recover_himawari_scene_window(
 ) -> dict[str, Any]:
     root = Path(output_root)
     scene_slots = slots or himawari_slot_window(now=now, hours=hours, delay_minutes=delay_minutes, interval_minutes=interval_minutes)
-    requested_bands = [item.upper() for item in (bands or HIMAWARI_TARGET_BANDS)]
-    target_band_list = [item for item in _ordered_unique_bands(requested_bands) if item in HIMAWARI_TARGET_BANDS] or list(HIMAWARI_TARGET_BANDS)
+    requested_bands = [item.upper() for item in (bands or HIMAWARI_DEFAULT_BANDS)]
+    target_band_list = [item for item in _ordered_unique_bands(requested_bands) if item in HIMAWARI_TARGET_BANDS] or list(HIMAWARI_DEFAULT_BANDS)
     queue_key = str(queue or "download").lower()
     if queue_key in {"all", "fast", "quick", "slow", "full"}:
         queue_key = "download"
@@ -1112,8 +1176,8 @@ def recover_himawari_scene_window(
         "errors": [],
         "stopped": None,
         "phase": None,
-        "removed_part_files": cleanup_partial_himawari_downloads(root),
-        "removed_expired": cleanup_himawari_retention(root, retention_hours=retention_hours, now=retention_now, delay_minutes=delay_minutes),
+        "removed_part_files": [],
+        "removed_expired": [],
     }
 
     handled = 0
@@ -1122,16 +1186,20 @@ def recover_himawari_scene_window(
     def handle_scene(date: str, scene_time: str, phase: str, wanted_bands: list[str]) -> dict[str, Any]:
         nonlocal handled
         scene_id = f"{date}_{scene_time}"
-        scene_dir = root / date / scene_time
-        raw_dir = scene_dir / "raw"
+        try:
+            raw_dir = _find_raw_dir(root, date, scene_time)
+        except FileNotFoundError:
+            raw_dir = root / "raw"
         try:
             _emit_progress(progress_callback, stage="checking", phase=phase, scene_id=scene_id, detail="检查本地结果和 raw 完整性")
             parsed = False
-            if _raw_scene_has_complete_bands(raw_dir, bands=wanted_bands):
+            if _raw_scene_has_complete_bands(raw_dir, bands=wanted_bands, date=date, time=scene_time):
                 processor(
                     raw_dir,
                     root,
-                    delete_raw=True,
+                    date=date,
+                    time=scene_time,
+                    delete_raw=False,
                     retention_hours=retention_hours,
                     now=retention_now,
                     latest_delay_minutes=delay_minutes,
@@ -1154,11 +1222,14 @@ def recover_himawari_scene_window(
                 progress_callback=progress_callback,
                 **download_kwargs,
             )
-            if _raw_scene_has_complete_bands(raw_dir, bands=wanted_bands):
+            raw_dir = root / "raw"
+            if _raw_scene_has_complete_bands(raw_dir, bands=wanted_bands, date=date, time=scene_time):
                 processor(
                     raw_dir,
                     root,
-                    delete_raw=True,
+                    date=date,
+                    time=scene_time,
+                    delete_raw=False,
                     retention_hours=retention_hours,
                     now=retention_now,
                     latest_delay_minutes=delay_minutes,
@@ -1227,8 +1298,6 @@ def recover_himawari_scene_window(
                 if result["stopped"]:
                     break
 
-    if result["downloaded"] or result["processed_raw"] or result["skipped"]:
-        result["removed_expired"].extend(cleanup_himawari_retention(root, retention_hours=retention_hours, now=retention_now, delay_minutes=delay_minutes))
     _emit_progress(progress_callback, stage="idle", phase=result["phase"], detail="本轮 Himawari 自动任务结束")
     return result
 
@@ -1368,7 +1437,7 @@ def is_hsd_filename(filename: str) -> bool:
 
 def normalize_himawari_upload_filenames(raw_dir: str | Path) -> dict[str, int]:
     raw_path = Path(raw_dir)
-    result = {"renamed": 0, "removed_duplicates": 0}
+    result = {"renamed": 0, "ignored_duplicates": 0}
     if not raw_path.exists():
         return result
     for path in sorted(raw_path.glob("HS_H*.DAT_*")):
@@ -1379,8 +1448,7 @@ def normalize_himawari_upload_filenames(raw_dir: str | Path) -> dict[str, int]:
         if parse_hsd_filename(canonical.name) is None:
             continue
         if canonical.exists():
-            path.unlink()
-            result["removed_duplicates"] += 1
+            result["ignored_duplicates"] += 1
         else:
             path.rename(canonical)
             result["renamed"] += 1
@@ -1391,7 +1459,7 @@ def upload_target_dir(filename: str, base_dir: str | Path) -> Path:
     hsd_info = parse_hsd_filename(Path(filename).name)
     if not hsd_info:
         return Path(base_dir)
-    return Path(base_dir) / hsd_info["date"] / hsd_info["time"] / "raw"
+    return Path(base_dir) / "raw"
 
 
 def select_upload_files(files: list[Any]) -> list[Any]:
@@ -1399,9 +1467,56 @@ def select_upload_files(files: list[Any]) -> list[Any]:
     return hsd_files or files
 
 
-def _describe_raw_scene(raw_dir: str | Path, bands: list[str] | None = None) -> dict[str, Any]:
+def _himawari_raw_dirs(input_root: str | Path) -> list[Path]:
+    root = Path(input_root)
+    if root.is_file():
+        return [root.parent]
+    if root.name == "raw" or list(root.glob("HS_H*.DAT*")):
+        return [root]
+
+    candidates = [root / "raw", *sorted(root.glob("*/*/raw"))]
+    result: list[Path] = []
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if not candidate.is_dir():
+            continue
+        try:
+            key = candidate.resolve()
+        except OSError:
+            key = candidate
+        if key not in seen:
+            seen.add(key)
+            result.append(candidate)
+    return result
+
+
+def _raw_dir_has_scene(raw_dir: Path, date: str, time: str) -> bool:
+    return any(
+        info["date"] == date and info["time"] == time
+        for path in raw_dir.glob("HS_H*.DAT*")
+        if (info := parse_hsd_filename(path.name))
+    )
+
+
+def _data_root_for_raw_dir(raw_dir: Path) -> Path:
+    if (
+        raw_dir.name == "raw"
+        and re.fullmatch(r"\d{4}", raw_dir.parent.name)
+        and re.fullmatch(r"\d{8}", raw_dir.parent.parent.name)
+    ):
+        return raw_dir.parent.parent.parent
+    return raw_dir.parent if raw_dir.name == "raw" else raw_dir
+
+
+def _describe_raw_scene(
+    raw_dir: str | Path,
+    bands: list[str] | None = None,
+    date: str | None = None,
+    time: str | None = None,
+    output_root: str | Path | None = None,
+) -> dict[str, Any]:
     raw_path = Path(raw_dir)
-    requested_filter = {item.upper() for item in bands} if bands else None
+    requested_filter = {item.upper() for item in (bands or HIMAWARI_DEFAULT_BANDS)}
     segments: dict[str, set[int]] = {}
     totals: dict[str, int] = {}
     files: list[Path] = []
@@ -1413,15 +1528,19 @@ def _describe_raw_scene(raw_dir: str | Path, bands: list[str] | None = None) -> 
         info = parse_hsd_filename(file_path.name)
         if not info or info["region"] != "FLDK":
             continue
-        if requested_filter is not None and info["band"] not in requested_filter:
+        if date and info["date"] != date:
+            continue
+        if time and info["time"] != time:
             continue
         files.append(file_path)
         infos.append(info)
+        if info["band"] not in requested_filter:
+            continue
         segments.setdefault(info["band"], set()).add(info["segment"])
         totals[info["band"]] = info["total_segments"]
 
     missing: list[str] = []
-    requested = sorted(requested_filter) if requested_filter is not None else sorted(segments)
+    requested = sorted(requested_filter, key=_band_sort_key)
     for band in requested:
         total = totals.get(band)
         if not total:
@@ -1432,9 +1551,10 @@ def _describe_raw_scene(raw_dir: str | Path, bands: list[str] | None = None) -> 
         if missing_segments:
             missing.append(f"{band}:{','.join(str(item) for item in missing_segments)}")
 
-    date = infos[0]["date"] if infos else raw_path.parent.parent.name
-    scene_time = infos[0]["time"] if infos else raw_path.parent.name
-    scene_dir = raw_path.parent
+    date = date or (infos[0]["date"] if infos else "")
+    scene_time = time or (infos[0]["time"] if infos else "")
+    data_root = Path(output_root) if output_root else _data_root_for_raw_dir(raw_path)
+    scene_dir = data_root / date / scene_time
     parsed = (scene_dir / "meta" / "scene.meta.json").exists()
     complete = bool(infos) and not missing
     status = "parsed" if parsed else ("ready_to_parse" if complete else "raw_incomplete")
@@ -1445,6 +1565,7 @@ def _describe_raw_scene(raw_dir: str | Path, bands: list[str] | None = None) -> 
         "time": scene_time,
         "raw_dir": raw_path.as_posix(),
         "file_count": len(files),
+        "files": [path.name for path in files],
         "bands": sorted(segments),
         "complete": complete,
         "missing": missing,
@@ -1457,26 +1578,32 @@ def scan_raw_scenes(input_root: str | Path = DATA_DIR, bands: list[str] | None =
     root = Path(input_root)
     if not root.exists():
         return []
-    scenes: list[dict[str, Any]] = []
-    for raw_dir in sorted(root.glob("*/*/raw")):
-        if not raw_dir.is_dir():
-            continue
-        scene = _describe_raw_scene(raw_dir, bands=bands)
-        if scene["file_count"]:
-            scenes.append(scene)
-    return scenes
+    scenes: dict[str, tuple[tuple[int, int, int], dict[str, Any]]] = {}
+    data_root = _data_root_for_raw_dir(root) if root.name == "raw" else root
+    canonical_raw = root / "raw" if root.name != "raw" else root
+    for raw_dir in _himawari_raw_dirs(root):
+        scene_keys = sorted({
+            (info["date"], info["time"])
+            for file_path in raw_dir.glob("HS_H*.DAT*")
+            if (info := parse_hsd_filename(file_path.name))
+        })
+        for date, scene_time in scene_keys:
+            scene = _describe_raw_scene(raw_dir, bands=bands, date=date, time=scene_time, output_root=data_root)
+            if not scene["file_count"]:
+                continue
+            score = (int(scene["complete"]), int(raw_dir == canonical_raw), int(scene["file_count"]))
+            current = scenes.get(scene["scene_id"])
+            if current is None or score > current[0]:
+                scenes[scene["scene_id"]] = (score, scene)
+    return [scenes[key][1] for key in sorted(scenes)]
 
 
 def scan_hsd_scenes(input_root: str | Path, min_files: int = 10) -> list[dict[str, Any]]:
-    root = Path(input_root)
-    scenes: list[dict[str, Any]] = []
-    for raw_dir in sorted(root.glob("*/*/raw")):
-        files = sorted(raw_dir.glob("HS_H*.DAT.bz2"))
-        infos = [info for item in files if (info := parse_hsd_filename(item.name))]
-        if len(infos) < min_files:
-            continue
-        scenes.append({"date": infos[0]["date"], "time": infos[0]["time"], "raw_dir": raw_dir, "file_count": len(files), "bands": sorted({item["band"] for item in infos})})
-    return scenes
+    return [
+        {**scene, "raw_dir": Path(scene["raw_dir"])}
+        for scene in scan_raw_scenes(input_root, bands=HIMAWARI_TARGET_BANDS)
+        if scene["file_count"] >= min_files
+    ]
 
 
 def update_from_raw(
@@ -1484,8 +1611,12 @@ def update_from_raw(
     output_root: str | Path = DATA_DIR,
     bands: list[str] | None = None,
     force: bool = False,
+    scene_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     scenes = scan_raw_scenes(input_root, bands=bands)
+    requested_scene_ids = {str(item) for item in (scene_ids or []) if str(item)}
+    if requested_scene_ids:
+        scenes = [scene for scene in scenes if scene["scene_id"] in requested_scene_ids]
     results: list[dict[str, Any]] = []
     for scene in scenes:
         if not scene["complete"]:
@@ -1499,10 +1630,24 @@ def update_from_raw(
             )
             continue
         try:
+            scene_dir = Path(output_root) / scene["date"] / scene["time"]
+            requested_bands = _ordered_unique_bands(bands or HIMAWARI_DEFAULT_BANDS)
+            if not force and _scene_has_bands(scene_dir, requested_bands):
+                results.append(
+                    {
+                        "scene_id": scene["scene_id"],
+                        "status": "cached",
+                        "bands": requested_bands,
+                    }
+                )
+                continue
             meta = process_scene(
                 scene["raw_dir"],
                 output_root=output_root,
+                date=scene["date"],
+                time=scene["time"],
                 bands=bands,
+                force=force,
                 retention_managed=False,
             )
             results.append(
@@ -1533,6 +1678,15 @@ def build_latlon_grid(extent: list[float] | None = None, resolution: float = LAT
     nx = int(round((east - west) / resolution)) + 1
     ny = int(round((north - south) / resolution)) + 1
     return {"projection": "EPSG:4326", "grid_type": "regular_latlon", "extent": [west, south, east, north], "resolution": resolution, "nx": nx, "ny": ny}
+
+
+def _latlon_coords(grid: dict[str, Any]) -> tuple[np.ndarray, np.ndarray]:
+    west, south, east, north = [float(item) for item in grid["extent"]]
+    nx = int(grid["nx"])
+    ny = int(grid["ny"])
+    lat = np.linspace(north, south, ny, dtype=np.float64)
+    lon = np.linspace(west, east, nx, dtype=np.float64)
+    return lat, lon
 
 
 def _normalize_for_webp(data: np.ndarray, vmin: float, vmax: float, invert: bool = False) -> np.ndarray:
@@ -1629,6 +1783,10 @@ def _legend_ticks(vmin: float, vmax: float, count: int = 4) -> list[str]:
     return [f"{value:g}" for value in values]
 
 
+def _source_path_relative_to_scene(path: str | Path, scene_dir: Path) -> str:
+    return Path(os.path.relpath(Path(path).resolve(), start=scene_dir.resolve())).as_posix()
+
+
 def write_scene_metadata(
     scene_dir: str | Path,
     date: str,
@@ -1657,14 +1815,16 @@ def write_scene_metadata(
         "variables": variables,
         "composites": composites,
         "loaded_bands": [_product_name(item) for item in variables if _product_name(item)],
-        "source_raw_dir": Path(raw_dir).as_posix(),
+        "source_raw_dir": _source_path_relative_to_scene(raw_dir, scene_dir),
         "raw_file_count": raw_file_count,
         "retention_managed": retention_managed,
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     meta = _merge_scene_metadata(scene_dir, meta, variables, composites, raw_file_count, retention_managed)
-    with meta_path.open("w", encoding="utf-8") as file:
+    part_path = meta_path.with_name(f"{meta_path.name}.part")
+    with part_path.open("w", encoding="utf-8") as file:
         json.dump(meta, file, ensure_ascii=False, indent=2)
+    part_path.replace(meta_path)
     return meta
 
 
@@ -1696,7 +1856,7 @@ def write_incremental_scene_metadata(
         "variables": variables,
         "composites": composites or [],
         "loaded_bands": [_product_name(item) for item in variables if _product_name(item)],
-        "source_raw_dir": Path(raw_dir).as_posix(),
+        "source_raw_dir": _source_path_relative_to_scene(raw_dir, scene_dir),
         "raw_file_count": raw_file_count,
         "retention_managed": retention_managed,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -1718,8 +1878,17 @@ def _read_reusable_scene_metadata(scene_dir: Path) -> dict[str, Any] | None:
         return None
     for item in products:
         webp = item.get("webp") or item.get("png")
-        if webp and not Path(webp).exists():
-            return None
+        if webp:
+            webp_path = Path(webp)
+            if not webp_path.is_absolute():
+                webp_path = scene_dir / webp_path
+            elif not webp_path.exists():
+                for folder in ("diff", "latlon", "composites"):
+                    if folder in webp_path.parts:
+                        webp_path = scene_dir.joinpath(*webp_path.parts[webp_path.parts.index(folder):])
+                        break
+            if not webp_path.exists():
+                return None
     return meta
 
 
@@ -1728,11 +1897,15 @@ def _find_raw_dir(input_root: str | Path, date: str | None, time: str | None) ->
     if root.is_file():
         root = root.parent
     if list(root.glob("HS_H*.DAT*")):
-        return root
+        if not date or not time or _raw_dir_has_scene(root, date, time):
+            return root
     if date and time:
-        raw_dir = root / date / time / "raw"
-        if raw_dir.exists():
-            return raw_dir
+        canonical_raw = root / "raw"
+        if canonical_raw.is_dir() and _raw_dir_has_scene(canonical_raw, date, time):
+            return canonical_raw
+        legacy_raw = root / date / time / "raw"
+        if legacy_raw.is_dir() and _raw_dir_has_scene(legacy_raw, date, time):
+            return legacy_raw
     scenes = scan_hsd_scenes(root, min_files=1)
     if scenes:
         return scenes[0]["raw_dir"]
@@ -2072,32 +2245,60 @@ def process_scene(
     progress_callback: Any = None,
     phase: str | None = None,
     retention_managed: bool = False,
+    force: bool = False,
 ) -> dict[str, Any]:
+    input_path = Path(input_root)
+    if input_path.is_file() and (input_info := parse_hsd_filename(input_path.name)):
+        date = date or input_info["date"]
+        time = time or input_info["time"]
     raw_dir = _find_raw_dir(input_root, date, time)
     normalize_himawari_upload_filenames(raw_dir)
-    files = sorted(item for item in raw_dir.glob("HS_H*.DAT*") if parse_hsd_filename(item.name))
+    candidates: list[tuple[Path, dict[str, Any]]] = []
+    for item in sorted(raw_dir.glob("HS_H*.DAT*")):
+        info = parse_hsd_filename(item.name)
+        if not info:
+            continue
+        if date and info["date"] != date:
+            continue
+        if time and info["time"] != time:
+            continue
+        candidates.append((item, info))
+    if not date or not time:
+        scene_keys = {(info["date"], info["time"]) for _item, info in candidates}
+        if len(scene_keys) != 1:
+            raise ValueError("根 raw 目录包含多个 Himawari 时次，解析时必须指定 date 和 time。")
+        date, time = next(iter(scene_keys))
+
+    selected_files: dict[tuple[str, int], Path] = {}
+    for item, info in candidates:
+        key = (info["band"], info["segment"])
+        existing = selected_files.get(key)
+        if existing is None or (HSD_UPLOAD_DUPLICATE_RE.match(existing.name) and not HSD_UPLOAD_DUPLICATE_RE.match(item.name)):
+            selected_files[key] = item
+    files = sorted(selected_files.values())
     if not files:
         raise FileNotFoundError(f"未找到 Himawari HSD 文件: {raw_dir}")
     scene_info = _scene_info_from_files(files)
     date = date or scene_info["date"]
     time = time or scene_info["time"]
     scene_id = f"{date}_{time}"
+    requested_bands = _ordered_unique_bands(bands or HIMAWARI_DEFAULT_BANDS)
     grid = build_latlon_grid(extent=extent, resolution=resolution)
     scene_dir = Path(output_root) / date / time
-    if bands is None and extent is None and resolution == LATLON_RESOLUTION and composites:
+    if not force and extent is None and resolution == LATLON_RESOLUTION and composites:
         if meta := _read_reusable_scene_metadata(scene_dir):
-            # 检查缓存结果是否覆盖了 raw 文件中的所有波段
-            # 避免 B13-only 部分解析结果被误认为"已完成"
-            raw_bands = {info["band"] for f in files if (info := parse_hsd_filename(f.name))}
-            cached_bands = set(meta.get("loaded_bands", []))
-            if cached_bands and cached_bands == raw_bands:
+            cached_bands = {str(item).upper() for item in meta.get("loaded_bands", [])}
+            if set(requested_bands).issubset(cached_bands):
                 return meta
 
     from satpy import Scene
 
     filenames = [item.as_posix() for item in files]
     probe_scene = Scene(reader="ahi_hsd", filenames=filenames)
-    load_bands = _available_ahi_bands(probe_scene, bands)
+    load_bands = _available_ahi_bands(probe_scene, requested_bands)
+    missing_bands = [band for band in requested_bands if band not in load_bands]
+    if missing_bands:
+        raise ValueError(f"HSD 场景缺少默认通道：{','.join(missing_bands)}")
     if not load_bands:
         raise ValueError("HSD 场景中没有可解析的 AHI B01-B16 通道。")
     variables: list[dict[str, Any]] = []
@@ -2130,18 +2331,6 @@ def process_scene(
                 variables.append(var_meta)
                 if composites:
                     resampled_arrays[band] = values
-            write_incremental_scene_metadata(
-                scene_dir,
-                date,
-                time,
-                scene_info["satellite"],
-                raw_dir,
-                len(files),
-                grid,
-                variables,
-                [],
-                retention_managed=retention_managed,
-            )
         del scene
     _emit_progress(progress_callback, stage="compositing", phase=phase, scene_id=scene_id, detail="生成 RGB 合成产品")
     composite_meta = write_composites(scene_dir, resampled_arrays) if composites else []
@@ -2184,7 +2373,13 @@ def process_scene(
 
 def process_file(file_path: str, data_type: str = "Himawari") -> dict:
     try:
-        return process_scene(Path(file_path))
+        source = Path(file_path)
+        info = parse_hsd_filename(source.name)
+        return process_scene(
+            source,
+            date=info["date"] if info else None,
+            time=info["time"] if info else None,
+        )
     except Exception:
         weather_info = {"source": "Himawari", "product": "葵花卫星产品", "element": "卫星通道", "time": "解析失败", "level": "卫星观测", "range": "待解析", "resolution": "待解析", "grid": "待解析", "validGrid": "待解析", "coverage": "待解析", "missing": "待解析", "unit": "待解析", "variables": "待解析", "steps": "待解析", "status": "已接收但未形成完整 HSD 场景", "quality": "待解析", "max": "待解析", "min": "待解析", "mean": "待解析", "alert": "请上传完整 HSD raw 场景目录或分段集合。", "update": "待解析", "bars": [0, 0, 0, 0, 0], "trend": [0, 0, 0, 0, 0, 0, 0, 0]}
         return process_basic_file(file_path, data_type=data_type, file_format="HSD", weather_info=weather_info)
@@ -2207,7 +2402,7 @@ def main() -> int:
     parser.add_argument("--iterations", type=int, help="定期下载循环次数；不设置则持续运行")
     parser.add_argument("--overwrite", action="store_true", help="重新下载并覆盖已有 HSD 文件")
     parser.add_argument("--parse-after-download", action="store_true", help="下载完成后立即调用现有解析流程")
-    parser.add_argument("--keep-raw", action="store_true", help="下载后解析成功也保留 HSD raw 文件；默认解析成功后删除 raw")
+    parser.add_argument("--keep-raw", action="store_true", help="兼容参数；当前始终保留 HSD raw 文件")
     parser.add_argument("--retention-hours", type=int, default=DEFAULT_WINDOW_HOURS, help="解析结果窗口小时数，默认 1")
     parser.add_argument("--ftp-host", default=None, help="默认读取 HIMAWARI_FTP_HOST 或 ftp.ptree.jaxa.jp")
     parser.add_argument("--ftp-root", default=None, help="默认读取 HIMAWARI_FTP_ROOT 或 /jma/hsd，支持 {yyyymm}/{dd}/{time} 模板")
@@ -2222,7 +2417,7 @@ def main() -> int:
             "bands": bands,
             "overwrite": args.overwrite,
             "parse_after_download": args.parse_after_download,
-            "delete_raw_after_parse": not args.keep_raw,
+            "delete_raw_after_parse": False,
             "retention_hours": args.retention_hours,
             "latest_delay_minutes": args.latest_delay_minutes,
             "host": args.ftp_host,

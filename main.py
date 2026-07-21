@@ -12,6 +12,10 @@ from typing import Any
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+
+
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 from adapters import (
     cma_adapter,
@@ -32,12 +36,6 @@ from services import (
     radar_service,
     wrf_service,
 )
-
-try:
-    from services import himawari_scheduler
-except Exception:
-    himawari_scheduler = None
-
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -78,9 +76,7 @@ DISPLAY_SERVICES = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    himawari_tasks = []
-    if himawari_scheduler is not None:
-        himawari_tasks = himawari_scheduler.start_himawari_auto_download()
+    himawari_tasks = himawari_service.start_himawari_auto_download()
     try:
         yield
     finally:
@@ -318,28 +314,15 @@ def save_upload_file(file: UploadFile, target_dir: Path, business_type: str | No
         target_dir = adapter.upload_target_dir(safe_name, target_dir)
     target_dir.mkdir(parents=True, exist_ok=True)
     target_path = target_dir / safe_name
-    if business_type not in {"Radar", "FY3", "Himawari"}:
-        target_path = unique_upload_path(target_path)
+    file.file.seek(0)
 
-    with target_path.open("wb") as output:
-        output.write(file.file.read())
+    part_path = target_path.with_name(f"{target_path.name}.upload.part")
+    with part_path.open("wb") as output:
+        while chunk := file.file.read(8 * 1024 * 1024):
+            output.write(chunk)
+    part_path.replace(target_path)
 
     return target_path
-
-
-def unique_upload_path(target_path: Path) -> Path:
-    if not target_path.exists():
-        return target_path
-
-    stem = target_path.stem
-    suffix = target_path.suffix
-    parent = target_path.parent
-    index = 1
-    while True:
-        candidate = parent / f"{stem}_{index}{suffix}"
-        if not candidate.exists():
-            return candidate
-        index += 1
 
 
 def save_upload_files(files: list[UploadFile], target_dir: Path, business_type: str) -> list[Path]:
@@ -404,17 +387,12 @@ def health() -> dict[str, Any]:
 
 @app.get("/api/himawari/auto-status")
 def himawari_auto_status() -> dict[str, Any]:
-    if himawari_scheduler is None:
-        return ok({
-            "status": "disabled",
-            "message": "当前 services 中未配置 himawari_scheduler，已跳过自动下载任务。",
-        })
-    return ok(himawari_scheduler.get_himawari_auto_status())
+    return ok(himawari_service.get_himawari_auto_status())
 
 
 @app.get("/api/himawari/auto-log")
 def himawari_auto_log(lines: int = Query(default=200, ge=1, le=1000)) -> dict[str, Any]:
-    log_lines = himawari_scheduler.read_himawari_auto_log(lines=lines)
+    log_lines = himawari_service.read_himawari_auto_log(lines=lines)
     return ok({"lines": log_lines, "count": len(log_lines)})
 
 
@@ -487,7 +465,13 @@ def raw_upload_file(
         saved_paths = save_upload_files(raw_files, BUSINESS_DIRS[business], business)
         scenes = _raw_scenes_for_business(business)
         touched_dirs = {path.parent.as_posix() for path in saved_paths}
-        touched_scenes = [scene for scene in scenes if scene.get("raw_dir") in touched_dirs]
+        saved_names = {path.name for path in saved_paths}
+        touched_scenes = [
+            scene
+            for scene in scenes
+            if saved_names.intersection(scene.get("files") or [])
+            or (not scene.get("files") and scene.get("raw_dir") in touched_dirs)
+        ]
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -514,17 +498,52 @@ def raw_scenes(business_type: str) -> dict[str, Any]:
     return ok({"business_type": business, "scene_count": len(scenes), "scenes": scenes})
 
 
+@app.post("/api/display/FY3/parse-tasks")
+def start_fy3_parse_task(
+    background_tasks: BackgroundTasks,
+    force: bool = Query(default=False),
+    scene_id: list[str] | None = Query(default=None),
+) -> dict[str, Any]:
+    try:
+        task, created = fy3_service.create_parse_task(BUSINESS_DIRS["FY3"], scene_id, force=force)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if created:
+        background_tasks.add_task(fy3_service.run_parse_task, task["task_id"], BUSINESS_DIRS["FY3"])
+    return ok({**task, "created": created})
+
+
+@app.get("/api/display/FY3/parse-tasks")
+def list_fy3_parse_tasks(active_only: bool = Query(default=False)) -> dict[str, Any]:
+    tasks = fy3_service.list_parse_tasks(active_only=active_only)
+    return ok({"tasks": tasks, "count": len(tasks)})
+
+
+@app.get("/api/display/FY3/parse-tasks/{task_id}")
+def get_fy3_parse_task(task_id: str) -> dict[str, Any]:
+    try:
+        return ok(fy3_service.get_parse_task(task_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.post("/api/display/{business_type}/update")
 def update_display_from_raw(
     business_type: str,
     force: bool = Query(default=False),
+    scene_id: list[str] | None = Query(default=None),
 ) -> dict[str, Any]:
     business = normalize_business_type(business_type)
     try:
         if business == "FY3":
-            result = fy3_adapter.update_from_raw(BUSINESS_DIRS["FY3"], force=force)
+            result = fy3_adapter.update_from_raw(BUSINESS_DIRS["FY3"], force=force, scene_ids=scene_id)
         elif business == "Himawari":
-            result = himawari_adapter.update_from_raw(BUSINESS_DIRS["Himawari"], BUSINESS_DIRS["Himawari"], force=force)
+            result = himawari_adapter.update_from_raw(
+                BUSINESS_DIRS["Himawari"],
+                BUSINESS_DIRS["Himawari"],
+                force=force,
+                scene_ids=scene_id,
+            )
         else:
             raise ValueError("raw update 当前仅支持 FY3 和 Himawari。")
     except ValueError as exc:
@@ -593,6 +612,7 @@ def display_data(
     resolution: str | None = Query(default="native"),
     meta_file: str | None = Query(default=None),
     scene_id: str | None = Query(default=None),
+    limit: int = Query(default=24, ge=1, le=288),
 ) -> dict[str, Any]:
     raw_key = business_type.upper()
     normalized_key = normalize_business_type(business_type)
@@ -609,6 +629,8 @@ def display_data(
 
     if raw_key == "HIMAWARI":
         return ok(service.get_display_data(scene_id=scene_id))
+    if raw_key == "FY3":
+        return ok(service.get_display_data(scene_id=scene_id, limit=limit))
     if business_type.upper() == "RADAR":
         return ok(service.get_display_data(time_index=time_index))
 

@@ -6,23 +6,58 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 
 import h5py
 import numpy as np
 from PIL import Image
-from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
+from scipy.interpolate import LinearNDInterpolator
 
-from adapters import diff_methods
+from adapters.base import (
+    build_resolution_options,
+    get_target_resolutions,
+    resample_to_resolution,
+    resolution_key_for_target,
+    resolution_label_for_key,
+)
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "FY3"
-GLOBAL_EXTENT = [-180.0, -90.0, 180.0, 90.0]
+DEFAULT_BUSINESS_EXTENT = [73.0, 15.0, 135.0, 55.0]
 SCIENCE_RE = re.compile(r"FY3(?P<sat>[A-Z])_MERSI_GBAL_L1_(?P<date>\d{8})_(?P<time>\d{4})_1000M_MS\.HDF$", re.I)
 GEO_RE = re.compile(r"FY3(?P<sat>[A-Z])_MERSI_GBAL_L1_(?P<date>\d{8})_(?P<time>\d{4})_GEO1K_MS\.HDF$", re.I)
 DEFAULT_TARGET_RESOLUTION = 0.25
 MAX_INTERPOLATION_POINTS = 300_000
 MAX_DIFF_GRID_CELLS = int(os.environ.get("FY3_MAX_DIFF_GRID_CELLS", "50000000"))
 DISPLAY_IMAGE_FORMAT = "WEBP"
+
+ProgressCallback = Callable[[dict[str, Any]], None]
+
+
+def _emit_progress(progress_callback: ProgressCallback | None, **event: Any) -> None:
+    if not progress_callback:
+        return
+    try:
+        progress_callback(event)
+    except Exception:
+        pass
+
+
+def _scene_meta_status(scene_dir: Path) -> tuple[bool, str | None, dict[str, Any] | None]:
+    meta_path = scene_dir / "meta" / "scene.meta.json"
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False, None, None
+    return True, str(meta.get("status") or "parsed"), meta.get("quality")
+
+
+def _is_displayable_quality(quality: dict[str, Any] | None, status: str | None = None) -> bool:
+    if status == "no_coverage":
+        return False
+    try:
+        return float((quality or {}).get("valid_pixel_ratio", 0)) >= 0.01
+    except (TypeError, ValueError):
+        return False
 
 ALL_BANDS = list(range(1, 26))
 CORE_BANDS = ALL_BANDS
@@ -112,7 +147,7 @@ def discover_fy3_pairs(source_dir: str | Path) -> list[FY3FilePair]:
         raise ValueError(f"FY-3 数据目录不存在：{root}")
 
     scenes: dict[str, dict[str, Path | str]] = {}
-    for path in root.rglob("*.HDF"):
+    for path in _fy3_raw_files(root):
         parsed = _match_scene(path)
         if not parsed:
             continue
@@ -135,13 +170,42 @@ def discover_fy3_pairs(source_dir: str | Path) -> list[FY3FilePair]:
     return pairs
 
 
+def _fy3_raw_files(source_dir: str | Path) -> list[Path]:
+    """返回 canonical 根 raw 文件，并兼容读取旧的 日期/时次/raw 目录。"""
+    root = Path(source_dir).expanduser()
+    if root.is_file():
+        return [root] if is_fy3_filename(root.name) else []
+
+    search_dirs: list[Path] = []
+    if root.name == "raw":
+        search_dirs.append(root)
+    else:
+        search_dirs.extend([root / "raw", root])
+        search_dirs.extend(sorted(root.glob("*/*/raw")))
+
+    files_by_name: dict[str, Path] = {}
+    seen_dirs: set[Path] = set()
+    for directory in search_dirs:
+        try:
+            directory_key = directory.resolve()
+        except OSError:
+            directory_key = directory
+        if directory_key in seen_dirs or not directory.is_dir():
+            continue
+        seen_dirs.add(directory_key)
+        for path in sorted(directory.glob("*.HDF")):
+            if is_fy3_filename(path.name):
+                files_by_name.setdefault(path.name, path)
+    return sorted(files_by_name.values(), key=lambda item: item.name)
+
+
 def scan_raw_scenes(source_dir: str | Path = DATA_DIR) -> list[dict[str, Any]]:
     root = Path(source_dir).expanduser()
     if not root.exists():
         return []
 
     scenes: dict[str, dict[str, Any]] = {}
-    for path in sorted(root.rglob("*.HDF")):
+    for path in _fy3_raw_files(root):
         parsed = _match_scene(path)
         if not parsed:
             continue
@@ -172,8 +236,8 @@ def scan_raw_scenes(source_dir: str | Path = DATA_DIR) -> list[dict[str, Any]]:
         roles = set(scene.pop("roles"))
         missing = [role for role in ("science", "geo") if role not in roles]
         scene_dir = root / scene["date"] / scene["time"]
-        parsed = (scene_dir / "meta" / "scene.meta.json").exists()
-        status = "parsed" if parsed else ("ready_to_parse" if not missing else "raw_incomplete")
+        parsed, meta_status, quality = _scene_meta_status(scene_dir)
+        status = meta_status if parsed else ("ready_to_parse" if not missing else "raw_incomplete")
         result.append(
             {
                 **scene,
@@ -182,6 +246,8 @@ def scan_raw_scenes(source_dir: str | Path = DATA_DIR) -> list[dict[str, Any]]:
                 "missing": missing,
                 "parsed": parsed,
                 "status": status,
+                "quality": quality,
+                "displayable": parsed and _is_displayable_quality(quality, meta_status),
             }
         )
     return result
@@ -202,34 +268,29 @@ def select_upload_files(files: list[Any]) -> list[Any]:
 
 
 def upload_target_dir(filename: str, target_dir: Path) -> Path:
-    parsed = _match_scene(Path(filename))
-    if not parsed:
-        return target_dir
-    scene_id, _satellite, _role = parsed
-    date, time = scene_id.split("_")
-    return target_dir / date / time / "raw"
+    return Path(target_dir) / "raw" if _match_scene(Path(filename)) else Path(target_dir)
 
 
 def _scene_relative(path: Path, scene_dir: Path) -> str:
     try:
         return path.relative_to(scene_dir).as_posix()
     except ValueError:
-        return path.as_posix()
+        return Path(os.path.relpath(path.resolve(), start=scene_dir.resolve())).as_posix()
 
 
-def _configured_extent() -> list[float] | None:
+def _configured_extent() -> list[float]:
     raw = os.environ.get("FY3_EXTENT", "").strip()
     if not raw:
-        return None
+        return list(DEFAULT_BUSINESS_EXTENT)
     try:
         values = [float(item.strip()) for item in raw.split(",")]
     except ValueError:
-        return None
+        return list(DEFAULT_BUSINESS_EXTENT)
     if len(values) != 4:
-        return None
+        return list(DEFAULT_BUSINESS_EXTENT)
     west, south, east, north = values
     if west >= east or south >= north:
-        return None
+        return list(DEFAULT_BUSINESS_EXTENT)
     return values
 
 
@@ -321,22 +382,9 @@ def _scaled_geo(dataset: h5py.Dataset) -> np.ndarray:
     return raw
 
 
-def _target_extent(lon: np.ndarray, lat: np.ndarray) -> list[float]:
-    """返回目标网格的地理范围。优先 FY3_EXTENT 环境变量，否则从 swath 数据自动推算实际范围。"""
-    configured = _configured_extent()
-    if configured:
-        return configured
-    valid = np.isfinite(lon) & np.isfinite(lat)
-    if not valid.any():
-        return list(GLOBAL_EXTENT)
-    lon_valid = lon[valid]
-    lat_valid = lat[valid]
-    margin = 0.5
-    west = max(float(lon_valid.min()) - margin, -180.0)
-    east = min(float(lon_valid.max()) + margin, 180.0)
-    south = max(float(lat_valid.min()) - margin, -90.0)
-    north = min(float(lat_valid.max()) + margin, 90.0)
-    return [west, south, east, north]
+def _target_extent(_lon: np.ndarray, _lat: np.ndarray) -> list[float]:
+    """返回固定业务网格范围，避免极轨条带跨日期变更线时扩展成全球网格。"""
+    return _configured_extent()
 
 
 def _build_grid(extent: list[float], resolution: float) -> dict[str, Any]:
@@ -386,10 +434,6 @@ def _interpolate_to_grid(points: np.ndarray, values: np.ndarray, grid: dict[str,
         result = np.asarray(interpolator(target), dtype=np.float32)
     except Exception:
         result = np.full(target.shape[0], np.nan, dtype=np.float32)
-    if np.isnan(result).any():
-        nearest = NearestNDInterpolator(points, values)
-        nearest_values = np.asarray(nearest(target), dtype=np.float32)
-        result = np.where(np.isfinite(result), result, nearest_values)
     return result.reshape(grid["ny"], grid["nx"]).astype(np.float32)
 
 
@@ -437,6 +481,9 @@ def _base_resolution_asset(variable: dict[str, Any], grid: dict[str, Any]) -> di
         "extent": grid["extent"],
         "resolution": grid["resolution"],
         "spatial_resolution": _format_degree_resolution(grid["resolution"]),
+        "derived": False,
+        "method": "source_grid",
+        "source_resolution": grid["resolution"],
     }
 
 
@@ -449,23 +496,28 @@ def _write_diff_resolution_assets(
     vmax: float,
 ) -> dict[str, dict[str, Any]]:
     assets: dict[str, dict[str, Any]] = {}
-    for target_resolution in diff_methods.get_target_resolutions(float(grid["resolution"])):
+    if not np.isfinite(data).any():
+        return assets
+    for target_resolution in get_target_resolutions(float(grid["resolution"])):
         if _target_cell_count(grid["extent"], target_resolution) > MAX_DIFF_GRID_CELLS:
             continue
-        key = diff_methods.resolution_key_for_target(target_resolution)
-        resampled, target_grid = diff_methods.resample_to_resolution(data, grid, target_resolution)
+        key = resolution_key_for_target(target_resolution)
+        resampled, target_grid = resample_to_resolution(data, grid, target_resolution)
         latlon_dir = scene_dir / "diff" / key / "latlon"
         webp_path = latlon_dir / f"{band_name}.webp"
         _write_webp(resampled, webp_path, vmin, vmax)
         assets[key] = {
             "key": key,
-            "label": diff_methods.resolution_label_for_key(key),
+            "label": resolution_label_for_key(key),
             "webp": _scene_relative(webp_path, scene_dir),
             "image": _scene_relative(webp_path, scene_dir),
             "grid": {"nx": target_grid["nx"], "ny": target_grid["ny"], "resolution": target_grid["resolution"]},
             "extent": target_grid["extent"],
             "resolution": target_grid["resolution"],
             "spatial_resolution": _format_degree_resolution(target_grid["resolution"]),
+            "derived": True,
+            "method": "bilinear",
+            "source_resolution": grid["resolution"],
         }
     return assets
 
@@ -476,6 +528,12 @@ def _quality(data: np.ndarray) -> dict[str, Any]:
     if ratio < 0.01:
         warnings.append("有效像素不足 1%")
     return {"valid_pixel_ratio": ratio, "warnings": warnings}
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    part_path = path.with_name(f"{path.name}.part")
+    part_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    part_path.replace(path)
 
 
 def _scene_dirs(pair: FY3FilePair) -> tuple[Path, Path, Path]:
@@ -520,6 +578,7 @@ def process_files(
     data_type: str = "FY3",
     target_resolution: float | None = None,
     bands: list[int] | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     pair = pair_fy3_files(paths)
     resolution = target_resolution or _configured_resolution()
@@ -539,11 +598,19 @@ def process_files(
     qualities: list[float] = []
     selected_bands = bands or CORE_BANDS
     with h5py.File(pair.science_path, "r") as science_hdf:
-        for band in selected_bands:
+        for band_index, band in enumerate(selected_bands, start=1):
+            band_name = f"B{band:02d}"
+            _emit_progress(
+                progress_callback,
+                stage="processing_band",
+                scene_id=pair.scene_id,
+                band=band_name,
+                band_index=band_index,
+                band_total=len(selected_bands),
+            )
             data = _read_calibrated_band(science_hdf, band)
             points, values = _sample_valid_points(lon, lat, data, extent, sensor_zenith)
             gridded = _interpolate_to_grid(points, values, grid)
-            band_name = f"B{band:02d}"
             webp_path = latlon_dir / f"{band_name}.webp"
             name_cn, unit, vmin, vmax = BAND_META[band]
             _write_webp(gridded, webp_path, vmin, vmax)
@@ -570,10 +637,19 @@ def process_files(
             resolution_assets.update(_write_diff_resolution_assets(scene_dir, band_name, gridded, grid, vmin, vmax))
             variable["resolution_assets"] = resolution_assets
             variables.append(variable)
+            _emit_progress(
+                progress_callback,
+                stage="band_completed",
+                scene_id=pair.scene_id,
+                band=band_name,
+                band_index=band_index,
+                band_total=len(selected_bands),
+            )
 
     observed = datetime.strptime(pair.scene_id, "%Y%m%d_%H%M").replace(tzinfo=timezone.utc)
     resolution_assets = variables[0].get("resolution_assets") if variables else {}
-    resolution_options = diff_methods.build_resolution_options(grid["resolution"], resolution_assets)
+    resolution_options = build_resolution_options(grid["resolution"], resolution_assets)
+    valid_pixel_ratio = float(np.mean(qualities)) if qualities else 0.0
     meta = {
         "business_type": "FY3",
         "data_type": data_type,
@@ -595,12 +671,16 @@ def process_files(
         "variables": variables,
         "composites": [],
         "loaded_bands": [item["name"] for item in variables],
-        "quality": {"valid_pixel_ratio": float(np.mean(qualities)) if qualities else 0.0, "warnings": []},
+        "status": "parsed" if valid_pixel_ratio >= 0.01 else "no_coverage",
+        "quality": {
+            "valid_pixel_ratio": valid_pixel_ratio,
+            "warnings": [] if valid_pixel_ratio >= 0.01 else ["轨迹未覆盖当前固定业务区域"],
+        },
         "source_raw_dir": _scene_relative(pair.science_path.parent, scene_dir),
         "source_files": [_scene_relative(pair.science_path, scene_dir), _scene_relative(pair.geo_path, scene_dir)],
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
-    (meta_dir / "scene.meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    _write_json_atomic(meta_dir / "scene.meta.json", meta)
     return meta
 
 
@@ -609,12 +689,14 @@ def process_pair(
     data_type: str = "FY3",
     target_resolution: float | None = None,
     bands: list[int] | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     return process_files(
         [pair.science_path.as_posix(), pair.geo_path.as_posix()],
         data_type=data_type,
         target_resolution=target_resolution,
         bands=bands,
+        progress_callback=progress_callback,
     )
 
 
@@ -623,40 +705,97 @@ def process_directory(
     target_resolution: float | None = None,
     bands: list[int] | None = None,
     force: bool = False,
+    scene_ids: list[str] | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     pairs = discover_fy3_pairs(source_dir)
+    requested_scene_ids = None if scene_ids is None else {str(item) for item in scene_ids if str(item)}
+    if requested_scene_ids is not None:
+        pairs = [pair for pair in pairs if pair.scene_id in requested_scene_ids]
     results: list[dict[str, Any]] = []
     failed = 0
     cached = 0
-    for pair in pairs:
+    pair_total = len(pairs)
+    for pair_index, pair in enumerate(pairs, start=1):
+        _emit_progress(
+            progress_callback,
+            stage="processing_scene",
+            scene_id=pair.scene_id,
+            scene_index=pair_index,
+            scene_total=pair_total,
+        )
         try:
             if not force and (cached_meta := _cached_scene_matches(pair, target_resolution, bands)):
                 cached += 1
-                results.append(
-                    {
-                        "scene_id": pair.scene_id,
-                        "status": "cached",
-                        "bands": cached_meta.get("loaded_bands", []),
-                        "extent": cached_meta.get("extent"),
-                        "resolution": cached_meta.get("resolution"),
-                        "quality": cached_meta.get("quality"),
-                    }
+                quality = cached_meta.get("quality")
+                meta_status = str(cached_meta.get("status") or "parsed")
+                item = {
+                    "scene_id": pair.scene_id,
+                    "status": "cached",
+                    "meta_status": meta_status,
+                    "displayable": _is_displayable_quality(quality, meta_status),
+                    "bands": cached_meta.get("loaded_bands", []),
+                    "extent": cached_meta.get("extent"),
+                    "resolution": cached_meta.get("resolution"),
+                    "quality": quality,
+                }
+                results.append(item)
+                _emit_progress(
+                    progress_callback,
+                    stage="scene_completed",
+                    scene_id=pair.scene_id,
+                    scene_index=pair_index,
+                    scene_total=pair_total,
+                    result=item,
                 )
                 continue
-            meta = process_pair(pair, target_resolution=target_resolution, bands=bands)
-            results.append(
-                {
-                    "scene_id": pair.scene_id,
-                    "status": "ok",
-                    "bands": meta.get("loaded_bands", []),
-                    "extent": meta.get("extent"),
-                    "resolution": meta.get("resolution"),
-                    "quality": meta.get("quality"),
-                }
+            def pair_progress(event: dict[str, Any]) -> None:
+                _emit_progress(
+                    progress_callback,
+                    **event,
+                    scene_index=pair_index,
+                    scene_total=pair_total,
+                )
+
+            meta = process_pair(
+                pair,
+                target_resolution=target_resolution,
+                bands=bands,
+                progress_callback=pair_progress,
+            )
+            quality = meta.get("quality")
+            meta_status = str(meta.get("status") or "parsed")
+            item = {
+                "scene_id": pair.scene_id,
+                "status": "ok",
+                "meta_status": meta_status,
+                "displayable": _is_displayable_quality(quality, meta_status),
+                "bands": meta.get("loaded_bands", []),
+                "extent": meta.get("extent"),
+                "resolution": meta.get("resolution"),
+                "quality": quality,
+            }
+            results.append(item)
+            _emit_progress(
+                progress_callback,
+                stage="scene_completed",
+                scene_id=pair.scene_id,
+                scene_index=pair_index,
+                scene_total=pair_total,
+                result=item,
             )
         except Exception as exc:
             failed += 1
-            results.append({"scene_id": pair.scene_id, "status": "error", "error": str(exc)})
+            item = {"scene_id": pair.scene_id, "status": "error", "error": str(exc), "displayable": False}
+            results.append(item)
+            _emit_progress(
+                progress_callback,
+                stage="scene_failed",
+                scene_id=pair.scene_id,
+                scene_index=pair_index,
+                scene_total=pair_total,
+                error=str(exc),
+            )
     return {
         "source_dir": Path(source_dir).expanduser().as_posix(),
         "pair_count": len(pairs),
@@ -672,10 +811,23 @@ def update_from_raw(
     target_resolution: float | None = None,
     bands: list[int] | None = None,
     force: bool = False,
+    scene_ids: list[str] | None = None,
+    progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     scenes = scan_raw_scenes(source_dir)
+    requested_scene_ids = None if scene_ids is None else {str(item) for item in scene_ids if str(item)}
+    if requested_scene_ids is not None:
+        scenes = [scene for scene in scenes if scene["scene_id"] in requested_scene_ids]
     incomplete = [scene for scene in scenes if not scene["complete"]]
-    result = process_directory(source_dir, target_resolution=target_resolution, bands=bands, force=force)
+    ready_ids = [scene["scene_id"] for scene in scenes if scene["complete"]]
+    result = process_directory(
+        source_dir,
+        target_resolution=target_resolution,
+        bands=bands,
+        force=force,
+        scene_ids=ready_ids if requested_scene_ids is not None else None,
+        progress_callback=progress_callback,
+    )
     return {
         **result,
         "scene_count": len(scenes),
@@ -691,9 +843,9 @@ def process_file(path: str, data_type: str = "FY3") -> dict[str, Any]:
     if not parsed:
         raise ValueError("不支持的 FY-3 文件名。")
     scene_id, _satellite, _role = parsed
-    candidates = list(source.parent.glob(f"*{scene_id.replace('_', '_')}*.HDF"))
+    candidates = list(source.parent.glob(f"*{scene_id}*.HDF"))
     if len(candidates) < 2:
-        candidates.extend(source.parent.parent.glob(f"*/raw/*{scene_id.replace('_', '_')}*.HDF"))
+        candidates.extend(item for item in _fy3_raw_files(DATA_DIR) if scene_id in item.name)
     return process_files([str(item) for item in candidates] + [str(source)], data_type=data_type)
 
 
