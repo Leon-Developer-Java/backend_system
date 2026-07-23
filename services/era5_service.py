@@ -19,13 +19,21 @@ class WindDisplayContractError(ValueError):
         self.frame_index = frame_index
 
 
+def _published_files(pattern: str) -> list[Path]:
+    return [
+        path
+        for path in DATA_DIR.rglob(pattern)
+        if ".adapter_staging" not in path.parts and path.is_file()
+    ]
+
+
 def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[str, Any]:
     stored_meta = _latest_meta(allow_empty=True)
     wind_field = _display_wind_field(stored_meta)
     meta_json = deepcopy(stored_meta) if stored_meta else None
     if meta_json is not None:
         meta_json["wind_field"] = wind_field
-    webp_files = sorted(DATA_DIR.glob("*.webp"), key=lambda item: item.stat().st_mtime, reverse=True)
+    webp_files = sorted(_published_files("*.webp"), key=lambda item: item.stat().st_mtime, reverse=True)
 
     variables = _display_variables(meta_json)
     selected = _primary_variable(meta_json, variable) if meta_json else ""
@@ -52,7 +60,7 @@ def get_display_data(variable: str | None = None, level_index: int = 0) -> dict[
 
 
 def _latest_meta(allow_empty: bool = False) -> dict[str, Any] | None:
-    meta_files = sorted(DATA_DIR.glob("*.meta.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    meta_files = sorted(_published_files("*.meta.json"), key=lambda item: item.stat().st_mtime, reverse=True)
     for meta_file in meta_files:
         with meta_file.open("r", encoding="utf-8") as file:
             meta = json.load(file)
@@ -79,7 +87,7 @@ def _meta_path(meta: dict[str, Any] | None) -> Path | None:
             return fallback
     dataset_id = meta.get("dataset_id")
     if dataset_id:
-        candidates = sorted(DATA_DIR.glob("*.meta.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+        candidates = sorted(_published_files("*.meta.json"), key=lambda item: item.stat().st_mtime, reverse=True)
         for candidate in candidates:
             try:
                 with candidate.open("r", encoding="utf-8") as file:

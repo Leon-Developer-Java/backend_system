@@ -8,6 +8,14 @@ DATA_ROOT = DATA_DIR.parent
 DEFAULT_RESOLUTION_KEY = "3km"
 
 
+def _published_meta_files() -> list[Path]:
+    return [
+        path
+        for path in DATA_DIR.rglob("*.meta.json")
+        if ".adapter_staging" not in path.parts and path.is_file()
+    ]
+
+
 def _resolve_data_path(path: str) -> Path | None:
     text = str(path or "").replace("\\", "/")
     if not text:
@@ -78,7 +86,7 @@ def _load_first_renderable_meta(meta_files: list[Path]) -> tuple[Path | None, di
 
 
 def get_display_data() -> dict[str, Any]:
-    meta_files = sorted(DATA_DIR.glob("*.meta.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    meta_files = sorted(_published_meta_files(), key=lambda item: item.stat().st_mtime, reverse=True)
 
     meta_file, meta_json, webp_files = _load_first_renderable_meta(meta_files)
 
