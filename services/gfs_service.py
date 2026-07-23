@@ -95,7 +95,11 @@ def _list_files(
 
     for folder in folders:
         for pattern in patterns:
-            files.extend(folder.glob(pattern))
+            files.extend(
+                path
+                for path in folder.rglob(pattern)
+                if ".adapter_staging" not in path.parts
+            )
 
     return _sorted_unique(files)
 

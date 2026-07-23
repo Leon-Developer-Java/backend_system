@@ -680,6 +680,7 @@ def _meta_files() -> list[Path]:
             for directory in CMA_SOURCE_DIRS
             if directory.exists()
             for path in directory.rglob("*.meta.json")
+            if ".adapter_staging" not in path.parts
         },
         key=_source_sort_key,
     )

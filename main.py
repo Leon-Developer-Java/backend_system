@@ -36,6 +36,8 @@ from services import (
     radar_service,
     wrf_service,
 )
+from workers.launcher import start_adapter_worker, stop_adapter_worker
+
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -73,13 +75,27 @@ DISPLAY_SERVICES = {
     "WRF": wrf_service,
 }
 
+ENABLE_LEGACY_HIMAWARI_SCHEDULER = os.getenv(
+    "ENABLE_LEGACY_HIMAWARI_SCHEDULER", "false"
+).strip().lower() == "true"
+START_ADAPTER_WORKER_WITH_API = os.getenv(
+    "START_ADAPTER_WORKER_WITH_API", "true"
+).strip().lower() == "true"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    himawari_tasks = himawari_service.start_himawari_auto_download()
+    himawari_tasks = []
+    adapter_worker_process = None
+    if ENABLE_LEGACY_HIMAWARI_SCHEDULER:
+        himawari_tasks = himawari_service.start_himawari_auto_download() or []
+    if START_ADAPTER_WORKER_WITH_API:
+        adapter_worker_process = start_adapter_worker()
+    app.state.adapter_worker_process = adapter_worker_process
     try:
         yield
     finally:
+        stop_adapter_worker(adapter_worker_process)
         if himawari_tasks:
             for task in himawari_tasks:
                 task.cancel()
@@ -403,16 +419,30 @@ def root() -> dict[str, Any]:
 
 @app.get("/api/health")
 def health() -> dict[str, Any]:
-    return ok({"status": "online"})
+    process = getattr(app.state, "adapter_worker_process", None)
+    if not START_ADAPTER_WORKER_WITH_API:
+        worker = {"enabled": False, "status": "disabled", "pid": None}
+    elif process is not None and process.poll() is None:
+        worker = {"enabled": True, "status": "running", "pid": process.pid}
+    else:
+        worker = {"enabled": True, "status": "stopped", "pid": None}
+    return ok({"status": "online", "adapter_worker": worker})
 
 
 @app.get("/api/himawari/auto-status")
 def himawari_auto_status() -> dict[str, Any]:
+    if not ENABLE_LEGACY_HIMAWARI_SCHEDULER:
+        return ok({
+            "status": "disabled",
+            "message": "本版本未启用旧 Himawari 自动下载测试任务。",
+        })
     return ok(himawari_service.get_himawari_auto_status())
 
 
 @app.get("/api/himawari/auto-log")
 def himawari_auto_log(lines: int = Query(default=200, ge=1, le=1000)) -> dict[str, Any]:
+    if not ENABLE_LEGACY_HIMAWARI_SCHEDULER:
+        return ok({"lines": [], "count": 0})
     log_lines = himawari_service.read_himawari_auto_log(lines=lines)
     return ok({"lines": log_lines, "count": len(log_lines)})
 
@@ -653,7 +683,7 @@ def display_data(
     if raw_key == "FY3":
         return ok(service.get_display_data(scene_id=scene_id, limit=limit))
     if business_type.upper() == "RADAR":
-        return ok(service.get_display_data(time_index=time_index))
+        return ok(service.get_display_data(time_index=time_index, meta_file_name=meta_file))
 
     if raw_key in {"GFS", "ECMWF"}:
         return ok(gfs_service.get_display_data(data_type=normalized_key))

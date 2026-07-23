@@ -11,6 +11,14 @@ DATA_DIR = DATA_ROOT / "Radar"
 DEFAULT_PRELOAD_FRAMES = 5
 
 
+def _published_files(pattern: str) -> list[Path]:
+    return [
+        path
+        for path in DATA_DIR.rglob(pattern)
+        if ".adapter_staging" not in path.parts and path.is_file()
+    ]
+
+
 def _as_posix(path: Path | None) -> str | None:
     return str(path).replace("\\", "/") if path else None
 
@@ -275,8 +283,27 @@ def _synthetic_series_from_recent_metas(meta_files: list[Path], limit: int = DEF
     return base_file, series_meta
 
 
+def _requested_meta_file(value: str | None) -> tuple[Path, dict[str, Any]] | None:
+    if not value:
+        return None
+    raw = str(value).replace("\\", "/").lstrip("/")
+    if raw.startswith("data/"):
+        raw = raw.removeprefix("data/")
+    candidate = (DATA_ROOT / raw).resolve()
+    try:
+        candidate.relative_to(DATA_DIR.resolve())
+    except ValueError as exc:
+        raise ValueError("雷达 meta.json 超出数据目录。") from exc
+    if not candidate.is_file() or not candidate.name.endswith(".json"):
+        raise ValueError("雷达 meta.json 不存在。")
+    meta_json = _load_meta(candidate)
+    if not meta_json:
+        raise ValueError("雷达 meta.json 无法读取。")
+    return candidate, meta_json
+
+
 def _select_meta_file() -> tuple[Path, dict[str, Any]] | None:
-    meta_files = sorted(DATA_DIR.glob("*.meta.json"), key=lambda item: item.stat().st_mtime, reverse=True)
+    meta_files = sorted(_published_files("*.meta.json"), key=lambda item: item.stat().st_mtime, reverse=True)
     display_fallback: tuple[Path, dict[str, Any]] | None = None
     newest: tuple[Path, dict[str, Any]] | None = None
     source_fallback: tuple[Path, dict[str, Any]] | None = None
@@ -313,7 +340,7 @@ def _latest_source_file() -> Path | None:
             if source:
                 return source
 
-    nc_files = sorted(DATA_DIR.glob("*.nc"), key=lambda item: item.stat().st_mtime, reverse=True)
+    nc_files = sorted(_published_files("*.nc"), key=lambda item: item.stat().st_mtime, reverse=True)
     return nc_files[0] if nc_files else None
 
 
@@ -458,12 +485,12 @@ def _active_level(products: list[dict[str, Any]]) -> dict[str, Any] | None:
     return levels[0] if levels else None
 
 
-def get_display_data(time_index: int = 0) -> dict[str, Any]:
+def get_display_data(time_index: int = 0, meta_file_name: str | None = None) -> dict[str, Any]:
     meta_file: Path | None = None
     meta_json: dict[str, Any] | None = None
     display_error = None
 
-    selected = _select_meta_file()
+    selected = _requested_meta_file(meta_file_name) or _select_meta_file()
     if selected:
         meta_file, meta_json = selected
     else:
