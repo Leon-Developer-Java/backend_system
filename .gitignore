@@ -1,7 +1,11 @@
 __pycache__/
 *.pyc
 .DS_Store
+.env
+.venv/
 logs/
+data/*/assets/
+data/*/.adapter_staging/
 
 .idea/
 
