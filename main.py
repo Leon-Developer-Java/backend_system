@@ -1,18 +1,24 @@
 import asyncio
 import contextlib
+import hashlib
 import os
 import json
 import subprocess
+import threading
 import uuid
 from datetime import datetime
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, UploadFile
+import jwt
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
+
+from auth import JWT_SECRET, install_auth
+from pydantic import BaseModel, Field
 
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -34,6 +40,7 @@ from services import (
     gfs_service,
     himawari_service,
     radar_service,
+    satellite_task_service,
     wrf_service,
 )
 
@@ -73,9 +80,12 @@ DISPLAY_SERVICES = {
     "WRF": wrf_service,
 }
 
+_ingest_lock = threading.RLock()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    satellite_task_service.recover_tasks({"FY3": BUSINESS_DIRS["FY3"], "Himawari": BUSINESS_DIRS["Himawari"]})
     himawari_tasks = himawari_service.start_himawari_auto_download()
     try:
         yield
@@ -85,9 +95,20 @@ async def lifespan(app: FastAPI):
                 task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await asyncio.gather(*himawari_tasks)
+        satellite_task_service.shutdown()
 
 
 app = FastAPI(title="Weather Data Display Backend", version="0.1.0", lifespan=lifespan)
+
+# 登录用户可读取展示数据，role 2 才能上传、解析或修改数据。
+# CORS 在鉴权之后注册，使 401/403 也带有正确的跨域响应头。
+install_auth(
+    app,
+    [
+        ("/data/", {"GET": 1, "HEAD": 1}),
+        ("/api", {"GET": 1, "HEAD": 1, "*": 2}),
+    ],
+)
 
 _cors_origins = os.getenv(
     "CORS_ORIGINS",
@@ -350,6 +371,87 @@ def save_upload_files(files: list[UploadFile], target_dir: Path, business_type: 
     return [save_upload_file(item, target_dir, business_type=business_type) for item in files]
 
 
+class StagedIngestRequest(BaseModel):
+    tickets: list[str] = Field(min_length=1, max_length=500)
+    business_type: str
+    action: str = "parse"
+    overwrite: bool = False
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        while block := source.read(1024 * 1024):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _decode_upload_ticket(token: str, owner_sub: str) -> dict[str, Any]:
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except jwt.PyJWTError as exc:
+        raise HTTPException(status_code=400, detail="上传票据无效或已过期，请恢复上传后重试。") from exc
+    if payload.get("kind") != "weather_upload_ticket" or payload.get("sub") != owner_sub:
+        raise HTTPException(status_code=403, detail="上传票据不属于当前用户。")
+    return payload
+
+
+def _staged_path(payload: dict[str, Any]) -> Path:
+    relative = Path(str(payload.get("relative_path") or ""))
+    if relative.is_absolute() or ".." in relative.parts:
+        raise HTTPException(status_code=400, detail="上传票据路径非法。")
+    path = (DATA_DIR / relative).resolve()
+    try:
+        path.relative_to(DATA_DIR.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="上传票据路径越界。") from exc
+    if ".staged" not in path.parts or not path.is_file():
+        raise HTTPException(status_code=404, detail="暂存文件不存在，请恢复上传后重试。")
+    expected_size = int(payload.get("size") or -1)
+    if path.stat().st_size != expected_size:
+        raise HTTPException(status_code=400, detail=f"暂存文件大小校验失败：{path.name}")
+    if _file_sha256(path) != str(payload.get("sha256") or "").lower():
+        raise HTTPException(status_code=400, detail=f"暂存文件 SHA256 校验失败：{path.name}")
+    return path
+
+
+def _target_path_for_staged(staged: Path, business_type: str) -> Path:
+    target_dir = BUSINESS_DIRS[business_type]
+    adapter = ADAPTERS[business_type]
+    if hasattr(adapter, "upload_target_dir"):
+        target_dir = adapter.upload_target_dir(staged.name, target_dir)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    return target_dir / staged.name
+
+
+def _commit_staged_file(staged: Path, business_type: str, expected_hash: str, overwrite: bool) -> tuple[Path, bool]:
+    target = _target_path_for_staged(staged, business_type)
+    with _ingest_lock:
+        if target.exists():
+            if target.stat().st_size == staged.stat().st_size and _file_sha256(target) == expected_hash:
+                staged.unlink(missing_ok=True)
+                return target, True
+            if not overwrite:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"{target.name} 已存在但内容不同。请确认覆盖后重试，原文件尚未改动。",
+                )
+        temporary = target.with_name(f".{target.name}.{uuid.uuid4().hex}.ingest")
+        staged.replace(temporary)
+        temporary.replace(target)
+    return target, False
+
+
+def _cleanup_empty_staged_parents(path: Path) -> None:
+    parent = path.parent
+    while parent != DATA_DIR and ".staged" in parent.parts:
+        try:
+            parent.rmdir()
+        except OSError:
+            break
+        parent = parent.parent
+
+
 def infer_upload_business_type(files: list[UploadFile]) -> str:
     for item in files:
         if item.filename and himawari_adapter.is_hsd_filename(Path(item.filename).name):
@@ -396,6 +498,15 @@ def _raw_scenes_for_business(business_type: str) -> list[dict[str, Any]]:
     raise ValueError("raw 场景队列仅支持 FY3 和 Himawari。")
 
 
+def _process_saved_paths(saved_paths: list[Path], business_type: str) -> dict[str, Any]:
+    saved_path = saved_paths[0]
+    if business_type == "Radar" and len(saved_paths) > 1:
+        return radar_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
+    if business_type == "CMA" and len(saved_paths) > 1:
+        return cma_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
+    return ADAPTERS[business_type].process_file(str(saved_path), data_type=business_type)
+
+
 @app.get("/")
 def root() -> dict[str, Any]:
     return ok({"service": "weather-data-display-backend", "docs": "/docs"})
@@ -415,6 +526,87 @@ def himawari_auto_status() -> dict[str, Any]:
 def himawari_auto_log(lines: int = Query(default=200, ge=1, le=1000)) -> dict[str, Any]:
     log_lines = himawari_service.read_himawari_auto_log(lines=lines)
     return ok({"lines": log_lines, "count": len(log_lines)})
+
+
+@app.post("/api/files/ingest")
+def ingest_staged_files(body: StagedIngestRequest, request: Request) -> dict[str, Any]:
+    user = getattr(request.state, "user", None) or {}
+    owner_sub = str(user.get("sub") or "")
+    business = normalize_business_type(body.business_type)
+    if business not in ADAPTERS:
+        raise HTTPException(status_code=400, detail=f"不支持的数据类型：{body.business_type}")
+    if body.action not in {"raw", "parse"}:
+        raise HTTPException(status_code=400, detail="action 仅支持 raw 或 parse。")
+    if body.action == "raw" and business not in {"FY3", "Himawari"}:
+        raise HTTPException(status_code=400, detail="raw 入库当前仅支持 FY3 和 Himawari。")
+
+    decoded = [_decode_upload_ticket(ticket, owner_sub) for ticket in body.tickets]
+    for payload in decoded:
+        if normalize_business_type(str(payload.get("data_type") or "")) != business:
+            raise HTTPException(status_code=400, detail="上传票据的数据类型与本次入库类型不一致。")
+    staged_paths = [_staged_path(payload) for payload in decoded]
+    if len({path.name for path in staged_paths}) != len(staged_paths):
+        raise HTTPException(status_code=400, detail="一次入库不能包含重复文件名。")
+
+    # 先检查整批文件，再开始移动，避免多文件上传出现部分入库后才冲突。
+    for staged, payload in zip(staged_paths, decoded, strict=True):
+        target = _target_path_for_staged(staged, business)
+        if not target.exists():
+            continue
+        expected_hash = str(payload.get("sha256") or "").lower()
+        same_content = target.stat().st_size == staged.stat().st_size and _file_sha256(target) == expected_hash
+        if not same_content and not body.overwrite:
+            raise HTTPException(
+                status_code=409,
+                detail=f"{target.name} 已存在但内容不同。整批文件均未入库，请确认覆盖后重试。",
+            )
+
+    committed: list[Path] = []
+    reused: list[str] = []
+    for staged, payload in zip(staged_paths, decoded, strict=True):
+        path, was_reused = _commit_staged_file(
+            staged,
+            business,
+            str(payload.get("sha256") or "").lower(),
+            body.overwrite,
+        )
+        committed.append(path)
+        if was_reused:
+            reused.append(path.name)
+        _cleanup_empty_staged_parents(staged)
+
+    if body.action == "raw":
+        scenes = _raw_scenes_for_business(business)
+        names = {path.name for path in committed}
+        touched = [scene for scene in scenes if names.intersection(scene.get("files") or [])]
+        return ok(
+            {
+                "business_type": business,
+                "file_count": len(committed),
+                "files": [path.name for path in committed],
+                "reused": reused,
+                "scenes": touched,
+                "all_scene_count": len(scenes),
+                "message": "raw 文件已校验入库，未触发解析。",
+            }
+        )
+
+    try:
+        meta = _process_saved_paths(committed, business)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    saved_path = committed[0]
+    return ok(
+        {
+            "file_name": saved_path.name,
+            "file_count": len(committed),
+            "directory": str(saved_path.parent).replace("\\", "/") + "/",
+            "business_type": business,
+            "reused": reused,
+            "meta": meta,
+            "weather_info": meta.get("weather_info", {}),
+        }
+    )
 
 
 @app.post("/api/files/parse")
@@ -438,12 +630,7 @@ def parse_file(
             upload_files = adapter.select_upload_files(upload_files)
         saved_paths = save_upload_files(upload_files, BUSINESS_DIRS[business_type], business_type)
         saved_path = saved_paths[0]
-        if business_type == "Radar" and len(saved_paths) > 1:
-            meta = radar_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
-        elif business_type == "CMA" and len(saved_paths) > 1:
-            meta = cma_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
-        else:
-            meta = ADAPTERS[business_type].process_file(str(saved_path), data_type=business_type)
+        meta = _process_saved_paths(saved_paths, business_type)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -519,33 +706,96 @@ def raw_scenes(business_type: str) -> dict[str, Any]:
     return ok({"business_type": business, "scene_count": len(scenes), "scenes": scenes})
 
 
-@app.post("/api/display/FY3/parse-tasks")
-def start_fy3_parse_task(
-    background_tasks: BackgroundTasks,
+def _task_user(request: Request) -> tuple[str, str | None, bool]:
+    user = getattr(request.state, "user", None) or {}
+    owner_sub = str(user.get("sub") or "")
+    if not owner_sub:
+        raise HTTPException(status_code=401, detail="token 无效或已过期")
+    return owner_sub, user.get("username"), int(user.get("role", 0)) >= 3
+
+
+@app.post("/api/display/{business_type}/parse-tasks")
+def start_satellite_parse_task(
+    business_type: str,
+    request: Request,
     force: bool = Query(default=False),
     scene_id: list[str] | None = Query(default=None),
 ) -> dict[str, Any]:
+    business = normalize_business_type(business_type)
+    if business not in {"FY3", "Himawari"}:
+        raise HTTPException(status_code=400, detail="卫星解析任务仅支持 FY3 和 Himawari。")
+    owner_sub, owner_name, _ = _task_user(request)
     try:
-        task, created = fy3_service.create_parse_task(BUSINESS_DIRS["FY3"], scene_id, force=force)
+        task, created = satellite_task_service.create_task(
+            business,
+            BUSINESS_DIRS[business],
+            scene_id,
+            force,
+            owner_sub,
+            owner_name,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    if created:
-        background_tasks.add_task(fy3_service.run_parse_task, task["task_id"], BUSINESS_DIRS["FY3"])
     return ok({**task, "created": created})
 
 
-@app.get("/api/display/FY3/parse-tasks")
-def list_fy3_parse_tasks(active_only: bool = Query(default=False)) -> dict[str, Any]:
-    tasks = fy3_service.list_parse_tasks(active_only=active_only)
+@app.get("/api/display/{business_type}/parse-tasks")
+def list_satellite_parse_tasks(
+    business_type: str,
+    request: Request,
+    active_only: bool = Query(default=False),
+) -> dict[str, Any]:
+    business = normalize_business_type(business_type)
+    if business not in {"FY3", "Himawari"}:
+        raise HTTPException(status_code=400, detail="卫星解析任务仅支持 FY3 和 Himawari。")
+    owner_sub, _, is_admin = _task_user(request)
+    tasks = satellite_task_service.list_tasks(business, owner_sub, is_admin, active_only=active_only)
     return ok({"tasks": tasks, "count": len(tasks)})
 
 
-@app.get("/api/display/FY3/parse-tasks/{task_id}")
-def get_fy3_parse_task(task_id: str) -> dict[str, Any]:
+@app.get("/api/display/{business_type}/parse-tasks/{task_id}")
+def get_satellite_parse_task(business_type: str, task_id: str, request: Request) -> dict[str, Any]:
+    business = normalize_business_type(business_type)
+    owner_sub, _, is_admin = _task_user(request)
     try:
-        return ok(fy3_service.get_parse_task(task_id))
+        task = satellite_task_service.get_task(task_id, owner_sub, is_admin)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    if task.get("business_type") != business:
+        raise HTTPException(status_code=404, detail="卫星解析任务不存在。")
+    return ok(task)
+
+
+@app.post("/api/display/{business_type}/parse-tasks/{task_id}/cancel")
+def cancel_satellite_parse_task(business_type: str, task_id: str, request: Request) -> dict[str, Any]:
+    business = normalize_business_type(business_type)
+    owner_sub, _, is_admin = _task_user(request)
+    try:
+        task = satellite_task_service.get_task(task_id, owner_sub, is_admin)
+        if task.get("business_type") != business:
+            raise ValueError("卫星解析任务不存在。")
+        return ok(satellite_task_service.cancel_task(task_id, owner_sub, is_admin))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/display/{business_type}/parse-tasks/{task_id}/retry")
+def retry_satellite_parse_task(business_type: str, task_id: str, request: Request) -> dict[str, Any]:
+    business = normalize_business_type(business_type)
+    owner_sub, owner_name, is_admin = _task_user(request)
+    try:
+        task = satellite_task_service.get_task(task_id, owner_sub, is_admin)
+        if task.get("business_type") != business:
+            raise ValueError("卫星解析任务不存在。")
+        return ok(satellite_task_service.retry_task(
+            task_id,
+            BUSINESS_DIRS[business],
+            owner_sub,
+            owner_name,
+            is_admin,
+        ))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/display/{business_type}/update")

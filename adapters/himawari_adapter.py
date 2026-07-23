@@ -1612,6 +1612,7 @@ def update_from_raw(
     bands: list[str] | None = None,
     force: bool = False,
     scene_ids: list[str] | None = None,
+    progress_callback: Any = None,
 ) -> dict[str, Any]:
     scenes = scan_raw_scenes(input_root, bands=bands)
     requested_scene_ids = {str(item) for item in (scene_ids or []) if str(item)}
@@ -1648,6 +1649,8 @@ def update_from_raw(
                 time=scene["time"],
                 bands=bands,
                 force=force,
+                progress_callback=progress_callback,
+                phase="manual_parse",
                 retention_managed=False,
             )
             results.append(

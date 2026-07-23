@@ -28,6 +28,7 @@ data/ERA5/.*.webp.*.backup
 data/ERA5/era5_index.db
 
 data/.DS_Store
+data/satellite_tasks.sqlite3
 data/Himawari/.DS_Store
 data/Himawari/20*/raw/
 data/Himawari/20*/*/raw/

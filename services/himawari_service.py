@@ -328,6 +328,7 @@ def _worker_state() -> dict[str, Any]:
         "next_run_at": None,
         "last_result": None,
         "last_error": None,
+        "consecutive_errors": 0,
     }
 
 
@@ -578,8 +579,7 @@ def _latest_delay_minutes_env(env: dict[str, str]) -> int:
 def _worker_interval_seconds(env: dict[str, str], queue: str) -> int:
     key = f"HIMAWARI_{queue.upper()}_INTERVAL_SECONDS"
     fallback = max(1, _int_env(env, "HIMAWARI_DOWNLOAD_INTERVAL_MINUTES", 10)) * 60
-    default = 60
-    return max(1, _int_env(env, key, min(default, fallback)))
+    return max(1, _int_env(env, key, fallback))
 
 
 def _worker_max_jobs(env: dict[str, str], queue: str) -> int:
@@ -696,6 +696,7 @@ async def run_himawari_auto_download_once(
         "last_finished_at": finished_at,
         "last_result": summary,
         "last_error": None,
+        "consecutive_errors": 0,
     })
     running = _any_worker_running()
     _STATE.update({
@@ -748,14 +749,23 @@ async def himawari_auto_download_worker_loop(
         except Exception as exc:
             finished_at = _utc_iso()
             worker = _STATE["workers"].setdefault(queue, _worker_state())
-            worker.update({"state": "error", "running": False, "stage": "error", "last_finished_at": finished_at, "last_error": str(exc)})
+            worker.update({
+                "state": "error",
+                "running": False,
+                "stage": "error",
+                "last_finished_at": finished_at,
+                "last_error": str(exc),
+                "consecutive_errors": int(worker.get("consecutive_errors") or 0) + 1,
+            })
             _STATE.update({"state": "error", "running": _any_worker_running(), "stage": "error", "last_finished_at": finished_at, "last_error": str(exc)})
             write_himawari_log("自动下载循环异常", level=logging.ERROR, worker=queue, stage="error", error=str(exc))
             print(f"[Himawari] 自动下载异常：{exc}")
-        interval_seconds = _worker_interval_seconds(env, queue)
+        worker = _STATE["workers"].setdefault(queue, _worker_state())
+        base_interval = _worker_interval_seconds(env, queue)
+        failures = int(worker.get("consecutive_errors") or 0)
+        interval_seconds = min(3600, base_interval * (2 ** min(failures, 4)))
         next_run = datetime.now(timezone.utc) + timedelta(seconds=interval_seconds)
         next_run_iso = next_run.isoformat().replace("+00:00", "Z")
-        worker = _STATE["workers"].setdefault(queue, _worker_state())
         worker["next_run_at"] = next_run_iso
         next_runs = [
             item.get("next_run_at")

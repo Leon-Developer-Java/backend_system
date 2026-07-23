@@ -662,7 +662,7 @@ def process_files(
         "extent": grid["extent"],
         "resolution": grid["resolution"],
         "spatial_resolution": _format_degree_resolution(grid["resolution"]),
-        "temporal_resolution": "5分钟",
+        "temporal_resolution": "轨道过境 / 不定",
         "data_format": "HDF5",
         "file_format": "HDF5",
         "resolutions": {item["key"]: item["resolution"] for item in resolution_options},

@@ -1,4 +1,5 @@
 import os
+from collections.abc import Iterable
 from pathlib import Path
 
 import jwt
@@ -12,13 +13,26 @@ WHITELIST = {"/", "/api/health", "/docs", "/openapi.json"}
 STATIC_PREFIXES = ("/data/", "/outputs/")
 
 
-def install_auth(app, rules) -> None:
+def _required_role(path: str, method: str, rules: Iterable[tuple[str, object]]) -> int | None:
+    for prefix, policy in rules:
+        if not path.startswith(prefix):
+            continue
+        if isinstance(policy, dict):
+            value = policy.get(method.upper(), policy.get("*"))
+            return int(value) if value is not None else None
+        return int(policy)
+    return None
+
+
+def install_auth(app, rules: Iterable[tuple[str, object]]) -> None:
+    ordered = list(rules)
+
     @app.middleware("http")
     async def check_token(request, call_next):
         path = request.url.path
         if request.method == "OPTIONS" or path in WHITELIST:
             return await call_next(request)
-        required = next((role for prefix, role in rules if path.startswith(prefix)), None)
+        required = _required_role(path, request.method, ordered)
         if required is None:
             return await call_next(request)
         header = request.headers.get("authorization", "")
@@ -29,6 +43,7 @@ def install_auth(app, rules) -> None:
             payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
         except jwt.PyJWTError:
             return JSONResponse({"code": 401, "detail": "token 无效或已过期"}, status_code=401)
-        if payload.get("role", 0) < required:
+        if int(payload.get("role", 0)) < required:
             return JSONResponse({"code": 403, "detail": "权限不足"}, status_code=403)
+        request.state.user = payload
         return await call_next(request)
