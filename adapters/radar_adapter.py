@@ -512,7 +512,7 @@ def build_webp_catalog(source_file: str | Path, cache_dir: str | Path | None = N
 
             product_levels = []
             for level_spec in _render_level_specs(values, levels, variable_name):
-                webp_file = cache_path / f"{source_path.stem}.{_safe_name(variable_name)}.{level_spec['key']}.webp"
+                webp_file = cache_path / _webp_file_name(variable_name, level_spec["key"])
                 if _needs_render(webp_file, source_path):
                     _write_radar_webp(
                         output_file=webp_file,
@@ -689,7 +689,11 @@ def public_data_path(path: Path) -> str:
 
 def _webp_output_path(source_file: Path, variable_name: str, level_key: str) -> Path:
     cache_dir = source_file.parent / RADAR_RENDER_CACHE_DIR / source_file.stem
-    return cache_dir / f"{source_file.stem}.{_safe_name(variable_name)}.{_safe_name(level_key)}.webp"
+    return cache_dir / _webp_file_name(variable_name, level_key)
+
+
+def _webp_file_name(variable_name: str, level_key: str) -> str:
+    return f"{_safe_name(variable_name)}.{_safe_name(level_key)}.webp"
 
 
 def _default_level_key(data_array: xr.DataArray, render_mode: str) -> str:
