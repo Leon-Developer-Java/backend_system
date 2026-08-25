@@ -80,6 +80,16 @@ logging.basicConfig(
 logger = logging.getLogger("adapter-worker")
 
 
+def _sync_published_era5_meta(meta: dict, meta_file: Path) -> None:
+    from services.era5_store import sync_meta
+
+    result = sync_meta(meta)
+    meta.setdefault("extra", {}).setdefault("era5", {})["db_sync"] = result
+    temporary = meta_file.with_suffix(meta_file.suffix + ".tmp")
+    temporary.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    temporary.replace(meta_file)
+
+
 class AdapterProcessError(RuntimeError):
     def __init__(self, message: str, *, retryable: bool):
         super().__init__(message)
@@ -240,6 +250,8 @@ def _run_child(engine, task: dict, worker_id: str) -> dict:
             raise AdapterProcessError("Adapter subprocess returned no result.json", retryable=True)
         child_result = json.loads(result_path.read_text(encoding="utf-8"))
         meta, meta_file, final_dir = publish_adapter_output(child_result, PRODUCT_DATA_ROOT)
+        if str(task["data_type"]).upper() == "ERA5":
+            _sync_published_era5_meta(meta, meta_file)
         assets = build_asset_catalog(
             file_uuid=file_uuid,
             data_type=str(task["data_type"]).upper(),

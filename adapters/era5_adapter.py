@@ -50,6 +50,22 @@ VARIABLE_LABELS: dict[str, str] = {
     "ssrd": "Surface solar radiation downwards",
 }
 
+REQUIRED_META_FIELDS = (
+    "schema_version",
+    "dataset_id",
+    "data_type",
+    "source_file",
+    "meta_file",
+    "webp_files",
+    "default_webp",
+    "default_variable",
+    "times",
+    "bbox",
+    "variables",
+    "variable_layers",
+    "weather_info",
+)
+
 
 class ResampleSkipped(ValueError):
     def __init__(self, reason: str, detail: dict[str, Any]):
@@ -62,6 +78,75 @@ class WindFieldUnavailable(ValueError):
         super().__init__(reason)
         self.reason = reason
         self.detail = detail or {}
+
+
+class Era5ValidationError(ValueError):
+    """Non-retryable ERA5 input or output contract violation."""
+
+
+def _validate_source_file(source_file: Path) -> None:
+    if not source_file.is_file():
+        raise Era5ValidationError(f"ERA5 source file does not exist: {source_file}")
+    if source_file.stat().st_size <= 0:
+        raise Era5ValidationError("ERA5 source file is empty")
+    if source_file.suffix.lower() not in {".nc", ".nc4", ".netcdf"}:
+        raise Era5ValidationError(
+            f"ERA5 source extension is not supported: {source_file.suffix or '<none>'}"
+        )
+
+
+def _validate_dataset_contract(
+    ds: xr.Dataset,
+    lat_name: str,
+    lon_name: str,
+    times: list[str],
+    variable_names: list[str],
+) -> None:
+    coordinates = {
+        lat_name: np.asarray(ds[lat_name].values),
+        lon_name: np.asarray(ds[lon_name].values),
+    }
+    for name, values in coordinates.items():
+        if values.ndim != 1 or values.size < 2:
+            raise Era5ValidationError(
+                f"ERA5 coordinate {name!r} must be a one-dimensional grid with at least 2 values"
+            )
+        try:
+            numeric = values.astype(np.float64)
+        except (TypeError, ValueError) as exc:
+            raise Era5ValidationError(f"ERA5 coordinate {name!r} is not numeric") from exc
+        if not np.all(np.isfinite(numeric)):
+            raise Era5ValidationError(f"ERA5 coordinate {name!r} contains non-finite values")
+        if np.unique(numeric).size != numeric.size:
+            raise Era5ValidationError(f"ERA5 coordinate {name!r} contains duplicate values")
+
+    if not times or any(not str(value).strip() for value in times):
+        raise Era5ValidationError("ERA5 time axis is empty or invalid")
+    if not variable_names:
+        raise Era5ValidationError("ERA5 file contains no renderable latitude/longitude variable")
+    preferred = {name.lower() for name in PREFERRED_VARIABLES}
+    if not any(name.lower() in preferred for name in variable_names):
+        raise Era5ValidationError(
+            "ERA5 file contains no supported key variable "
+            f"({', '.join(PREFERRED_VARIABLES)})"
+        )
+
+
+def _validate_meta_contract(meta: dict[str, Any]) -> None:
+    missing = []
+    for name in REQUIRED_META_FIELDS:
+        value = meta.get(name)
+        if value is None or value == "":
+            missing.append(name)
+    if missing:
+        raise Era5ValidationError(f"ERA5 metadata is missing required fields: {', '.join(missing)}")
+    if not isinstance(meta.get("variables"), list) or not meta["variables"]:
+        raise Era5ValidationError("ERA5 metadata contains no variables")
+    if not isinstance(meta.get("webp_files"), list) or not meta["webp_files"]:
+        raise Era5ValidationError("ERA5 metadata contains no WebP assets")
+    if meta.get("quality_report", {}).get("status") == "error":
+        issue_count = meta.get("quality_report", {}).get("summary", {}).get("issue_count", 0)
+        raise Era5ValidationError(f"ERA5 quality validation failed with {issue_count} issue(s)")
 
 
 def _open_dataset(file_path: str) -> xr.Dataset:
@@ -1375,15 +1460,29 @@ def _build_variable_meta(
     return variable_meta, layer_meta
 
 
-def process_file(file_path: str, data_type: str = "ERA5") -> dict:
+def process_file(
+    file_path: str,
+    data_type: str = "ERA5",
+    *,
+    sync_database: bool = True,
+) -> dict:
     source_file = Path(file_path).resolve()
-    ds = _open_dataset(str(source_file))
+    _validate_source_file(source_file)
+    existing_outputs = set(source_file.parent.glob(f"{source_file.stem}_*.webp"))
+    existing_outputs.update(source_file.parent.glob(f"{source_file.stem}_*.float32"))
+    existing_meta = source_file.with_name(f"{source_file.name}.meta.json")
+    if existing_meta.exists():
+        existing_outputs.add(existing_meta)
+    opened_ds: xr.Dataset | None = None
+    ds: xr.Dataset | None = None
 
     try:
-        ds = _normalize_longitude(ds)
+        opened_ds = _open_dataset(str(source_file))
+        ds = _normalize_longitude(opened_ds)
         lat_name, lon_name = _lat_lon_names(ds)
         times = _format_times(ds)
         var_names = _renderable_variables(ds)
+        _validate_dataset_contract(ds, lat_name, lon_name, times, var_names)
         default_var = _default_variable(var_names)
 
         lat = ds[lat_name].values.astype(np.float64)
@@ -1498,14 +1597,28 @@ def process_file(file_path: str, data_type: str = "ERA5") -> dict:
             },
         }
 
-        try:
+        _validate_meta_contract(meta)
+
+        if sync_database:
             from services.era5_store import sync_meta
 
             meta["extra"]["era5"]["db_sync"] = sync_meta(meta)
-        except Exception as exc:
-            meta["extra"]["era5"]["db_sync_error"] = str(exc)
 
         write_meta(meta_file, meta)
         return meta
+    except Exception:
+        generated_outputs = set(source_file.parent.glob(f"{source_file.stem}_*.webp"))
+        generated_outputs.update(source_file.parent.glob(f"{source_file.stem}_*.float32"))
+        generated_outputs.add(source_file.with_name(f"{source_file.name}.meta.json"))
+        for output in generated_outputs - existing_outputs:
+            output.unlink(missing_ok=True)
+        for temporary in source_file.parent.glob(f".{source_file.stem}_*.tmp"):
+            temporary.unlink(missing_ok=True)
+        for backup in source_file.parent.glob(f".{source_file.stem}_*.backup"):
+            backup.unlink(missing_ok=True)
+        raise
     finally:
-        ds.close()
+        if ds is not None:
+            ds.close()
+        if opened_ds is not None and opened_ds is not ds:
+            opened_ds.close()

@@ -85,7 +85,12 @@ def run_adapter(
     shutil.copy2(source_path, staged_source)
 
     adapter_data_type = "Radar" if data_type == "RADAR" else data_type
-    meta = module.process_file(str(staged_source), data_type=adapter_data_type)
+    process_options = {"sync_database": False} if data_type == "ERA5" else {}
+    meta = module.process_file(
+        str(staged_source),
+        data_type=adapter_data_type,
+        **process_options,
+    )
     if not isinstance(meta, dict):
         raise ValueError("Adapter did not return a metadata object")
     meta_file = _select_meta_file(stage_dir, meta)

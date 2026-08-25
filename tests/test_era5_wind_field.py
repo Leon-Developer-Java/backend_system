@@ -1,5 +1,7 @@
 from pathlib import Path
+import json
 import sqlite3
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -8,6 +10,9 @@ import numpy as np
 import xarray as xr
 
 from adapters import era5_adapter
+from services.adapter_runner import cleanup_stage, publish_adapter_output, run_adapter
+from workers import adapter_subprocess
+from workers.parse_worker import _sync_published_era5_meta
 
 
 class Era5WindFieldTests(unittest.TestCase):
@@ -223,11 +228,117 @@ class Era5WindFieldTests(unittest.TestCase):
         dataset = self._dataset(longitude=longitude)
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            _, meta = self._process(dataset, root)
-            self.assertFalse(meta["wind_field"]["available"])
-            self.assertEqual(meta["wind_field"]["reason"], "wind_grid_scan_order_invalid")
-            self.assertTrue(meta["webp_files"])
+            source = root / "wind.nc"
+            dataset.to_netcdf(source, engine="netcdf4")
+            with self.assertRaisesRegex(era5_adapter.Era5ValidationError, "duplicate values"):
+                era5_adapter.process_file(str(source))
             self.assertFalse(list(root.glob("*.float32")))
+            self.assertFalse(list(root.glob("*.webp")))
+
+    def test_empty_and_corrupt_sources_are_rejected_without_outputs(self) -> None:
+        for content, expected_message in ((b"", "empty"), (b"not-netcdf", "could not be opened")):
+            with self.subTest(expected_message=expected_message):
+                with tempfile.TemporaryDirectory() as temporary_directory:
+                    root = Path(temporary_directory)
+                    source = root / "broken.nc"
+                    source.write_bytes(content)
+                    with self.assertRaisesRegex(ValueError, expected_message):
+                        era5_adapter.process_file(str(source))
+                    self.assertEqual(list(root.iterdir()), [source])
+
+    def test_missing_key_variable_is_rejected_before_asset_generation(self) -> None:
+        dataset = self._dataset().rename({"t2m": "custom_temperature"}).drop_vars(["u10", "v10"])
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source = root / "unsupported.nc"
+            dataset.to_netcdf(source, engine="netcdf4")
+            with self.assertRaisesRegex(era5_adapter.Era5ValidationError, "no supported key variable"):
+                era5_adapter.process_file(str(source))
+            self.assertFalse(list(root.glob("*.webp")))
+
+    def test_db_sync_failure_stops_success_and_cleans_generated_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source = root / "wind.nc"
+            self._dataset().to_netcdf(source, engine="netcdf4")
+            with (
+                patch.object(era5_adapter, "TARGET_RESOLUTIONS_KM", ()),
+                patch("services.era5_store.sync_meta", side_effect=RuntimeError("db unavailable")),
+                self.assertRaisesRegex(RuntimeError, "db unavailable"),
+            ):
+                era5_adapter.process_file(str(source))
+            self.assertFalse(list(root.glob("*.webp")))
+            self.assertFalse(list(root.glob("*.float32")))
+            self.assertFalse(list(root.glob("*.meta.json")))
+
+    def test_worker_defers_era5_index_sync_until_assets_are_published(self) -> None:
+        from services import era5_store
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            raw = root / "raw" / "wind.nc"
+            raw.parent.mkdir()
+            self._dataset().to_netcdf(raw, engine="netcdf4")
+            product_root = root / "products"
+            stage = product_root / "ERA5" / ".adapter_staging" / "file-1" / "attempt-1"
+
+            with (
+                patch.object(era5_adapter, "TARGET_RESOLUTIONS_KM", ()),
+                patch("services.era5_store.sync_meta", side_effect=AssertionError("synced before publish")),
+            ):
+                child = run_adapter(
+                    file_uuid="file-1",
+                    data_type="ERA5",
+                    source_path=raw,
+                    output_root=product_root,
+                    attempt_dir=stage,
+                    original_file_name="wind.nc",
+                )
+
+            meta, meta_file, final_dir = publish_adapter_output(child, product_root)
+            self.assertTrue(final_dir.is_dir())
+            self.assertNotIn("db_sync", meta["extra"]["era5"])
+
+            index_dir = root / "index"
+            with patch.object(era5_store, "DATA_DIR", index_dir):
+                _sync_published_era5_meta(meta, meta_file)
+
+            stored = json.loads(meta_file.read_text(encoding="utf-8"))
+            self.assertIn("db_sync", stored["extra"]["era5"])
+            self.assertTrue((index_dir / era5_store.DB_NAME).is_file())
+            self.assertTrue(all("/assets/file-1/" in value for value in stored["webp_files"]))
+
+    def test_corrupt_worker_input_is_non_retryable_and_staging_is_cleaned(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            raw = root / "broken.nc"
+            raw.write_bytes(b"not-a-netcdf")
+            product_root = root / "products"
+            stage = product_root / "ERA5" / ".adapter_staging" / "file-2" / "attempt-1"
+            job = {
+                "file_uuid": "file-2",
+                "collection_uuid": None,
+                "data_type": "ERA5",
+                "source_path": raw.as_posix(),
+                "original_file_name": raw.name,
+                "output_root": product_root.as_posix(),
+                "stage_dir": stage.as_posix(),
+                "result_path": (root / "result.json").as_posix(),
+                "error_path": (root / "error.json").as_posix(),
+            }
+            job_path = root / "job.json"
+            job_path.write_text(json.dumps(job), encoding="utf-8")
+
+            with patch.object(sys, "argv", ["adapter_subprocess", "--job", str(job_path)]):
+                exit_code = adapter_subprocess.main()
+
+            error = json.loads((root / "error.json").read_text(encoding="utf-8"))
+            self.assertEqual(exit_code, 1)
+            self.assertEqual(error["error_type"], "ValueError")
+            self.assertFalse(error["retryable"])
+            self.assertFalse((root / "result.json").exists())
+            cleanup_stage(stage, product_root)
+            self.assertFalse(stage.exists())
 
     def test_float32_write_failure_degrades_and_cleans_partial_assets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

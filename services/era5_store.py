@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,7 +20,7 @@ def sync_meta(meta: dict[str, Any], db_path: str | Path | None = None) -> dict[s
     path = Path(db_path) if db_path else default_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with _connect(path) as conn:
+    with closing(_connect(path)) as conn:
         init_db(conn)
         result = _upsert_meta(conn, meta)
         conn.commit()
@@ -38,7 +39,7 @@ def list_datasets(
     offset: int = 0,
     db_path: str | Path | None = None,
 ) -> dict[str, Any]:
-    with _connect(db_path) as conn:
+    with closing(_connect(db_path)) as conn:
         init_db(conn)
         where, params = _dataset_filters(keyword, variable, status, time_start, time_end)
         total = conn.execute(f"SELECT COUNT(*) FROM era5_dataset d {where}", params).fetchone()[0]
@@ -62,7 +63,7 @@ def list_datasets(
 
 
 def get_dataset(dataset_id: str, db_path: str | Path | None = None) -> dict[str, Any] | None:
-    with _connect(db_path) as conn:
+    with closing(_connect(db_path)) as conn:
         init_db(conn)
         dataset = conn.execute(
             "SELECT * FROM era5_dataset WHERE dataset_id = ? AND is_deleted = 0",
@@ -127,7 +128,7 @@ def list_assets(
         params.append(resolution)
     where_sql = "WHERE " + " AND ".join(where)
 
-    with _connect(db_path) as conn:
+    with closing(_connect(db_path)) as conn:
         init_db(conn)
         total = conn.execute(f"SELECT COUNT(*) FROM era5_layer_asset {where_sql}", params).fetchone()[0]
         rows = conn.execute(
