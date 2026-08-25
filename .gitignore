@@ -30,6 +30,16 @@ data/ERA5/.*.float32.*.backup
 data/ERA5/.*.webp.*.tmp
 data/ERA5/.*.webp.*.backup
 data/ERA5/era5_index.db
+data/ERA5/*.nc
+data/ERA5/auto_history/
+data/ERA5/wait_process/
+
+data/GFS/wait_process/
+
+data/CMA/NC/*.webp
+data/CMA/NC/*.meta.json
+
+data/Radar/
 
 data/.DS_Store
 data/satellite_tasks.sqlite3
