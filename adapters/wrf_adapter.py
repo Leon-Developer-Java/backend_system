@@ -59,6 +59,20 @@ INFORMATION_FILE = DOCS_DIR / "information.txt"
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 
+class WrfAdapterError(ValueError):
+    """Non-retryable WRF validation or rendering failure with a business phase."""
+
+    def __init__(self, phase: str, message: str):
+        self.phase = phase
+        super().__init__(f"[WRF:{phase}] {message}")
+
+
+def _wrf_error(phase: str, message: str, exc: Exception | None = None) -> WrfAdapterError:
+    if exc is not None:
+        return WrfAdapterError(phase, f"{message}: {type(exc).__name__}: {exc}")
+    return WrfAdapterError(phase, message)
+
+
 def _to_relative(path: Path) -> str:
     try:
         return path.relative_to(_BACKEND_DIR).as_posix()
@@ -351,6 +365,174 @@ def _write_information_txt(rows: list[dict[str, str]]) -> None:
     )
     INFORMATION_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+
+def _array_has_finite_values(value: Any) -> bool:
+    try:
+        arr = np.asarray(value)
+        return arr.size > 0 and np.isfinite(arr.astype(float)).any()
+    except Exception:
+        return False
+
+
+def _validate_wrf_entry(source_file: Path, ds: Any) -> None:
+    if "wrfout" not in source_file.name.lower():
+        raise _wrf_error("entry_validate", f"source file is not a wrfout file: {source_file.name}")
+    if "Times" not in ds.variables:
+        raise _wrf_error("entry_validate", "Times variable is missing")
+    try:
+        time_label = _time_label(ds)
+    except Exception as exc:
+        raise _wrf_error("entry_validate", "Times variable cannot be decoded", exc) from exc
+    if not time_label:
+        raise _wrf_error("entry_validate", "Times variable is empty")
+    for coord_name in ("XLAT", "XLONG"):
+        if coord_name not in ds.variables:
+            raise _wrf_error("entry_validate", f"{coord_name} coordinate is missing")
+        if not _array_has_finite_values(ds.variables[coord_name][:]):
+            raise _wrf_error("entry_validate", f"{coord_name} coordinate has no valid finite values")
+
+    available = [name for name in PRODUCT_VARIABLES if name in ds.variables]
+    if not available:
+        raise _wrf_error("entry_validate", f"none of the configured WRF product variables exists: {', '.join(PRODUCT_VARIABLES)}")
+    core_available = [name for name in ("T2", "U10", "V10", "PSFC") if name in ds.variables]
+    if not core_available:
+        raise _wrf_error("entry_validate", "none of the core weather variables exists: T2, U10, V10, PSFC")
+    for name in available:
+        try:
+            if not _array_has_finite_values(ds.variables[name][:]):
+                raise _wrf_error("entry_validate", f"key variable {name} has no valid finite values")
+        except WrfAdapterError:
+            raise
+        except Exception as exc:
+            raise _wrf_error("entry_validate", f"key variable {name} cannot be read", exc) from exc
+
+
+def _path_exists_for_meta(value: Any, *, product_root: Path | None = None, final_dir: Path | None = None) -> bool:
+    text = str(value or "").replace("\\", "/").strip()
+    if not text:
+        return False
+    candidates: list[Path] = []
+    if text.startswith("/data/") and product_root is not None:
+        candidates.append(product_root / text.removeprefix("/data/"))
+    elif text.startswith("data/") and product_root is not None:
+        candidates.append(product_root / text.removeprefix("data/"))
+    else:
+        raw = Path(text)
+        if raw.is_absolute():
+            candidates.append(raw)
+        if final_dir is not None:
+            candidates.append(final_dir / raw.name)
+        candidates.append(_resolve_path(text))
+    return any(path.exists() and path.is_file() for path in candidates)
+
+
+def _validate_wrf_meta(meta: dict[str, Any], *, meta_file: Path | None = None, product_root: Path | None = None, final_dir: Path | None = None) -> None:
+    if not isinstance(meta, dict):
+        raise _wrf_error("metadata_validate", "meta is not a JSON object")
+    required = ["dataset_id", "data_type", "source_file", "meta_file", "webp_files", "resolution_products", "variables", "times", "bbox", "weather_info"]
+    missing = [key for key in required if key not in meta or meta.get(key) in (None, "", [], {})]
+    if missing:
+        raise _wrf_error("metadata_validate", f"required meta fields are missing or empty: {', '.join(missing)}")
+    if str(meta.get("data_type") or "").upper() != "WRF":
+        raise _wrf_error("metadata_validate", f"unexpected data_type={meta.get('data_type')!r}")
+    if meta_file is not None and (not meta_file.is_file()):
+        raise _wrf_error("metadata_validate", f"meta file was not written: {meta_file}")
+    bbox = meta.get("bbox")
+    if not isinstance(bbox, dict):
+        raise _wrf_error("metadata_validate", "bbox must be an object with west/south/east/north")
+    coords = [bbox.get(key) for key in ("west", "south", "east", "north")]
+    if not all(Number_is_finite(value) for value in coords):
+        raise _wrf_error("metadata_validate", f"bbox contains invalid coordinates: {bbox}")
+    west, south, east, north = map(float, coords)
+    if west >= east or south >= north:
+        raise _wrf_error("metadata_validate", f"bbox is not a valid extent: {bbox}")
+    times = meta.get("times")
+    if not isinstance(times, list) or not any(str(item).strip() for item in times):
+        raise _wrf_error("metadata_validate", "times is empty")
+    variables = meta.get("variables")
+    if not isinstance(variables, list) or not variables:
+        raise _wrf_error("metadata_validate", "variables is empty")
+    for item in variables:
+        if not isinstance(item, dict) or not item.get("name"):
+            raise _wrf_error("metadata_validate", f"variable item misses required name: {item}")
+    webp_files = meta.get("webp_files")
+    if not isinstance(webp_files, list) or not webp_files:
+        raise _wrf_error("metadata_validate", "webp_files is empty")
+    missing_webps = [
+        str(path)
+        for path in webp_files
+        if not _path_exists_for_meta(path, product_root=product_root, final_dir=final_dir)
+    ]
+    if missing_webps:
+        raise _wrf_error("metadata_validate", f"webp_files contain missing files: {missing_webps[:5]}")
+    products = meta.get("resolution_products")
+    if not isinstance(products, dict) or not products:
+        raise _wrf_error("metadata_validate", "resolution_products is empty")
+    for key, product in products.items():
+        if not isinstance(product, dict):
+            raise _wrf_error("metadata_validate", f"resolution product {key} is not an object")
+        product_files = product.get("webp_files")
+        product_variables = product.get("variables")
+        if not isinstance(product_files, list) or not product_files:
+            raise _wrf_error("metadata_validate", f"resolution product {key} has no WebP files")
+        if not isinstance(product_variables, list) or not product_variables:
+            raise _wrf_error("metadata_validate", f"resolution product {key} has no variables")
+        product_missing = [
+            str(path)
+            for path in product_files
+            if not _path_exists_for_meta(path, product_root=product_root, final_dir=final_dir)
+        ]
+        if product_missing:
+            raise _wrf_error("metadata_validate", f"resolution product {key} references missing WebP files: {product_missing[:5]}")
+
+
+def Number_is_finite(value: Any) -> bool:
+    try:
+        return np.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def validate_before_db_write(
+    *,
+    meta: dict[str, Any],
+    meta_file: str | Path,
+    final_dir: str | Path,
+    product_root: str | Path,
+    result: dict[str, Any],
+    assets: list[dict[str, Any]],
+) -> None:
+    """Validate published WRF meta, WebP paths, result fields, and DB asset rows before success commit."""
+    product_root_path = Path(product_root).resolve()
+    final_dir_path = Path(final_dir).resolve()
+    meta_path = Path(meta_file).resolve()
+    try:
+        final_dir_path.relative_to(product_root_path)
+        meta_path.relative_to(final_dir_path)
+    except ValueError as exc:
+        raise _wrf_error("db_prewrite_validate", "published WRF paths escaped product/final directory") from exc
+    _validate_wrf_meta(meta, meta_file=meta_path, product_root=product_root_path, final_dir=final_dir_path)
+    result_required = ["data_type", "meta_path", "default_webp_url", "webp_count", "adapter_name", "adapter_version", "meta_schema_version"]
+    missing_result = [key for key in result_required if result.get(key) in (None, "", [])]
+    if missing_result:
+        raise _wrf_error("db_prewrite_validate", f"success result fields are missing: {', '.join(missing_result)}")
+    if str(result.get("data_type") or "").upper() != "WRF":
+        raise _wrf_error("db_prewrite_validate", f"unexpected success result data_type={result.get('data_type')!r}")
+    if int(result.get("webp_count") or 0) <= 0:
+        raise _wrf_error("db_prewrite_validate", "webp_count must be greater than zero")
+    if not _path_exists_for_meta(result.get("default_webp_url"), product_root=product_root_path, final_dir=final_dir_path):
+        raise _wrf_error("db_prewrite_validate", f"default_webp_url is missing on disk: {result.get('default_webp_url')}")
+    if not isinstance(assets, list) or not assets:
+        raise _wrf_error("db_prewrite_validate", "asset catalog is empty")
+    required_asset_fields = ["asset_uuid", "file_uuid", "element_key", "frame_index", "resolution_key", "webp_url", "asset_status"]
+    for index, asset in enumerate(assets):
+        missing_asset = [key for key in required_asset_fields if asset.get(key) in (None, "")]
+        if missing_asset:
+            raise _wrf_error("db_prewrite_validate", f"asset[{index}] missing fields: {', '.join(missing_asset)}")
+        if not _path_exists_for_meta(asset.get("webp_url"), product_root=product_root_path, final_dir=final_dir_path):
+            raise _wrf_error("db_prewrite_validate", f"asset[{index}] WebP is missing on disk: {asset.get('webp_url')}")
+
+
 def _cached_meta_if_ready(source_file: Path) -> dict[str, Any] | None:
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
     if not meta_file.exists():
@@ -403,182 +585,234 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
 
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
     webp_dir = source_file.parent / f"{source_file.name}.webps"
-    if webp_dir.exists():
-        shutil.rmtree(webp_dir)
-    webp_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        if webp_dir.exists():
+            shutil.rmtree(webp_dir)
+        if meta_file.exists():
+            meta_file.unlink()
+        webp_dir.mkdir(parents=True, exist_ok=True)
 
-    with Dataset(source_file) as ds:
-        lat, lon = _lat_lon(ds)
-        variable_information = _variable_information(ds)
-        _write_information_txt(variable_information)
-        bbox = {
-            "west": float(np.nanmin(lon)),
-            "south": float(np.nanmin(lat)),
-            "east": float(np.nanmax(lon)),
-            "north": float(np.nanmax(lat)),
-        }
-        time_label = _time_label(ds) or source_file.name
-        domain = _domain_from_file(source_file, ds)
-        dx = float(getattr(ds, "DX", 0) or 0)
-        dy = float(getattr(ds, "DY", 0) or 0)
-        grid = f"{lat.shape[1]} x {lat.shape[0]}"
-        resolution = f"{dx / 1000:g} km" if dx else "unknown"
+        try:
+            ds_context = Dataset(source_file)
+        except Exception as exc:
+            raise _wrf_error("file_read", f"failed to open wrfout file {source_file.name}", exc) from exc
 
-        display_variables = [
-            name for name in PRODUCT_VARIABLES
-            if name in ds.variables and _can_display_variable(ds, name, lat.shape)
-        ]
-        if not display_variables:
-            display_variables = [
-                name for name in ds.variables
-                if _can_display_variable(ds, name, lat.shape)
-            ][:8]
-
-        target_keys = _target_resolution_keys(dx, dy)
-        resolution_products: dict[str, dict[str, Any]] = {
-            key: {
-                "label": key,
-                "resolution": key.replace("km", " km"),
-                "target_meters": int(TARGET_RESOLUTIONS[key]),
-                "webp_files": [],
-                "variables": [],
-                "grid": "",
-                "is_resampled": TARGET_RESOLUTIONS[key] != dx or TARGET_RESOLUTIONS[key] != dy,
-            }
-            for key in target_keys
-        }
-        source_variables: list[dict[str, Any]] = []
-        primary_stats = {"min": None, "max": None, "mean": None}
-        primary_unit = ""
-        primary_element = "WRF variable"
-
-        for name in display_variables:
-            data, desc, units, var_id = _field_from_var(ds, name)
-            label, business_desc = VARIABLE_LABELS.get(name, (desc or name, desc or name))
-            stat = _stats(data)
-            source_variables.append(
-                {
-                    "name": name,
-                    "label": label,
-                    "description": business_desc,
-                    "units": units,
-                    "shape": list(data.shape),
-                    "source_shape": list(data.shape),
-                    "source_resolution": resolution,
-                    **stat,
+        with ds_context as ds:
+            try:
+                _validate_wrf_entry(source_file, ds)
+                lat, lon = _lat_lon(ds)
+                variable_information = _variable_information(ds)
+                _write_information_txt(variable_information)
+                bbox = {
+                    "west": float(np.nanmin(lon)),
+                    "south": float(np.nanmin(lat)),
+                    "east": float(np.nanmax(lon)),
+                    "north": float(np.nanmax(lat)),
                 }
-            )
+                time_label = _time_label(ds)
+                domain = _domain_from_file(source_file, ds)
+                dx = float(getattr(ds, "DX", 0) or 0)
+                dy = float(getattr(ds, "DY", 0) or 0)
+                grid = f"{lat.shape[1]} x {lat.shape[0]}"
+                resolution = f"{dx / 1000:g} km" if dx else "unknown"
+            except WrfAdapterError:
+                raise
+            except Exception as exc:
+                raise _wrf_error("file_read", "failed to read WRF coordinates, Times, or global attributes", exc) from exc
 
-            for res_key, target_meters in TARGET_RESOLUTIONS.items():
-                if res_key not in resolution_products:
-                    continue
-                product = resolution_products[res_key]
-                output_data = _resample_grid(data, dx, dy, target_meters)
-                output_stat = _stats(output_data)
-                output_grid = f"{output_data.shape[1]} x {output_data.shape[0]}"
-                product["grid"] = output_grid
-                product["variables"].append(
-                    {
-                        "name": name,
-                        "label": label,
-                        "description": business_desc,
-                        "units": units,
-                        "shape": list(output_data.shape),
-                        "source_shape": list(data.shape),
-                        "source_resolution": resolution,
-                        "grid": output_grid,
-                        "resolution": product["resolution"],
-                        **output_stat,
-                    }
+            try:
+                display_variables = [
+                    name for name in PRODUCT_VARIABLES
+                    if name in ds.variables and _can_display_variable(ds, name, lat.shape)
+                ]
+                if not display_variables:
+                    display_variables = [
+                        name for name in ds.variables
+                        if _can_display_variable(ds, name, lat.shape)
+                    ][:8]
+                if not display_variables:
+                    raise _wrf_error("variable_compute", "no displayable WRF variable contains finite gridded values")
+            except WrfAdapterError:
+                raise
+            except Exception as exc:
+                raise _wrf_error("variable_compute", "failed while selecting display variables", exc) from exc
+
+            target_keys = _target_resolution_keys(dx, dy)
+            if not target_keys:
+                raise _wrf_error(
+                    "product_generate",
+                    f"source resolution is finer than 1km or invalid; skip rendering. dx={dx}, dy={dy}",
                 )
-
-                image = _render_overlay(output_data, Image, colormaps)
-                webp_path = webp_dir / res_key / f"{time_label.replace(':', '_')}_{var_id}.webp"
-                webp_path.parent.mkdir(parents=True, exist_ok=True)
-                image.save(webp_path, format="WEBP", lossless=True, quality=90, method=6)
-                product["webp_files"].append(_to_relative(webp_path))
-
-            if name == display_variables[0]:
-                primary_stats = stat
-                primary_unit = units
-        primary_element = "WRF variable"
-
-        default_resolution = _default_resolution_key(resolution_products)
-        default_product = resolution_products.get(default_resolution, {})
-        webp_files = list(default_product.get("webp_files", []))
-        variables = list(default_product.get("variables") or source_variables)
-        if variables:
-            first_variable = variables[0]
-            primary_stats = {
-                "min": first_variable.get("min"),
-                "max": first_variable.get("max"),
-                "mean": first_variable.get("mean"),
+            resolution_products: dict[str, dict[str, Any]] = {
+                key: {
+                    "label": key,
+                    "resolution": key.replace("km", " km"),
+                    "target_meters": int(TARGET_RESOLUTIONS[key]),
+                    "webp_files": [],
+                    "variables": [],
+                    "grid": "",
+                    "is_resampled": TARGET_RESOLUTIONS[key] != dx or TARGET_RESOLUTIONS[key] != dy,
+                }
+                for key in target_keys
             }
-            primary_unit = first_variable.get("units", primary_unit)
-        primary_element = "WRF variable"
+            source_variables: list[dict[str, Any]] = []
+            primary_stats = {"min": None, "max": None, "mean": None}
+            primary_unit = ""
+            primary_element = "WRF variable"
 
-        weather_info = {
-            "source": "WRF",
-            "product": "WRF-Chem model layer",
-            "element": primary_element,
-            "time": time_label.replace("_", " "),
-            "level": "surface / near-surface or level 0",
-            "range": (
-                f"{bbox['west']:.3f}E-{bbox['east']:.3f}E, "
-                f"{bbox['south']:.3f}N-{bbox['north']:.3f}N"
-            ),
-            "resolution": resolution,
-            "displayResolution": default_resolution,
-            "sourceResolution": resolution,
-            "grid": grid,
-            "validGrid": f"{lat.size}",
-            "coverage": domain,
-            "missing": "NaN/FillValue",
-            "unit": primary_unit,
-            "variables": str(len(display_variables)),
-            "steps": "1",
-            "status": "parsed",
-            "quality": "transparent WebP overlay generated",
-            "max": primary_stats["max"],
-            "min": primary_stats["min"],
-            "mean": primary_stats["mean"],
-            "alert": "none",
-            "update": datetime.now(timezone.utc).isoformat(),
-            "bars": [0, 0, 0, 0, 0],
-            "trend": [],
-        }
+            for name in display_variables:
+                try:
+                    data, desc, units, var_id = _field_from_var(ds, name)
+                    label, business_desc = VARIABLE_LABELS.get(name, (desc or name, desc or name))
+                    stat = _stats(data)
+                    if stat["min"] is None or stat["max"] is None:
+                        raise _wrf_error("variable_compute", f"variable {name} contains no finite values")
+                    source_variables.append(
+                        {
+                            "name": name,
+                            "label": label,
+                            "description": business_desc,
+                            "units": units,
+                            "shape": list(data.shape),
+                            "source_shape": list(data.shape),
+                            "source_resolution": resolution,
+                            **stat,
+                        }
+                    )
+                except WrfAdapterError:
+                    raise
+                except Exception as exc:
+                    raise _wrf_error("variable_compute", f"failed to compute variable {name}", exc) from exc
 
-        meta = {
-            "dataset_id": build_dataset_id(source_file),
-            "data_type": data_type,
-            "file_format": "NC",
-            "source_file": source_file.as_posix(),
-            "meta_file": meta_file.as_posix(),
-            "webp_files": webp_files,
-            "default_resolution": default_resolution,
-            "source_resolution": resolution,
-            "resolution_products": resolution_products,
-            "variables": variables,
-            "variable_information": variable_information,
-            "times": [time_label],
-            "levels": ["surface_or_level_0"],
-            "bbox": bbox,
-            "weather_info": weather_info,
-            "extra": {
+                for res_key, target_meters in TARGET_RESOLUTIONS.items():
+                    if res_key not in resolution_products:
+                        continue
+                    try:
+                        product = resolution_products[res_key]
+                        output_data = _resample_grid(data, dx, dy, target_meters)
+                        output_stat = _stats(output_data)
+                        if output_stat["min"] is None or output_stat["max"] is None:
+                            raise _wrf_error("product_generate", f"{name} {res_key} resample produced no finite values")
+                        output_grid = f"{output_data.shape[1]} x {output_data.shape[0]}"
+                        product["grid"] = output_grid
+                        product["variables"].append(
+                            {
+                                "name": name,
+                                "label": label,
+                                "description": business_desc,
+                                "units": units,
+                                "shape": list(output_data.shape),
+                                "source_shape": list(data.shape),
+                                "source_resolution": resolution,
+                                "grid": output_grid,
+                                "resolution": product["resolution"],
+                                **output_stat,
+                            }
+                        )
+
+                        image = _render_overlay(output_data, Image, colormaps)
+                        webp_path = webp_dir / res_key / f"{time_label.replace(':', '_')}_{var_id}.webp"
+                        webp_path.parent.mkdir(parents=True, exist_ok=True)
+                        image.save(webp_path, format="WEBP", lossless=True, quality=90, method=6)
+                        if not webp_path.is_file() or webp_path.stat().st_size <= 0:
+                            raise _wrf_error("product_generate", f"WebP was not written or is empty: {webp_path.name}")
+                        product["webp_files"].append(_to_relative(webp_path))
+                    except WrfAdapterError:
+                        raise
+                    except Exception as exc:
+                        raise _wrf_error("product_generate", f"failed to generate {res_key} WebP for {name}", exc) from exc
+
+                if name == display_variables[0]:
+                    primary_stats = stat
+                    primary_unit = units
+            primary_element = "WRF variable"
+
+            default_resolution = _default_resolution_key(resolution_products)
+            default_product = resolution_products.get(default_resolution, {})
+            webp_files = list(default_product.get("webp_files", []))
+            variables = list(default_product.get("variables") or source_variables)
+            if variables:
+                first_variable = variables[0]
+                primary_stats = {
+                    "min": first_variable.get("min"),
+                    "max": first_variable.get("max"),
+                    "mean": first_variable.get("mean"),
+                }
+                primary_unit = first_variable.get("units", primary_unit)
+            primary_element = "WRF variable"
+
+            weather_info = {
+                "source": "WRF",
+                "product": "WRF-Chem model layer",
+                "element": primary_element,
+                "time": time_label.replace("_", " "),
+                "level": "surface / near-surface or level 0",
+                "range": (
+                    f"{bbox['west']:.3f}E-{bbox['east']:.3f}E, "
+                    f"{bbox['south']:.3f}N-{bbox['north']:.3f}N"
+                ),
+                "resolution": resolution,
+                "displayResolution": default_resolution,
+                "sourceResolution": resolution,
+                "grid": grid,
+                "validGrid": f"{lat.size}",
+                "coverage": domain,
+                "missing": "NaN/FillValue",
+                "unit": primary_unit,
+                "variables": str(len(display_variables)),
+                "steps": "1",
                 "status": "parsed",
-                "generated_at": datetime.now(timezone.utc).isoformat(),
-                "domain": domain,
-                "dx": dx,
-                "dy": dy,
-                "default_resolution": default_resolution,
-                "target_resolutions": target_keys,
-                "webp_dir": _to_relative(webp_dir),
-                "note": "WRF adapter parsed NetCDF and generated transparent WebP overlays for the frontend map.",
-            },
-        }
+                "quality": "transparent WebP overlay generated",
+                "max": primary_stats["max"],
+                "min": primary_stats["min"],
+                "mean": primary_stats["mean"],
+                "alert": "none",
+                "update": datetime.now(timezone.utc).isoformat(),
+                "bars": [0, 0, 0, 0, 0],
+                "trend": [],
+            }
 
-    write_meta(meta_file, meta)
-    return meta
+            meta = {
+                "dataset_id": build_dataset_id(source_file),
+                "data_type": data_type,
+                "file_format": "NC",
+                "source_file": source_file.as_posix(),
+                "meta_file": meta_file.as_posix(),
+                "webp_files": webp_files,
+                "default_resolution": default_resolution,
+                "source_resolution": resolution,
+                "resolution_products": resolution_products,
+                "variables": variables,
+                "variable_information": variable_information,
+                "times": [time_label],
+                "levels": ["surface_or_level_0"],
+                "bbox": bbox,
+                "weather_info": weather_info,
+                "extra": {
+                    "status": "parsed",
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                    "domain": domain,
+                    "dx": dx,
+                    "dy": dy,
+                    "default_resolution": default_resolution,
+                    "target_resolutions": target_keys,
+                    "webp_dir": _to_relative(webp_dir),
+                    "note": "WRF adapter parsed NetCDF and generated transparent WebP overlays for the frontend map.",
+                },
+            }
+
+        _validate_wrf_meta(meta, meta_file=None)
+        write_meta(meta_file, meta)
+        _validate_wrf_meta(meta, meta_file=meta_file)
+        return meta
+    except Exception:
+        shutil.rmtree(webp_dir, ignore_errors=True)
+        if meta_file.exists():
+            try:
+                meta_file.unlink()
+            except OSError:
+                pass
+        raise
 
 
 def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
@@ -672,6 +906,16 @@ def process_files(file_paths: list[str], data_type: str = "WRF") -> dict:
             "generated_at": datetime.now(timezone.utc).isoformat(),
         },
     }
-    write_meta(meta_file, combined)
+    try:
+        _validate_wrf_meta(combined, meta_file=None)
+        write_meta(meta_file, combined)
+        _validate_wrf_meta(combined, meta_file=meta_file)
+    except Exception:
+        if meta_file.exists():
+            try:
+                meta_file.unlink()
+            except OSError:
+                pass
+        raise
     return combined
 
