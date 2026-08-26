@@ -53,8 +53,6 @@ SKIP_NAMES = {
     "CLAT",
 }
 
-DOCS_DIR = Path(__file__).resolve().parents[1] / "docs" / "WRF"
-INFORMATION_FILE = DOCS_DIR / "information.txt"
 
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
 
@@ -345,27 +343,6 @@ def _variable_information(ds: Any) -> list[dict[str, str]]:
         )
     return rows
 
-def _write_information_txt(rows: list[dict[str, str]]) -> None:
-    DOCS_DIR.mkdir(parents=True, exist_ok=True)
-    lines = [
-        "# Format: variable_name|english_label|description|english_description",
-        "# WRF variable information generated from adapter metadata.",
-        "",
-    ]
-    lines.extend(
-        "|".join(
-            [
-                item["name"],
-                item["english_label"],
-                item["chinese_description"],
-                item["english_description"],
-            ]
-        )
-        for item in rows
-    )
-    INFORMATION_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
 def _array_has_finite_values(value: Any) -> bool:
     try:
         arr = np.asarray(value)
@@ -602,7 +579,6 @@ def process_file(file_path: str, data_type: str = "WRF") -> dict:
                 _validate_wrf_entry(source_file, ds)
                 lat, lon = _lat_lon(ds)
                 variable_information = _variable_information(ds)
-                _write_information_txt(variable_information)
                 bbox = {
                     "west": float(np.nanmin(lon)),
                     "south": float(np.nanmin(lat)),

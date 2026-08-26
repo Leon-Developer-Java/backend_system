@@ -515,10 +515,11 @@ def _raw_scenes_for_business(business_type: str) -> list[dict[str, Any]]:
 
 def _process_saved_paths(saved_paths: list[Path], business_type: str) -> dict[str, Any]:
     saved_path = saved_paths[0]
-    if business_type == "Radar" and len(saved_paths) > 1:
-        return radar_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
-    if business_type == "CMA" and len(saved_paths) > 1:
-        return cma_adapter.process_files([str(path) for path in saved_paths], data_type=business_type)
+    if business_type in {"Radar", "CMA", "WRF", "FY3"} and len(saved_paths) > 1:
+        return ADAPTERS[business_type].process_files(
+            [str(path) for path in saved_paths],
+            data_type=business_type,
+        )
     return ADAPTERS[business_type].process_file(str(saved_path), data_type=business_type)
 
 
@@ -568,6 +569,11 @@ def ingest_staged_files(body: StagedIngestRequest, request: Request) -> dict[str
         raise HTTPException(status_code=400, detail="action 仅支持 raw 或 parse。")
     if body.action == "raw" and business not in {"FY3", "Himawari"}:
         raise HTTPException(status_code=400, detail="raw 入库当前仅支持 FY3 和 Himawari。")
+    if body.action == "raw" and business in {"FY3", "Himawari"}:
+        raise HTTPException(
+            status_code=409,
+            detail="FY-3/Himawari raw 入库已统一迁移到 8003 集合队列。",
+        )
 
     decoded = [_decode_upload_ticket(ticket, owner_sub) for ticket in body.tickets]
     for payload in decoded:
@@ -654,6 +660,11 @@ def parse_file(
             business_type = requested_type
         else:
             business_type = infer_upload_business_type(upload_files)
+        if business_type in {"FY3", "Himawari"}:
+            raise HTTPException(
+                status_code=409,
+                detail="FY-3/Himawari 新上传已统一迁移到 8003 断点续传集合队列。",
+            )
         adapter = ADAPTERS[business_type]
         if hasattr(adapter, "select_upload_files"):
             upload_files = adapter.select_upload_files(upload_files)
@@ -682,6 +693,12 @@ def raw_upload_file(
     business_type: str | None = Form(default=None),
     data_type: str | None = Form(default=None),
 ) -> dict[str, Any]:
+    raise HTTPException(
+        status_code=409,
+        detail="旧 raw-upload 已进入只读兼容模式，请通过 8003 /api/upload/collections 上传卫星场景。",
+    )
+    # The legacy implementation is intentionally kept below for migration
+    # references; production requests cannot reach it.
     try:
         upload_files = _upload_files_from_params(file, files)
         if not upload_files:
@@ -992,20 +1009,33 @@ def era5_dataset_assets(
 
 @app.post("/api/wrf/rescan")
 def wrf_rescan() -> dict[str, Any]:
-    results = []
-    for raw_file in BUSINESS_DIRS["WRF"].glob("wrfout_d*"):
-        if raw_file.suffix or not raw_file.is_file():
-            continue
-        try:
-            meta = wrf_adapter.process_file(str(raw_file))
-            results.append({
-                "file": raw_file.name,
+    root = BUSINESS_DIRS["WRF"]
+    raw_files = sorted(
+        path
+        for path in root.rglob("wrfout_d*")
+        if path.is_file()
+        and ".webps" not in path.parts
+        and ".adapter_staging" not in path.parts
+        and not path.name.endswith(".meta.json")
+    )
+    if not raw_files:
+        display = wrf_service.get_display_data()
+        return ok({"processed": 0, "results": [], "display": display})
+    try:
+        meta = wrf_adapter.process_files([str(path) for path in raw_files])
+        return ok({
+            "processed": len(raw_files),
+            "results": [{
+                "file": path.name,
                 "status": "ok",
-                "webp_count": len(meta.get("webp_files", [])),
-            })
-        except Exception as exc:
-            results.append({"file": raw_file.name, "status": "error", "error": str(exc)})
-    return ok({"processed": len(results), "results": results})
+            } for path in raw_files],
+            "webp_count": len(meta.get("webp_files", [])),
+        })
+    except Exception as exc:
+        return ok({
+            "processed": len(raw_files),
+            "results": [{"file": path.name, "status": "error", "error": str(exc)} for path in raw_files],
+        })
 
 
 if __name__ == "__main__":

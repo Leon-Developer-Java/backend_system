@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import importlib
+import os
 import shutil
 from pathlib import Path
 from typing import Any
@@ -183,6 +184,20 @@ def run_collection_adapter(
         raise ValueError("Satellite collection contains no members")
     module = importlib.import_module(ADAPTERS[data_type])
     output_root = Path(output_root).resolve()
+    raw_bytes = sum(
+        Path(str(member.get("source_path") or "")).stat().st_size
+        for member in members
+        if Path(str(member.get("source_path") or "")).is_file()
+    )
+    free_bytes = shutil.disk_usage(output_root).free
+    min_free_bytes = max(0, int(float(os.getenv("SATELLITE_MIN_FREE_GB", "5")) * 1024 ** 3))
+    expansion = max(1.0, float(os.getenv("SATELLITE_OUTPUT_EXPANSION_FACTOR", "2")))
+    required_bytes = max(min_free_bytes, int(raw_bytes * expansion))
+    if free_bytes < required_bytes:
+        raise OSError(
+            f"卫星解析磁盘空间不足：可用 {free_bytes / 1024 ** 3:.2f} GB，"
+            f"至少需要 {required_bytes / 1024 ** 3:.2f} GB"
+        )
     stage_dir = Path(attempt_dir).resolve()
     raw_input_dir = Path(input_dir).resolve()
     _assert_within(stage_dir, output_root)

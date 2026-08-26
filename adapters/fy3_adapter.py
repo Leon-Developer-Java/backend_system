@@ -119,18 +119,46 @@ def _match_scene(path: Path) -> tuple[str, str, str] | None:
     return f"{date}_{time}", sat, "geo" if GEO_RE.match(path.name) else "science"
 
 
+def _scene_key(scene_id: str, satellite: str) -> str:
+    """Return the collision-safe identity while keeping the legacy scene_id public."""
+    return f"{satellite.replace('-', '')}_{scene_id}"
+
+
+def _published_scene_status(
+    root: Path,
+    scene_id: str,
+    satellite: str,
+) -> tuple[bool, str | None, dict[str, Any] | None]:
+    date, time = scene_id.split("_", 1)
+    candidates = [root / date / time / "meta" / "scene.meta.json"]
+    assets_root = root / "assets"
+    if assets_root.is_dir():
+        candidates.extend(assets_root.glob("*/*/*/meta/scene.meta.json"))
+    for meta_path in candidates:
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if str(meta.get("scene_id") or "") != scene_id:
+            continue
+        if str(meta.get("satellite") or "").upper() != satellite.upper():
+            continue
+        return True, str(meta.get("status") or "parsed"), meta.get("quality")
+    return False, None, None
+
+
 def pair_fy3_files(paths: Iterable[str | Path]) -> FY3FilePair:
-    scenes: dict[str, dict[str, Path | str]] = {}
+    scenes: dict[tuple[str, str], dict[str, Path | str]] = {}
     for item in paths:
         path = Path(item)
         parsed = _match_scene(path)
         if not parsed:
             continue
         scene_id, satellite, role = parsed
-        scenes.setdefault(scene_id, {"satellite": satellite})[role] = path
+        scenes.setdefault((satellite, scene_id), {"satellite": satellite})[role] = path
 
-    for scene_id in sorted(scenes):
-        scene = scenes[scene_id]
+    for satellite, scene_id in sorted(scenes):
+        scene = scenes[(satellite, scene_id)]
         if scene.get("science") and scene.get("geo"):
             return FY3FilePair(
                 science_path=Path(scene["science"]),
@@ -146,17 +174,17 @@ def discover_fy3_pairs(source_dir: str | Path) -> list[FY3FilePair]:
     if not root.exists():
         raise ValueError(f"FY-3 数据目录不存在：{root}")
 
-    scenes: dict[str, dict[str, Path | str]] = {}
+    scenes: dict[tuple[str, str], dict[str, Path | str]] = {}
     for path in _fy3_raw_files(root):
         parsed = _match_scene(path)
         if not parsed:
             continue
         scene_id, satellite, role = parsed
-        scenes.setdefault(scene_id, {"satellite": satellite})[role] = path
+        scenes.setdefault((satellite, scene_id), {"satellite": satellite})[role] = path
 
     pairs: list[FY3FilePair] = []
-    for scene_id in sorted(scenes):
-        scene = scenes[scene_id]
+    for satellite, scene_id in sorted(scenes):
+        scene = scenes[(satellite, scene_id)]
         if not scene.get("science") or not scene.get("geo"):
             continue
         pairs.append(
@@ -204,17 +232,19 @@ def scan_raw_scenes(source_dir: str | Path = DATA_DIR) -> list[dict[str, Any]]:
     if not root.exists():
         return []
 
-    scenes: dict[str, dict[str, Any]] = {}
+    scenes: dict[tuple[str, str], dict[str, Any]] = {}
     for path in _fy3_raw_files(root):
         parsed = _match_scene(path)
         if not parsed:
             continue
         scene_id, satellite, role = parsed
+        identity = (satellite, scene_id)
         scene = scenes.setdefault(
-            scene_id,
+            identity,
             {
                 "business_type": "FY3",
                 "scene_id": scene_id,
+                "scene_key": _scene_key(scene_id, satellite),
                 "satellite": satellite,
                 "date": scene_id.split("_")[0],
                 "time": scene_id.split("_")[1],
@@ -231,12 +261,11 @@ def scan_raw_scenes(source_dir: str | Path = DATA_DIR) -> list[dict[str, Any]]:
             scene["geo_file"] = path.name
 
     result: list[dict[str, Any]] = []
-    for scene_id in sorted(scenes):
-        scene = scenes[scene_id]
+    for satellite, scene_id in sorted(scenes):
+        scene = scenes[(satellite, scene_id)]
         roles = set(scene.pop("roles"))
         missing = [role for role in ("science", "geo") if role not in roles]
-        scene_dir = root / scene["date"] / scene["time"]
-        parsed, meta_status, quality = _scene_meta_status(scene_dir)
+        parsed, meta_status, quality = _published_scene_status(root, scene_id, satellite)
         status = meta_status if parsed else ("ready_to_parse" if not missing else "raw_incomplete")
         result.append(
             {
@@ -254,13 +283,13 @@ def scan_raw_scenes(source_dir: str | Path = DATA_DIR) -> list[dict[str, Any]]:
 
 
 def select_upload_files(files: list[Any]) -> list[Any]:
-    by_scene: dict[str, dict[str, Any]] = {}
+    by_scene: dict[tuple[str, str], dict[str, Any]] = {}
     for item in files:
         parsed = _match_scene(Path(item.filename or ""))
         if not parsed:
             continue
-        scene_id, _satellite, role = parsed
-        by_scene.setdefault(scene_id, {})[role] = item
+        scene_id, satellite, role = parsed
+        by_scene.setdefault((satellite, scene_id), {})[role] = item
     for scene in by_scene.values():
         if scene.get("science") and scene.get("geo"):
             return [scene["science"], scene["geo"]]
@@ -857,10 +886,18 @@ def process_file(path: str, data_type: str = "FY3") -> dict[str, Any]:
     parsed = _match_scene(source)
     if not parsed:
         raise ValueError("不支持的 FY-3 文件名。")
-    scene_id, _satellite, _role = parsed
-    candidates = list(source.parent.glob(f"*{scene_id}*.HDF"))
+    scene_id, satellite, _role = parsed
+    candidates = [
+        item
+        for item in source.parent.glob("*.HDF")
+        if (matched := _match_scene(item)) and matched[0] == scene_id and matched[1] == satellite
+    ]
     if len(candidates) < 2:
-        candidates.extend(item for item in _fy3_raw_files(DATA_DIR) if scene_id in item.name)
+        candidates.extend(
+            item
+            for item in _fy3_raw_files(DATA_DIR)
+            if (matched := _match_scene(item)) and matched[0] == scene_id and matched[1] == satellite
+        )
     return process_files([str(item) for item in candidates] + [str(source)], data_type=data_type)
 
 

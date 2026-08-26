@@ -43,6 +43,10 @@ data/CMA/NC/*.meta.json
 
 data/Radar/
 
+data/WRF/
+
+tests/
+
 data/.DS_Store
 data/satellite_tasks.sqlite3
 data/Himawari/.DS_Store

@@ -67,8 +67,13 @@ def _load_first_renderable_meta(meta_files: list[Path]) -> tuple[Path | None, di
 
     loaded: list[tuple[Path, dict[str, Any], list[str]]] = []
     for meta_file in meta_files:
-        with meta_file.open("r", encoding="utf-8") as file:
-            meta_json = json.load(file)
+        try:
+            with meta_file.open("r", encoding="utf-8") as file:
+                meta_json = json.load(file)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(meta_json, dict):
+            continue
         webp_files = _existing_webp_files(meta_json)
         loaded.append((meta_file, meta_json, webp_files))
         if fallback[0] is None:

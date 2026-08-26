@@ -25,7 +25,7 @@ from scipy.ndimage import map_coordinates
 if __package__ in {None, ""}:
     sys.path.insert(0, Path(__file__).resolve().parents[1].as_posix())
 
-from adapters.base import process_basic_file, resolution_for_key, resolution_label_for_key
+from adapters.base import resolution_for_key, resolution_label_for_key
 
 
 HSD_FILENAME_RE = re.compile(
@@ -633,6 +633,41 @@ def _remote_retr_path(remote_dir: str, remote_name: str) -> str:
     return posixpath.join(remote_dir, Path(remote_name).name)
 
 
+def _ftp_file_size(ftp: Any, remote_name: str) -> int | None:
+    size_method = getattr(ftp, "size", None)
+    if not callable(size_method):
+        return None
+    try:
+        binary_mode = getattr(ftp, "voidcmd", None)
+        if callable(binary_mode):
+            binary_mode("TYPE I")
+        value = size_method(remote_name)
+        return int(value) if value is not None and int(value) >= 0 else None
+    except Exception:
+        return None
+
+
+def _download_to_part(ftp: Any, retr_path: str, part: Path, expected_size: int | None) -> None:
+    if part.exists() and expected_size is not None and part.stat().st_size > expected_size:
+        part.unlink()
+    resume_at = part.stat().st_size if part.exists() else 0
+    try:
+        with part.open("ab" if resume_at else "wb") as file:
+            ftp.retrbinary(f"RETR {retr_path}", file.write, rest=resume_at or None)
+    except Exception:
+        if not resume_at:
+            raise
+        # Some FTP gateways advertise REST but reject it for individual objects.
+        # Restart once from byte zero instead of appending a second full object.
+        with part.open("wb") as file:
+            ftp.retrbinary(f"RETR {retr_path}", file.write)
+    actual_size = part.stat().st_size
+    if expected_size is not None and actual_size != expected_size:
+        raise IOError(f"HSD 下载不完整：期望 {expected_size} 字节，实际 {actual_size} 字节")
+    if actual_size <= 0:
+        raise IOError("HSD 下载结果为空")
+
+
 def _download_himawari_file(
     remote_dir: str,
     remote_name: str,
@@ -642,6 +677,7 @@ def _download_himawari_file(
     password: str,
     timeout: int,
     ftp_factory: Any,
+    expected_size: int | None = None,
 ) -> str:
     ftp = ftp_factory()
     part = target.with_name(f"{target.name}.part")
@@ -649,10 +685,12 @@ def _download_himawari_file(
         ftp.connect(host, FTP_PORT, timeout=timeout)
         ftp.login(user, password)
         target.parent.mkdir(parents=True, exist_ok=True)
-        resume_at = part.stat().st_size if part.exists() else 0
-        mode = "ab" if resume_at > 0 else "wb"
-        with part.open(mode) as file:
-            ftp.retrbinary(f"RETR {_remote_retr_path(remote_dir, remote_name)}", file.write, rest=resume_at or None)
+        _download_to_part(
+            ftp,
+            _remote_retr_path(remote_dir, remote_name),
+            part,
+            expected_size,
+        )
         part.replace(target)
         return target.as_posix()
     except Exception:
@@ -705,21 +743,22 @@ def download_himawari_hsd_scene(
         _emit_progress(progress_callback, stage="listing", phase=phase, scene_id=scene_id, detail="读取远端小时目录")
         remote_dir = _ftp_cwd_first_existing(ftp, remote_dirs)
         remote_files = _matching_remote_hsd_files(list(ftp.nlst()), date, time, bands)
-        download_targets: list[tuple[int, str, str, Path]] = []
+        download_targets: list[tuple[int, str, str, Path, int | None]] = []
         for index, remote_name in enumerate(remote_files, start=1):
             raw_dir.mkdir(parents=True, exist_ok=True)
             filename = Path(remote_name).name
             target = raw_dir / filename
-            if target.exists() and target.stat().st_size > 0 and not overwrite:
+            remote_size = _ftp_file_size(ftp, remote_name)
+            if target.exists() and remote_size is not None and target.stat().st_size == remote_size and not overwrite:
                 skipped.append(target.as_posix())
                 continue
-            download_targets.append((index, remote_name, filename, target))
+            download_targets.append((index, remote_name, filename, target, remote_size))
 
         if file_workers > 1 and len(download_targets) > 1:
             done_count = 0
             with ThreadPoolExecutor(max_workers=max(1, min(int(file_workers), len(download_targets)))) as executor:
                 futures = {}
-                for index, remote_name, filename, target in download_targets:
+                for index, remote_name, filename, target, remote_size in download_targets:
                     _emit_progress(
                         progress_callback,
                         stage="downloading",
@@ -742,6 +781,7 @@ def download_himawari_hsd_scene(
                             password,
                             timeout,
                             ftp_factory,
+                            remote_size,
                         )
                     ] = filename
                 for future in as_completed(futures):
@@ -760,7 +800,7 @@ def download_himawari_hsd_scene(
                         queue_total=len(remote_files),
                     )
         else:
-            for index, remote_name, filename, target in download_targets:
+            for index, remote_name, filename, target, remote_size in download_targets:
                 _emit_progress(
                     progress_callback,
                     stage="downloading",
@@ -773,13 +813,7 @@ def download_himawari_hsd_scene(
                     queue_total=len(remote_files),
                 )
                 part = target.with_name(f"{target.name}.part")
-                try:
-                    resume_at = part.stat().st_size if part.exists() else 0
-                    mode = "ab" if resume_at > 0 else "wb"
-                    with part.open(mode) as file:
-                        ftp.retrbinary(f"RETR {remote_name}", file.write, rest=resume_at or None)
-                except Exception:
-                    raise
+                _download_to_part(ftp, remote_name, part, remote_size)
                 part.replace(target)
                 downloaded.append(target.as_posix())
         _emit_progress(progress_callback, stage="downloaded", phase=phase, scene_id=scene_id, detail="HSD 分段下载完成", queue_done=len(remote_files), queue_total=len(remote_files))
@@ -1104,6 +1138,7 @@ def _raw_scene_has_complete_bands(
     requested = {item.upper() for item in (bands or HIMAWARI_DEFAULT_BANDS)}
     segments: dict[str, set[int]] = {}
     totals: dict[str, int] = {}
+    infos: list[dict[str, Any]] = []
     for file_path in raw_path.glob("HS_H*.DAT*"):
         if file_path.name.endswith(".part"):
             continue
@@ -1116,10 +1151,15 @@ def _raw_scene_has_complete_bands(
             continue
         if info["region"] != "FLDK":
             continue
+        infos.append(info)
         segments.setdefault(info["band"], set()).add(info["segment"])
         totals[info["band"]] = info["total_segments"]
 
     if not requested:
+        return False
+    try:
+        _validate_hsd_scene_infos(infos)
+    except ValueError:
         return False
     for band in requested:
         total = totals.get(band)
@@ -1431,6 +1471,43 @@ def parse_hsd_filename(filename: str) -> dict[str, Any] | None:
     }
 
 
+def _hsd_scene_identity(info: dict[str, Any]) -> tuple[str, str, str, str, str]:
+    return (
+        str(info["satellite"]),
+        str(info["date"]),
+        str(info["time"]),
+        str(info["region"]),
+        str(info["resolution"]),
+    )
+
+
+def _canonical_hsd_scene_key(info: dict[str, Any]) -> str:
+    satellite = str(info["satellite"]).replace("Himawari-", "H")
+    return (
+        f"{satellite}_{info['date']}_{info['time']}_"
+        f"{info['region']}_{info['resolution']}"
+    )
+
+
+def _validate_hsd_scene_infos(infos: list[dict[str, Any]]) -> dict[str, Any]:
+    if not infos:
+        raise ValueError("未找到可识别的 Himawari HSD 文件名。")
+    identities = {_hsd_scene_identity(info) for info in infos}
+    if len(identities) != 1:
+        raise ValueError("HSD 场景混入了不同卫星、时次、区域或分辨率的分段。")
+    totals_by_band: dict[str, set[int]] = {}
+    for info in infos:
+        total = int(info["total_segments"])
+        segment = int(info["segment"])
+        if total < 1 or segment < 1 or segment > total:
+            raise ValueError(f"HSD 分段编号非法：{info['band']} S{segment:02d}/{total:02d}")
+        totals_by_band.setdefault(str(info["band"]), set()).add(total)
+    inconsistent = [band for band, totals in totals_by_band.items() if len(totals) != 1]
+    if inconsistent:
+        raise ValueError(f"HSD 同一通道的总分段数不一致：{','.join(sorted(inconsistent))}")
+    return infos[0]
+
+
 def is_hsd_filename(filename: str) -> bool:
     return parse_hsd_filename(Path(filename).name) is not None
 
@@ -1513,6 +1590,9 @@ def _describe_raw_scene(
     bands: list[str] | None = None,
     date: str | None = None,
     time: str | None = None,
+    satellite: str | None = None,
+    region: str | None = None,
+    resolution: str | None = None,
     output_root: str | Path | None = None,
 ) -> dict[str, Any]:
     raw_path = Path(raw_dir)
@@ -1526,11 +1606,17 @@ def _describe_raw_scene(
         if file_path.name.endswith(".part"):
             continue
         info = parse_hsd_filename(file_path.name)
-        if not info or info["region"] != "FLDK":
+        if not info:
             continue
         if date and info["date"] != date:
             continue
         if time and info["time"] != time:
+            continue
+        if satellite and info["satellite"] != satellite:
+            continue
+        if region and info["region"] != region:
+            continue
+        if resolution and info["resolution"] != resolution:
             continue
         files.append(file_path)
         infos.append(info)
@@ -1551,16 +1637,36 @@ def _describe_raw_scene(
         if missing_segments:
             missing.append(f"{band}:{','.join(str(item) for item in missing_segments)}")
 
-    date = date or (infos[0]["date"] if infos else "")
+    identity = _validate_hsd_scene_infos(infos) if infos else None
+    date = date or (identity["date"] if identity else "")
     scene_time = time or (infos[0]["time"] if infos else "")
+    satellite = satellite or (identity["satellite"] if identity else "")
+    region = region or (identity["region"] if identity else "")
+    resolution = resolution or (identity["resolution"] if identity else "")
     data_root = Path(output_root) if output_root else _data_root_for_raw_dir(raw_path)
     scene_dir = data_root / date / scene_time
-    parsed = (scene_dir / "meta" / "scene.meta.json").exists()
+    meta_candidates = [scene_dir / "meta" / "scene.meta.json"]
+    assets_root = data_root / "assets"
+    if assets_root.is_dir():
+        meta_candidates.extend(assets_root.glob("*/*/*/meta/scene.meta.json"))
+    parsed = False
+    for meta_path in meta_candidates:
+        try:
+            meta = json.loads(meta_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if str(meta.get("scene_id") or "") == f"{date}_{scene_time}" and str(meta.get("satellite") or "") == satellite:
+            parsed = True
+            break
     complete = bool(infos) and not missing
     status = "parsed" if parsed else ("ready_to_parse" if complete else "raw_incomplete")
     return {
         "business_type": "Himawari",
         "scene_id": f"{date}_{scene_time}",
+        "scene_key": _canonical_hsd_scene_key(identity) if identity else "",
+        "satellite": satellite,
+        "region": region,
+        "resolution": resolution,
         "date": date,
         "time": scene_time,
         "raw_dir": raw_path.as_posix(),
@@ -1583,18 +1689,27 @@ def scan_raw_scenes(input_root: str | Path = DATA_DIR, bands: list[str] | None =
     canonical_raw = root / "raw" if root.name != "raw" else root
     for raw_dir in _himawari_raw_dirs(root):
         scene_keys = sorted({
-            (info["date"], info["time"])
+            _hsd_scene_identity(info)
             for file_path in raw_dir.glob("HS_H*.DAT*")
             if (info := parse_hsd_filename(file_path.name))
         })
-        for date, scene_time in scene_keys:
-            scene = _describe_raw_scene(raw_dir, bands=bands, date=date, time=scene_time, output_root=data_root)
+        for satellite, date, scene_time, region, resolution in scene_keys:
+            scene = _describe_raw_scene(
+                raw_dir,
+                bands=bands,
+                date=date,
+                time=scene_time,
+                satellite=satellite,
+                region=region,
+                resolution=resolution,
+                output_root=data_root,
+            )
             if not scene["file_count"]:
                 continue
             score = (int(scene["complete"]), int(raw_dir == canonical_raw), int(scene["file_count"]))
-            current = scenes.get(scene["scene_id"])
+            current = scenes.get(scene["scene_key"])
             if current is None or score > current[0]:
-                scenes[scene["scene_id"]] = (score, scene)
+                scenes[scene["scene_key"]] = (score, scene)
     return [scenes[key][1] for key in sorted(scenes)]
 
 
@@ -1917,9 +2032,16 @@ def _find_raw_dir(input_root: str | Path, date: str | None, time: str | None) ->
 
 def _scene_info_from_files(files: list[Path]) -> dict[str, Any]:
     infos = [info for item in files if (info := parse_hsd_filename(item.name))]
-    if not infos:
-        raise ValueError("未找到可识别的 Himawari HSD 文件名。")
-    return {"satellite": infos[0]["satellite"], "date": infos[0]["date"], "time": infos[0]["time"], "bands": sorted({item["band"] for item in infos})}
+    first = _validate_hsd_scene_infos(infos)
+    return {
+        "satellite": first["satellite"],
+        "date": first["date"],
+        "time": first["time"],
+        "region": first["region"],
+        "resolution": first["resolution"],
+        "scene_key": _canonical_hsd_scene_key(first),
+        "bands": sorted({item["band"] for item in infos}),
+    }
 
 
 def _resample_dataset_to_latlon(dataset: Any, grid: dict[str, Any]) -> np.ndarray:
@@ -2272,9 +2394,13 @@ def process_scene(
             raise ValueError("根 raw 目录包含多个 Himawari 时次，解析时必须指定 date 和 time。")
         date, time = next(iter(scene_keys))
 
-    selected_files: dict[tuple[str, int], Path] = {}
+    # Validate identity before deduplicating by band/segment; otherwise an H08
+    # member can silently replace an H09 member from the same observation slot.
+    _validate_hsd_scene_infos([info for _item, info in candidates])
+
+    selected_files: dict[tuple[str, str, str, str, str, str, int], Path] = {}
     for item, info in candidates:
-        key = (info["band"], info["segment"])
+        key = (*_hsd_scene_identity(info), info["band"], info["segment"])
         existing = selected_files.get(key)
         if existing is None or (HSD_UPLOAD_DUPLICATE_RE.match(existing.name) and not HSD_UPLOAD_DUPLICATE_RE.match(item.name)):
             selected_files[key] = item
@@ -2375,17 +2501,13 @@ def process_scene(
 
 
 def process_file(file_path: str, data_type: str = "Himawari") -> dict:
-    try:
-        source = Path(file_path)
-        info = parse_hsd_filename(source.name)
-        return process_scene(
-            source,
-            date=info["date"] if info else None,
-            time=info["time"] if info else None,
-        )
-    except Exception:
-        weather_info = {"source": "Himawari", "product": "葵花卫星产品", "element": "卫星通道", "time": "解析失败", "level": "卫星观测", "range": "待解析", "resolution": "待解析", "grid": "待解析", "validGrid": "待解析", "coverage": "待解析", "missing": "待解析", "unit": "待解析", "variables": "待解析", "steps": "待解析", "status": "已接收但未形成完整 HSD 场景", "quality": "待解析", "max": "待解析", "min": "待解析", "mean": "待解析", "alert": "请上传完整 HSD raw 场景目录或分段集合。", "update": "待解析", "bars": [0, 0, 0, 0, 0], "trend": [0, 0, 0, 0, 0, 0, 0, 0]}
-        return process_basic_file(file_path, data_type=data_type, file_format="HSD", weather_info=weather_info)
+    source = Path(file_path)
+    info = parse_hsd_filename(source.name)
+    return process_scene(
+        source,
+        date=info["date"] if info else None,
+        time=info["time"] if info else None,
+    )
 
 
 def main() -> int:
