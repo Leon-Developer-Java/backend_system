@@ -18,6 +18,10 @@ ADAPTERS = {
 }
 
 
+class AdapterValidationError(ValueError):
+    """Raised when adapter output is incomplete and must not be committed."""
+
+
 def canonical_data_type(value: str) -> str:
     text = str(value or "").strip().upper().replace("-", "")
     if text == "RADAR" or text == "雷达":
@@ -60,6 +64,49 @@ def _select_meta_file(stage_dir: Path, meta: dict[str, Any]) -> Path:
     return candidates[0]
 
 
+def _non_empty(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, tuple, set, dict)):
+        return bool(value)
+    return True
+
+
+def _validate_source_input(data_type: str, source_path: Path) -> None:
+    if not source_path.is_file():
+        raise FileNotFoundError(f"raw source does not exist: {source_path}")
+    if data_type in {"GFS", "ECMWF"} and source_path.stat().st_size <= 0:
+        raise AdapterValidationError(f"{data_type} raw source is empty")
+
+
+def _validate_adapter_meta(data_type: str, meta: dict[str, Any], meta_file: Path, stage_dir: Path) -> None:
+    if not isinstance(meta, dict) or not meta:
+        raise AdapterValidationError("Adapter returned empty metadata")
+    if not meta_file.is_file():
+        raise AdapterValidationError("Adapter metadata file is missing")
+    try:
+        meta_file.resolve().relative_to(stage_dir.resolve())
+    except ValueError as exc:
+        raise AdapterValidationError("Adapter metadata path escaped staging directory") from exc
+    required = ["dataset_id", "data_type", "file_name"]
+    if data_type in {"GFS", "ECMWF"}:
+        required.extend(["run_time", "default_variable", "variable_layers", "weather_info"])
+    missing = [key for key in required if not _non_empty(meta.get(key))]
+    if missing:
+        raise AdapterValidationError(f"Adapter metadata missing required field(s): {', '.join(missing)}")
+    if data_type in {"GFS", "ECMWF"}:
+        layers = meta.get("variable_layers")
+        if not isinstance(layers, dict) or not layers:
+            raise AdapterValidationError(f"{data_type} metadata contains no variable_layers")
+        for element_key, layer in layers.items():
+            if not str(element_key or "").strip() or not isinstance(layer, dict):
+                raise AdapterValidationError(f"{data_type} metadata contains an invalid variable layer")
+            if not _non_empty(layer.get("image_url")) and not _non_empty(layer.get("image_urls")):
+                raise AdapterValidationError(f"{data_type} variable {element_key} has no WebP output")
+
+
 def run_adapter(
     file_uuid: str,
     data_type: str,
@@ -75,27 +122,37 @@ def run_adapter(
     output_root = Path(output_root).resolve()
     stage_dir = Path(attempt_dir).resolve()
     _assert_within(stage_dir, output_root)
-    if not source_path.is_file():
-        raise FileNotFoundError(f"raw source does not exist: {source_path}")
+    _validate_source_input(data_type, source_path)
     if stage_dir.exists():
         shutil.rmtree(stage_dir)
     stage_dir.mkdir(parents=True, exist_ok=False)
 
     source_name = _safe_source_name(original_file_name, source_path.name)
     staged_source = stage_dir / source_name
-    shutil.copy2(source_path, staged_source)
+    try:
+        shutil.copy2(source_path, staged_source)
+    except Exception as exc:
+        raise RuntimeError(f"file read/stage failed: {exc}") from exc
 
     adapter_data_type = "Radar" if data_type == "RADAR" else data_type
     process_options = {"sync_database": False} if data_type == "ERA5" else {}
-    meta = module.process_file(
-        str(staged_source),
-        data_type=adapter_data_type,
-        **process_options,
-    )
+    try:
+        meta = module.process_file(
+            str(staged_source),
+            data_type=adapter_data_type,
+            **process_options,
+        )
+    except Exception as exc:
+        if data_type in {"GFS", "ECMWF"}:
+            raise AdapterValidationError(f"GRIB parse failed: {exc}") from exc
+        raise RuntimeError(f"adapter parse failed: {exc}") from exc
     if not isinstance(meta, dict):
-        raise ValueError("Adapter did not return a metadata object")
+        raise AdapterValidationError("Adapter did not return a metadata object")
     meta_file = _select_meta_file(stage_dir, meta)
+    _validate_adapter_meta(data_type, meta, meta_file, stage_dir)
     webp_files = [path for path in stage_dir.rglob("*.webp") if path.is_file()]
+    if data_type in {"GFS", "ECMWF"} and not webp_files:
+        raise AdapterValidationError(f"{data_type} adapter generated no WebP files")
 
     return {
         "file_uuid": file_uuid,
@@ -250,10 +307,13 @@ def publish_adapter_output(
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
         rewritten = _replace_paths(value, replacements)
-        json_file.write_text(json.dumps(rewritten, ensure_ascii=False, indent=2), encoding="utf-8")
+        try:
+            json_file.write_text(json.dumps(rewritten, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError as exc:
+            raise RuntimeError(f"metadata rewrite failed: {json_file}") from exc
 
     if not list(stage_dir.rglob("*.webp")):
-        raise ValueError("Adapter completed without a WebP display asset")
+        raise AdapterValidationError("Adapter completed without a WebP display asset")
     if final_dir.exists():
         shutil.rmtree(final_dir)
     final_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -267,7 +327,11 @@ def publish_adapter_output(
     meta_file = final_dir / source_meta_relative
     if not meta_file.is_file():
         raise ValueError("Published meta.json is missing")
-    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    try:
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise AdapterValidationError(f"published meta.json cannot be read: {exc}") from exc
+    _validate_adapter_meta(data_type, meta, meta_file, final_dir)
     return meta, meta_file, final_dir
 
 
@@ -280,3 +344,8 @@ def cleanup_stage(stage_dir: str | Path, product_root: Path) -> None:
         return
     if candidate.is_dir() and ".adapter_staging" in candidate.parts:
         shutil.rmtree(candidate, ignore_errors=True)
+        for parent in (candidate.parent, candidate.parent.parent):
+            try:
+                parent.rmdir()
+            except OSError:
+                break

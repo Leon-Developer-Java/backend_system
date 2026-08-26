@@ -152,6 +152,12 @@ def _parsed_path(value: Any, product_root: Path, final_dir: Path) -> str | None:
 
 def _specific_fields(data_type: str, meta: dict[str, Any], layer: dict[str, Any], valid_time: datetime | None) -> dict[str, Any]:
     extra = meta.get("extra") if isinstance(meta.get("extra"), dict) else {}
+    if data_type in {"GFS", "ECMWF"} and not layer:
+        variable_layers = meta.get("variable_layers") if isinstance(meta.get("variable_layers"), dict) else {}
+        default_key = str(meta.get("default_variable") or "")
+        default_layer = variable_layers.get(default_key)
+        if isinstance(default_layer, dict):
+            layer = default_layer
     if data_type == "ERA5":
         era5 = extra.get("era5") if isinstance(extra.get("era5"), dict) else {}
         return {

@@ -481,10 +481,26 @@ def process_file(file_path: str, data_type: str = "GFS") -> dict[str, Any]:
     source_path = Path(file_path).resolve()
     if not source_path.exists():
         raise ValueError(f"文件不存在：{source_path}")
+    if not source_path.is_file():
+        raise ValueError(f"上传源不是文件：{source_path}")
+    if source_path.stat().st_size <= 0:
+        raise ValueError(f"{_source_name(data_type)} 上传文件为空，停止解析。")
 
     source = _source_name(data_type)
     groups = _open_grib_groups(str(source_path))
+    if not groups:
+        raise ValueError(f"{source} GRIB 解析未返回任何数据组。")
+    readable_variables = sorted({
+        str(name)
+        for ds in groups
+        for name in getattr(ds, "data_vars", {})
+        if str(name).strip()
+    })
+    if not readable_variables:
+        raise ValueError(f"{source} GRIB 文件不包含可读取变量。")
     variable_options, variable_layers, default_variable = _build_layers(source_path, groups)
+    if not variable_options or not variable_layers or not default_variable:
+        raise ValueError(f"{source} GRIB 文件缺少业务变量，不能写入成功记录。")
     default_layer = variable_layers[default_variable]
 
     meta = {

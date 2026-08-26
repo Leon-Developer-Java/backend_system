@@ -267,15 +267,24 @@ def _run_child(engine, task: dict, worker_id: str) -> dict:
             )
         if not result_path.is_file():
             raise AdapterProcessError("Adapter subprocess returned no result.json", retryable=True)
-        child_result = json.loads(result_path.read_text(encoding="utf-8"))
-        meta, meta_file, final_dir = publish_adapter_output(child_result, PRODUCT_DATA_ROOT)
-        assets = build_asset_catalog(
-            file_uuid=file_uuid,
-            data_type=str(task["data_type"]).upper(),
-            meta=meta,
-            product_root=PRODUCT_DATA_ROOT,
-            final_dir=final_dir,
-        )
+        try:
+            child_result = json.loads(result_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise AdapterProcessError(f"adapter result read failed: {exc}", retryable=True) from exc
+        try:
+            meta, meta_file, final_dir = publish_adapter_output(child_result, PRODUCT_DATA_ROOT)
+        except Exception as exc:
+            raise AdapterProcessError(f"adapter publish/meta validation failed: {type(exc).__name__}: {exc}", retryable=False) from exc
+        try:
+            assets = build_asset_catalog(
+                file_uuid=file_uuid,
+                data_type=str(task["data_type"]).upper(),
+                meta=meta,
+                product_root=PRODUCT_DATA_ROOT,
+                final_dir=final_dir,
+            )
+        except Exception as exc:
+            raise AdapterProcessError(f"asset catalog build failed: {type(exc).__name__}: {exc}", retryable=False) from exc
         if not assets:
             raise AdapterProcessError("Adapter output contains no queryable WebP assets", retryable=False)
         webp_files = [path for path in final_dir.rglob("*.webp") if path.is_file()]
@@ -314,6 +323,10 @@ def _run_child(engine, task: dict, worker_id: str) -> dict:
         raise
     finally:
         shutil.rmtree(job_dir, ignore_errors=True)
+        try:
+            job_dir.parent.rmdir()
+        except OSError:
+            pass
 
 
 def process_one(engine, task: dict, worker_id: str) -> None:
@@ -331,23 +344,27 @@ def process_one(engine, task: dict, worker_id: str) -> None:
             return
         result = _run_child(engine, task, worker_id)
         assets = result.pop("assets")
-        if is_collection:
-            commit_satellite_collection_success(
-                engine,
-                str(task["collection_uuid"]),
-                worker_id,
-                result,
-                assets,
-            )
-            logger.info(
-                "parsed collection_uuid=%s leader=%s webp_count=%s",
-                task["collection_uuid"],
-                task["file_uuid"],
-                result["webp_count"],
-            )
-        else:
-            commit_task_success(engine, task["file_uuid"], worker_id, result, assets)
-            logger.info("parsed file_uuid=%s webp_count=%s", task["file_uuid"], result["webp_count"])
+        try:
+            if is_collection:
+                commit_satellite_collection_success(
+                    engine,
+                    str(task["collection_uuid"]),
+                    worker_id,
+                    result,
+                    assets,
+                )
+                logger.info(
+                    "parsed collection_uuid=%s leader=%s webp_count=%s",
+                    task["collection_uuid"],
+                    task["file_uuid"],
+                    result["webp_count"],
+                )
+            else:
+                commit_task_success(engine, task["file_uuid"], worker_id, result, assets)
+                logger.info("parsed file_uuid=%s webp_count=%s", task["file_uuid"], result["webp_count"])
+        except Exception as exc:
+            _cleanup_published_output(task)
+            raise AdapterProcessError(f"database success commit failed: {type(exc).__name__}: {exc}", retryable=False) from exc
     except AdapterProcessError as exc:
         _cleanup_published_output(task)
         commit_failure = commit_satellite_collection_failure if is_collection else commit_task_failure
