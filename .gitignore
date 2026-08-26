@@ -13,7 +13,9 @@ data/GFS/*.grib
 data/GFS/*.grib2
 data/GFS/*.meta.json
 data/GFS/*.png
+data/GFS/
 
+data/CMA/
 data/CMA/*.grib
 data/CMA/*.grib2
 data/CMA/*.meta.json
@@ -63,3 +65,6 @@ data/FY3/**/*.HDF
 data/FY3/**/*.part
 data/FY3/**/*.nc
 data/FY3/**/*.float32
+
+
+data/Radar

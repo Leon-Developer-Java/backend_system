@@ -536,9 +536,12 @@ def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     part_path.replace(path)
 
 
-def _scene_dirs(pair: FY3FilePair) -> tuple[Path, Path, Path]:
+def _scene_dirs(
+    pair: FY3FilePair,
+    output_root: str | Path = DATA_DIR,
+) -> tuple[Path, Path, Path]:
     date, time = pair.scene_id.split("_")
-    scene_dir = DATA_DIR / date / time
+    scene_dir = Path(output_root) / date / time
     return scene_dir, scene_dir / "latlon", scene_dir / "meta"
 
 
@@ -546,8 +549,11 @@ def _band_names(bands: list[int] | None) -> list[str]:
     return [f"B{band:02d}" for band in (bands or CORE_BANDS)]
 
 
-def _read_scene_meta(pair: FY3FilePair) -> dict[str, Any] | None:
-    _scene_dir, _latlon_dir, meta_dir = _scene_dirs(pair)
+def _read_scene_meta(
+    pair: FY3FilePair,
+    output_root: str | Path = DATA_DIR,
+) -> dict[str, Any] | None:
+    _scene_dir, _latlon_dir, meta_dir = _scene_dirs(pair, output_root)
     meta_path = meta_dir / "scene.meta.json"
     try:
         return json.loads(meta_path.read_text(encoding="utf-8"))
@@ -555,8 +561,13 @@ def _read_scene_meta(pair: FY3FilePair) -> dict[str, Any] | None:
         return None
 
 
-def _cached_scene_matches(pair: FY3FilePair, target_resolution: float | None, bands: list[int] | None) -> dict[str, Any] | None:
-    meta = _read_scene_meta(pair)
+def _cached_scene_matches(
+    pair: FY3FilePair,
+    target_resolution: float | None,
+    bands: list[int] | None,
+    output_root: str | Path = DATA_DIR,
+) -> dict[str, Any] | None:
+    meta = _read_scene_meta(pair, output_root)
     if not meta:
         return None
     expected_resolution = float(target_resolution or _configured_resolution())
@@ -568,7 +579,8 @@ def _cached_scene_matches(pair: FY3FilePair, target_resolution: float | None, ba
     if not expected_bands.issubset(loaded_bands):
         return None
     for band_name in expected_bands:
-        if not (DATA_DIR / pair.scene_id.split("_")[0] / pair.scene_id.split("_")[1] / "latlon" / f"{band_name}.webp").exists():
+        scene_dir, _latlon_dir, _meta_dir = _scene_dirs(pair, output_root)
+        if not (scene_dir / "latlon" / f"{band_name}.webp").exists():
             return None
     return meta
 
@@ -576,13 +588,14 @@ def _cached_scene_matches(pair: FY3FilePair, target_resolution: float | None, ba
 def process_files(
     paths: list[str],
     data_type: str = "FY3",
+    output_root: str | Path = DATA_DIR,
     target_resolution: float | None = None,
     bands: list[int] | None = None,
     progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     pair = pair_fy3_files(paths)
     resolution = target_resolution or _configured_resolution()
-    scene_dir, latlon_dir, meta_dir = _scene_dirs(pair)
+    scene_dir, latlon_dir, meta_dir = _scene_dirs(pair, output_root)
     latlon_dir.mkdir(parents=True, exist_ok=True)
     meta_dir.mkdir(parents=True, exist_ok=True)
 
@@ -690,10 +703,12 @@ def process_pair(
     target_resolution: float | None = None,
     bands: list[int] | None = None,
     progress_callback: ProgressCallback | None = None,
+    output_root: str | Path = DATA_DIR,
 ) -> dict[str, Any]:
     return process_files(
         [pair.science_path.as_posix(), pair.geo_path.as_posix()],
         data_type=data_type,
+        output_root=output_root,
         target_resolution=target_resolution,
         bands=bands,
         progress_callback=progress_callback,

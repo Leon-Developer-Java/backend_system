@@ -222,6 +222,17 @@ def _specific_fields(data_type: str, meta: dict[str, Any], layer: dict[str, Any]
             "file_role": layer.get("file_role"),
             "paired_file_uuid": None,
         }
+    if data_type == "HIMAWARI":
+        return {
+            "scene_id": meta.get("scene_id"),
+            "satellite": meta.get("satellite"),
+            "region": _first(meta.get("region"), layer.get("region")),
+            "band": _first(layer.get("band"), layer.get("name")),
+            "wavelength": _float(layer.get("wavelength")),
+            "segment_index": _int(layer.get("segment_index")),
+            "total_segments": _int(layer.get("total_segments")),
+            "is_segment": bool(layer.get("is_segment", False)),
+        }
     return {}
 
 
@@ -238,6 +249,7 @@ def build_asset_catalog(
     default_url = _first(meta.get("default_webp"), meta.get("image_url"))
     dataset_id = str(_first(meta.get("dataset_id"), file_uuid))
     meta_times = _as_list(meta.get("times"))
+    meta_observation_time = _first(meta.get("observation_time"), meta.get("time"))
     west, south, east, north = _bbox(_first(meta.get("bbox"), meta.get("extent")))
     candidates: list[tuple[str, dict[str, Any], str, list[str]]] = []
 
@@ -290,7 +302,7 @@ def build_asset_catalog(
             seen.add(webp_url)
             stat = _path_value(stats, frame_index)
             stat = stat if isinstance(stat, dict) else {}
-            valid_time = _datetime(_path_value(times, frame_index))
+            valid_time = _datetime(_first(_path_value(times, frame_index), meta_observation_time))
             asset_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, f"{file_uuid}:{element_key}:{resolution_key}:{frame_index}:{webp_url}"))
             asset = {
                 "asset_uuid": asset_uuid,

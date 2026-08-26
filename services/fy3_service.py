@@ -95,7 +95,11 @@ def _read_meta(meta_path: Path) -> dict[str, Any] | None:
 
 
 def _entries() -> list[dict[str, Any]]:
-    entries = [entry for path in DATA_DIR.glob("*/*/meta/scene.meta.json") if (entry := _read_meta(path))]
+    meta_paths = [
+        *DATA_DIR.glob("*/*/meta/scene.meta.json"),
+        *DATA_DIR.glob("assets/*/*/*/meta/scene.meta.json"),
+    ]
+    entries = [entry for path in meta_paths if (entry := _read_meta(path))]
     return sorted(entries, key=lambda item: (item["observed"] or datetime.min.replace(tzinfo=timezone.utc), item["scene_id"]))
 
 

@@ -4,7 +4,7 @@
 
 数据库和上传功能接入后，原始文件由 `backend_upload` 接收并登记到 `public_info`；本后端已新增独立的 Adapter Worker 进程，从数据库领取待解析任务，调用 Adapter 生成 meta、WebP 和数据类型明细记录。
 
-当前已实现共享数据库队列、单实例单并发 Worker、Adapter 子进程、租约与重试、明细入库和已发布子目录展示兼容。自动下载、Himawari Worker 接入以及 FY-3/Himawari 多文件队列迁移仍不在本版本范围。
+当前已实现共享数据库队列、单实例单并发 Worker、Adapter 子进程、租约与重试、明细入库和已发布子目录展示兼容。FY-3/Himawari 多文件上传通过集合队列自动判断完整性并由同一 Worker 解析；自动下载仍不在本版本范围。
 
 ## 本版本决策
 
@@ -27,11 +27,11 @@
        -> public_info.parse_status=pending
 
 Adapter Worker（无 HTTP 端口）
-  -> 领取 public_info.pending
+  -> 优先领取 satellite_collection.ready，再领取普通 public_info.pending
   -> 启动一个 Adapter 子进程
   -> 生成 meta/WebP
   -> 写数据类型明细表
-  -> public_info.parse_status=success/failed
+  -> 集合全部成员或普通任务的 parse_status=success/failed
 
 backend :8002
   -> /api/display/...
@@ -251,6 +251,7 @@ Worker 主进程
 子进程的职责：
 
 - 读取 `source_path`、`data_type`、`output_root`、`file_uuid` 和可选 `collection_uuid`。
+- 集合任务读取全部成员 `source_path`，复制到独立临时输入目录后再调用多文件 Adapter。
 - 调用固定白名单中的 Adapter。
 - 将 meta、WebP 和中间产物先写入 `.adapter_staging`；发布前该目录不参与展示服务的 meta 扫描。
 - 输出标准化 `result.json`，不直接修改 `public_info`。
@@ -310,11 +311,12 @@ ERA5      -> adapters/era5_adapter.py
 GFS       -> adapters/gfs_adapter.py
 ECMWF     -> adapters/gfs_adapter.py，data_type=ECMWF
 FY3       -> adapters/fy3_adapter.py
+Himawari  -> adapters/himawari_adapter.py
 Radar     -> adapters/radar_adapter.py
 WRF       -> adapters/wrf_adapter.py
 ```
 
-当前 Himawari Adapter 和定时任务不属于本版本 Worker 接入范围。
+Himawari 定时下载仍与集合上传 Worker 解耦；用户上传的完整 HSD 集合由 Worker 解析。
 
 统一结果至少包含：
 

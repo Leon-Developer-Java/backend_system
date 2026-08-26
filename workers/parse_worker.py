@@ -27,11 +27,16 @@ if str(BACKEND_ROOT) not in sys.path:
 from DB.config import create_database_engine
 from DB.migrate import init_database
 from DB.repository import (
+    claim_next_satellite_collection,
     claim_next_task,
     clone_successful_source_task,
+    commit_satellite_collection_failure,
+    commit_satellite_collection_success,
     commit_task_failure,
     commit_task_success,
+    heartbeat_satellite_collection,
     heartbeat_task,
+    recover_expired_collections,
     recover_expired_tasks,
 )
 from services.adapter_runner import cleanup_stage, publish_adapter_output
@@ -65,6 +70,7 @@ TIMEOUTS = {
     "RADAR": int(os.getenv("ADAPTER_TIMEOUT_RADAR", str(DEFAULT_TIMEOUT_SECONDS))),
     "WRF": int(os.getenv("ADAPTER_TIMEOUT_WRF", str(DEFAULT_TIMEOUT_SECONDS))),
     "FY3": int(os.getenv("ADAPTER_TIMEOUT_FY3", str(DEFAULT_TIMEOUT_SECONDS))),
+    "HIMAWARI": int(os.getenv("ADAPTER_TIMEOUT_HIMAWARI", str(DEFAULT_TIMEOUT_SECONDS))),
 }
 
 LOG_DIR = BACKEND_ROOT / "logs"
@@ -145,7 +151,8 @@ def _raw_path(task: dict) -> Path:
 
 
 def _display_type(data_type: str) -> str:
-    return "Radar" if data_type.upper() == "RADAR" else data_type.upper()
+    normalized = data_type.upper()
+    return {"RADAR": "Radar", "HIMAWARI": "Himawari"}.get(normalized, normalized)
 
 
 def _cleanup_published_output(task: dict) -> None:
@@ -186,13 +193,25 @@ def _run_child(engine, task: dict, worker_id: str) -> dict:
         "file_uuid": file_uuid,
         "collection_uuid": task.get("collection_uuid"),
         "data_type": task["data_type"],
-        "source_path": _raw_path(task).as_posix(),
-        "original_file_name": task.get("original_file_name"),
         "output_root": PRODUCT_DATA_ROOT.as_posix(),
         "stage_dir": stage_dir.as_posix(),
         "result_path": result_path.as_posix(),
         "error_path": error_path.as_posix(),
     }
+    is_collection = task.get("task_kind") == "satellite_collection"
+    if is_collection:
+        job["task_kind"] = "satellite_collection"
+        job["input_dir"] = (job_dir / "raw_input").as_posix()
+        job["members"] = [
+            {
+                **member,
+                "source_path": _raw_path(member).as_posix(),
+            }
+            for member in task.get("members") or []
+        ]
+    else:
+        job["source_path"] = _raw_path(task).as_posix()
+        job["original_file_name"] = task.get("original_file_name")
     job_path.write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
 
     stdout_path = job_dir / "stdout.log"
@@ -218,7 +237,17 @@ def _run_child(engine, task: dict, worker_id: str) -> dict:
                     _terminate_process(process)
                     raise AdapterProcessError(f"Adapter timed out after {timeout} seconds", retryable=True)
                 if now - last_heartbeat >= HEARTBEAT_SECONDS:
-                    if not heartbeat_task(engine, file_uuid, worker_id, LEASE_SECONDS):
+                    heartbeat_ok = (
+                        heartbeat_satellite_collection(
+                            engine,
+                            str(task["collection_uuid"]),
+                            worker_id,
+                            LEASE_SECONDS,
+                        )
+                        if is_collection
+                        else heartbeat_task(engine, file_uuid, worker_id, LEASE_SECONDS)
+                    )
+                    if not heartbeat_ok:
                         _terminate_process(process)
                         raise AdapterProcessError("task lease was lost while Adapter was running", retryable=True)
                     last_heartbeat = now
@@ -288,38 +317,57 @@ def _run_child(engine, task: dict, worker_id: str) -> dict:
 
 
 def process_one(engine, task: dict, worker_id: str) -> None:
-    logger.info("claimed file_uuid=%s data_type=%s attempt=%s", task["file_uuid"], task["data_type"], task["parse_attempts"])
+    is_collection = task.get("task_kind") == "satellite_collection"
+    logger.info(
+        "claimed %s=%s data_type=%s attempt=%s",
+        "collection_uuid" if is_collection else "file_uuid",
+        task.get("collection_uuid") if is_collection else task["file_uuid"],
+        task["data_type"],
+        task["parse_attempts"],
+    )
     try:
-        if clone_successful_source_task(engine, task, worker_id):
+        if not is_collection and clone_successful_source_task(engine, task, worker_id):
             logger.info("reused duplicate assets file_uuid=%s source=%s", task["file_uuid"], task["source_file_uuid"])
             return
         result = _run_child(engine, task, worker_id)
-        commit_task_success(engine, task["file_uuid"], worker_id, result, result.pop("assets"))
-        logger.info("parsed file_uuid=%s webp_count=%s", task["file_uuid"], result["webp_count"])
+        assets = result.pop("assets")
+        if is_collection:
+            commit_satellite_collection_success(
+                engine,
+                str(task["collection_uuid"]),
+                worker_id,
+                result,
+                assets,
+            )
+            logger.info(
+                "parsed collection_uuid=%s leader=%s webp_count=%s",
+                task["collection_uuid"],
+                task["file_uuid"],
+                result["webp_count"],
+            )
+        else:
+            commit_task_success(engine, task["file_uuid"], worker_id, result, assets)
+            logger.info("parsed file_uuid=%s webp_count=%s", task["file_uuid"], result["webp_count"])
     except AdapterProcessError as exc:
         _cleanup_published_output(task)
-        status = commit_task_failure(
-            engine,
-            task,
-            worker_id,
-            str(exc),
+        commit_failure = commit_satellite_collection_failure if is_collection else commit_task_failure
+        status = commit_failure(
+            engine, task, worker_id, str(exc),
             retryable=exc.retryable,
             max_attempts=MAX_ATTEMPTS,
             backoff_seconds=BACKOFF_SECONDS,
         )
-        logger.error("parse failed file_uuid=%s status=%s error=%s", task["file_uuid"], status, exc)
+        logger.error("parse failed task=%s status=%s error=%s", task.get("collection_uuid") or task["file_uuid"], status, exc)
     except Exception as exc:
         _cleanup_published_output(task)
-        status = commit_task_failure(
-            engine,
-            task,
-            worker_id,
-            f"{type(exc).__name__}: {exc}",
+        commit_failure = commit_satellite_collection_failure if is_collection else commit_task_failure
+        status = commit_failure(
+            engine, task, worker_id, f"{type(exc).__name__}: {exc}",
             retryable=True,
             max_attempts=MAX_ATTEMPTS,
             backoff_seconds=BACKOFF_SECONDS,
         )
-        logger.exception("unexpected parse failure file_uuid=%s status=%s", task["file_uuid"], status)
+        logger.exception("unexpected parse failure task=%s status=%s", task.get("collection_uuid") or task["file_uuid"], status)
 
 
 def run(*, once: bool = False, max_tasks: int | None = None) -> int:
@@ -328,11 +376,18 @@ def run(*, once: bool = False, max_tasks: int | None = None) -> int:
     processed = 0
     with singleton_lock():
         recovered = recover_expired_tasks(engine)
-        if recovered:
-            logger.warning("recovered %s expired running task(s)", recovered)
+        recovered_collections = recover_expired_collections(engine)
+        if recovered or recovered_collections:
+            logger.warning(
+                "recovered %s expired task(s) and %s collection(s)",
+                recovered,
+                recovered_collections,
+            )
         logger.info("worker started id=%s concurrency=1", worker_id)
         while True:
-            task = claim_next_task(engine, worker_id, LEASE_SECONDS)
+            task = claim_next_satellite_collection(engine, worker_id, LEASE_SECONDS)
+            if task is None:
+                task = claim_next_task(engine, worker_id, LEASE_SECONDS)
             if task is None:
                 if once or max_tasks is not None and processed >= max_tasks:
                     return processed

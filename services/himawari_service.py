@@ -202,7 +202,12 @@ def _meta_entries(
     include_scene_id: str | None = None,
 ) -> list[dict[str, Any]]:
     entries = []
-    for meta_path in list(DATA_DIR.glob("*/*/meta/scene.meta.json")) + list(DATA_DIR.glob("*.meta.json")):
+    meta_paths = [
+        *DATA_DIR.glob("*/*/meta/scene.meta.json"),
+        *DATA_DIR.glob("assets/*/*/*/meta/scene.meta.json"),
+        *DATA_DIR.glob("*.meta.json"),
+    ]
+    for meta_path in meta_paths:
         if entry := _read_meta_entry(meta_path):
             entries.append(entry)
     if not entries:

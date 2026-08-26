@@ -12,6 +12,7 @@ ADAPTERS = {
     "GFS": "adapters.gfs_adapter",
     "ECMWF": "adapters.gfs_adapter",
     "FY3": "adapters.fy3_adapter",
+    "HIMAWARI": "adapters.himawari_adapter",
     "RADAR": "adapters.radar_adapter",
     "WRF": "adapters.wrf_adapter",
 }
@@ -109,6 +110,74 @@ def run_adapter(
     }
 
 
+def run_collection_adapter(
+    file_uuid: str,
+    collection_uuid: str,
+    data_type: str,
+    members: list[dict[str, Any]],
+    output_root: str | Path,
+    attempt_dir: str | Path,
+    input_dir: str | Path,
+) -> dict[str, Any]:
+    data_type = canonical_data_type(data_type)
+    if data_type not in {"FY3", "HIMAWARI"}:
+        raise ValueError(f"Unsupported collection Adapter data_type={data_type!r}")
+    if not members:
+        raise ValueError("Satellite collection contains no members")
+    module = importlib.import_module(ADAPTERS[data_type])
+    output_root = Path(output_root).resolve()
+    stage_dir = Path(attempt_dir).resolve()
+    raw_input_dir = Path(input_dir).resolve()
+    _assert_within(stage_dir, output_root)
+    if stage_dir.exists():
+        shutil.rmtree(stage_dir)
+    stage_dir.mkdir(parents=True, exist_ok=False)
+    if raw_input_dir.exists():
+        shutil.rmtree(raw_input_dir)
+    raw_input_dir.mkdir(parents=True, exist_ok=False)
+
+    staged_inputs: list[Path] = []
+    for member in members:
+        source = Path(str(member["source_path"])).resolve()
+        if not source.is_file():
+            raise FileNotFoundError(f"raw collection member does not exist: {source}")
+        target = raw_input_dir / _safe_source_name(
+            str(member.get("original_file_name") or ""),
+            source.name,
+        )
+        if target.exists():
+            raise ValueError(f"Satellite collection contains duplicate file name: {target.name}")
+        shutil.copy2(source, target)
+        staged_inputs.append(target)
+
+    if data_type == "FY3":
+        meta = module.process_files(
+            [path.as_posix() for path in staged_inputs],
+            data_type="FY3",
+            output_root=stage_dir,
+        )
+    else:
+        meta = module.process_scene(
+            raw_input_dir,
+            output_root=stage_dir,
+            bands=list(getattr(module, "HIMAWARI_DEFAULT_BANDS", ["B13", "B03", "B02", "B01"])),
+        )
+    if not isinstance(meta, dict):
+        raise ValueError("Collection Adapter did not return a metadata object")
+    meta_file = _select_meta_file(stage_dir, meta)
+    webp_files = [path for path in stage_dir.rglob("*.webp") if path.is_file()]
+    return {
+        "file_uuid": file_uuid,
+        "collection_uuid": collection_uuid,
+        "data_type": data_type,
+        "adapter_name": module.__name__.split(".")[-1],
+        "adapter_version": str(getattr(module, "ADAPTER_VERSION", "1.0")),
+        "stage_dir": stage_dir.as_posix(),
+        "meta_file": meta_file.as_posix(),
+        "webp_count": len(webp_files),
+    }
+
+
 def _replace_paths(value: Any, replacements: list[tuple[str, str]]) -> Any:
     if isinstance(value, dict):
         return {key: _replace_paths(item, replacements) for key, item in value.items()}
@@ -135,7 +204,7 @@ def publish_adapter_output(
 ) -> tuple[dict[str, Any], Path, Path]:
     product_root = product_root.resolve()
     data_type = canonical_data_type(child_result["data_type"])
-    display_type = "Radar" if data_type == "RADAR" else data_type
+    display_type = {"RADAR": "Radar", "HIMAWARI": "Himawari"}.get(data_type, data_type)
     stage_dir = Path(child_result["stage_dir"]).resolve()
     type_root = (product_root / display_type).resolve()
     assets_root = (type_root / "assets").resolve()
@@ -143,9 +212,11 @@ def publish_adapter_output(
     _assert_within(stage_dir, type_root)
     _assert_within(final_dir, assets_root)
 
-    staged_source = Path(child_result["staged_source"]).resolve()
-    if staged_source.is_file():
-        staged_source.unlink()
+    staged_source_value = child_result.get("staged_source")
+    if staged_source_value:
+        staged_source = Path(staged_source_value).resolve()
+        if staged_source.is_file():
+            staged_source.unlink()
 
     stage_relative = stage_dir.relative_to(product_root).as_posix()
     final_relative = final_dir.relative_to(product_root).as_posix()
