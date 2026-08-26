@@ -10,6 +10,7 @@ import rasterio
 from PIL import Image
 
 from adapters import cma_adapter
+from services.source_resolver import resolve_raw_source
 
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "CMA"
@@ -46,13 +47,15 @@ def get_display_data(
             meta_json = _merge_resolution_options(meta_json, resolution_options)
             grid = _cached_display_grid(meta_json, source_file, variable_item, variable_name, level_index, resolution_key, resolution_options)
             if grid is None:
+                render_source = resolve_raw_source(source_file, "CMA") or source_file
+                if not render_source.is_file():
+                    raise ValueError("CMA original source file is unavailable for on-demand rendering.")
                 grid = get_grid_data(
                     variable=variable,
                     level_index=level_index,
-                    file_name=frame.get("file") if frame else None,
                     meta=meta_json,
+                    source_file=render_source,
                 )
-                source_file = _resolve_source_file(grid["file"])
                 resolution_options = _resolution_options(meta_json, grid)
                 meta_json = _merge_resolution_options(meta_json, resolution_options)
                 resolution_result = cma_adapter.resample_grid(
@@ -82,7 +85,8 @@ def get_display_data(
             grid["values"] = []
             weather_info = _build_display_weather_info(meta_json, grid, variables, frame, warnings)
             meta_json = _merge_display_meta(meta_json, weather_info)
-        except ValueError:
+        except ValueError as exc:
+            warnings.append(str(exc))
             grid = None
 
     return {
@@ -109,9 +113,10 @@ def get_grid_data(
     file_name: str | None = None,
     meta: dict[str, Any] | None = None,
     meta_file: str | None = None,
+    source_file: Path | None = None,
 ) -> dict[str, Any]:
     meta = meta or _latest_meta(meta_file)
-    source_file = _resolve_source_file(file_name) if file_name else _source_file(meta)
+    source_file = source_file or (_resolve_source_file(file_name) if file_name else _source_file(meta))
     suffix = source_file.suffix.lower()
     file_format = "NC" if suffix == ".nc" else "GRIB" if suffix in {".grib", ".grib2"} else str(meta.get("file_format") or suffix.lstrip(".")).upper()
     variable_name = variable or _primary_variable(meta)
@@ -532,12 +537,15 @@ def _single_frame_from_meta(meta: dict[str, Any]) -> dict[str, Any] | None:
 
 def _frame_source(frame: dict[str, Any], meta: dict[str, Any]) -> Path | None:
     values = (frame.get("source_file"), frame.get("file"), meta.get("source_file"), meta.get("file"))
+    source_hint: Path | None = None
     for value in values:
         if isinstance(value, list):
             value = value[0] if value else ""
         if not value:
             continue
         path = Path(str(value))
+        if source_hint is None and path.is_absolute():
+            source_hint = path
         if path.exists():
             return path
         name = path.name
@@ -547,7 +555,9 @@ def _frame_source(frame: dict[str, Any], meta: dict[str, Any]) -> Path | None:
     try:
         return _source_file(meta)
     except ValueError:
-        return None
+        # 上传发布目录会保留 meta.json 与已渲染 WebP，但不会复制原始大文件。
+        # 绝对源路径仍可作为同目录缓存文件的命名提示。
+        return source_hint if meta.get("default_webp") or meta.get("webp_files") else None
 
 
 def _series_group_key(meta: dict[str, Any]) -> tuple[str, str, str]:
