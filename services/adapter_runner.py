@@ -270,6 +270,60 @@ def _assert_within(path: Path, root: Path) -> None:
         raise ValueError(f"path escaped configured product root: {path}") from exc
 
 
+def validate_before_db_write(
+    *,
+    data_type: str,
+    meta: dict[str, Any],
+    meta_file: Path,
+    final_dir: Path,
+    product_root: Path,
+    result: dict[str, Any],
+    assets: list[dict[str, Any]],
+) -> None:
+    """Reject incomplete published output before any success row is committed.
+
+    Adapters are deliberately allowed to use their own metadata schemas.  This
+    common gate only enforces the parts every display product needs: an in-root
+    meta file, a scene/time identity for satellite products, a non-empty data
+    description, and queryable WebP assets that resolve inside the published
+    directory.
+    """
+    product_root = product_root.resolve()
+    final_dir = final_dir.resolve()
+    meta_file = meta_file.resolve()
+    try:
+        final_dir.relative_to(product_root)
+        meta_file.relative_to(final_dir)
+    except ValueError as exc:
+        raise ValueError("published paths escaped the managed product directory") from exc
+    if not isinstance(meta, dict) or not meta:
+        raise ValueError("published metadata is empty")
+    required = ["data_type", "meta_path", "default_webp_url", "webp_count", "adapter_name", "adapter_version"]
+    missing = [name for name in required if result.get(name) in (None, "", [])]
+    if missing:
+        raise ValueError(f"success result is missing required fields: {', '.join(missing)}")
+    if int(result.get("webp_count") or 0) <= 0 or not assets:
+        raise ValueError("published output has no queryable WebP assets")
+    normalized = canonical_data_type(data_type)
+    if normalized in {"FY3", "HIMAWARI"}:
+        satellite_required = ["scene_id", "observation_time", "variables", "loaded_bands"]
+        missing_meta = [name for name in satellite_required if meta.get(name) in (None, "", [])]
+        if missing_meta:
+            raise ValueError(f"satellite metadata is missing required fields: {', '.join(missing_meta)}")
+    for index, asset in enumerate(assets):
+        url = str(asset.get("webp_url") or "")
+        if not url.startswith("/data/"):
+            raise ValueError(f"asset[{index}] has an invalid WebP URL")
+        relative = url.removeprefix("/data/")
+        path = (product_root / relative).resolve()
+        try:
+            path.relative_to(final_dir)
+        except ValueError as exc:
+            raise ValueError(f"asset[{index}] escaped published directory") from exc
+        if not path.is_file() or path.stat().st_size <= 0:
+            raise ValueError(f"asset[{index}] references a missing or empty WebP")
+
+
 def publish_adapter_output(
     child_result: dict[str, Any],
     product_root: Path,

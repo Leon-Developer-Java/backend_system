@@ -298,8 +298,19 @@ def _run_child(engine, task: dict, worker_id: str) -> dict:
             "meta_schema_version": str(meta.get("schema_version") or "legacy"),
             "assets": assets,
         }
-        if result["data_type"] == "WRF":
-            try:
+        try:
+            from services.adapter_runner import validate_before_db_write
+
+            validate_before_db_write(
+                data_type=result["data_type"],
+                meta=meta,
+                meta_file=meta_file,
+                final_dir=final_dir,
+                product_root=PRODUCT_DATA_ROOT,
+                result=result,
+                assets=assets,
+            )
+            if result["data_type"] == "WRF":
                 from adapters.wrf_adapter import validate_before_db_write
 
                 validate_before_db_write(
@@ -310,8 +321,8 @@ def _run_child(engine, task: dict, worker_id: str) -> dict:
                     result=result,
                     assets=assets,
                 )
-            except Exception as exc:
-                raise AdapterProcessError(str(exc), retryable=False) from exc
+        except Exception as exc:
+            raise AdapterProcessError(f"db_prewrite_validate: {exc}", retryable=False) from exc
         return result
     except Exception:
         failure_dir = LOG_DIR / "adapter_failures" / file_uuid / attempt_id

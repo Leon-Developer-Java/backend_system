@@ -169,6 +169,28 @@ def pair_fy3_files(paths: Iterable[str | Path]) -> FY3FilePair:
     raise ValueError("FY-3 解析需要同时提供 1000M_MS.HDF 与 GEO1K_MS.HDF 配对文件。")
 
 
+def validate_scene_inputs(pair: FY3FilePair, bands: list[int] | None = None) -> None:
+    """Fail before creating products when a FY-3 pair is incomplete or empty."""
+    selected_bands = bands or CORE_BANDS
+    try:
+        with h5py.File(pair.geo_path, "r") as geo_hdf:
+            if "Geolocation/Latitude" not in geo_hdf or "Geolocation/Longitude" not in geo_hdf:
+                raise ValueError("FY-3 GEO 文件缺少经纬度变量")
+            lat = _scaled_geo(geo_hdf["Geolocation/Latitude"])
+            lon = _scaled_geo(geo_hdf["Geolocation/Longitude"])
+            if lat.size == 0 or lon.size == 0 or lat.shape != lon.shape or not np.isfinite(lat).any() or not np.isfinite(lon).any():
+                raise ValueError("FY-3 GEO 经纬度为空、形状不一致或不含有效值")
+        with h5py.File(pair.science_path, "r") as science_hdf:
+            for band in selected_bands:
+                values = _read_calibrated_band(science_hdf, band)
+                if values.size == 0 or not np.isfinite(values).any():
+                    raise ValueError(f"FY-3 通道 B{band:02d} 为空或不含有效值")
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError(f"FY-3 场景入口校验失败：{type(exc).__name__}: {exc}") from exc
+
+
 def discover_fy3_pairs(source_dir: str | Path) -> list[FY3FilePair]:
     root = Path(source_dir).expanduser()
     if not root.exists():
@@ -623,6 +645,7 @@ def process_files(
     progress_callback: ProgressCallback | None = None,
 ) -> dict[str, Any]:
     pair = pair_fy3_files(paths)
+    validate_scene_inputs(pair, bands)
     resolution = target_resolution or _configured_resolution()
     scene_dir, latlon_dir, meta_dir = _scene_dirs(pair, output_root)
     latlon_dir.mkdir(parents=True, exist_ok=True)

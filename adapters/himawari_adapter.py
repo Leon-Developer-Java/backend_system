@@ -1508,6 +1508,24 @@ def _validate_hsd_scene_infos(infos: list[dict[str, Any]]) -> dict[str, Any]:
     return infos[0]
 
 
+def _validate_required_hsd_segments(infos: list[dict[str, Any]], bands: list[str]) -> None:
+    """Ensure every requested AHI channel has all of its declared segments."""
+    by_band: dict[str, set[int]] = {}
+    totals: dict[str, int] = {}
+    for info in infos:
+        band = str(info["band"]).upper()
+        by_band.setdefault(band, set()).add(int(info["segment"]))
+        totals[band] = int(info["total_segments"])
+    missing_bands = [band for band in bands if band not in by_band]
+    if missing_bands:
+        raise ValueError(f"HSD 场景缺少默认通道：{','.join(missing_bands)}")
+    for band in bands:
+        expected = set(range(1, totals[band] + 1))
+        missing = sorted(expected - by_band[band])
+        if missing:
+            raise ValueError(f"HSD 通道 {band} 缺少分段：{','.join(f'S{x:02d}' for x in missing)}")
+
+
 def is_hsd_filename(filename: str) -> bool:
     return parse_hsd_filename(Path(filename).name) is not None
 
@@ -2412,6 +2430,7 @@ def process_scene(
     time = time or scene_info["time"]
     scene_id = f"{date}_{time}"
     requested_bands = _ordered_unique_bands(bands or HIMAWARI_DEFAULT_BANDS)
+    _validate_required_hsd_segments([info for _item, info in candidates], requested_bands)
     grid = build_latlon_grid(extent=extent, resolution=resolution)
     scene_dir = Path(output_root) / date / time
     if not force and extent is None and resolution == LATLON_RESOLUTION and composites:
@@ -2455,6 +2474,8 @@ def process_scene(
                 queue_total=len(load_bands),
             )
             values = _resample_dataset_to_latlon(scene[band], grid)
+            if values.size == 0 or not np.isfinite(values).any():
+                raise ValueError(f"HSD 通道 {band} 重投影后为空或不含有效值")
             var_meta = write_latlon_variable(scene_dir, band, values, grid)
             if var_meta is not None:
                 variables.append(var_meta)
