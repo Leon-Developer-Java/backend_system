@@ -91,6 +91,7 @@ def _process_files(paths: list[Path], data_type: str = "CMA") -> dict[str, Any]:
         "frames": product["frames"],
         "levels": product["levels"],
         "bbox": product["extent"],
+        "extent_reference": "pixel_edges",
         "weather_info": weather_info,
         "file_detail": _file_detail(source_file, meta_file, file_format, len(paths)),
         "time_detail": _time_detail(product),
@@ -130,11 +131,7 @@ def _inspect_nc_product(source_file: Path, files: list[Path] | None = None) -> d
     with _open_hdf(sample) as dataset:
         lat = np.array(dataset["lat"][:], dtype="float64")
         lon = np.array(dataset["lon"][:], dtype="float64")
-        lat_min, lat_max = float(np.nanmin(lat)), float(np.nanmax(lat))
-        if _is_zero_to_360_lon(lon):
-            lon_min, lon_max = -180.0, 180.0
-        else:
-            lon_min, lon_max = float(np.nanmin(lon)), float(np.nanmax(lon))
+        lon_min, lat_min, lon_max, lat_max = nc_grid_extent(lon, lat)
         grid_shape = [int(lat.size), int(lon.size)]
 
         for name in dataset.keys():
@@ -167,7 +164,10 @@ def _inspect_nc_product(source_file: Path, files: list[Path] | None = None) -> d
 
     times = [_parse_time_from_name(path) for path in files]
     times = [item for item in times if item]
-    resolution = _resolution(lon_min, lon_max, grid_shape[1], lat_min, lat_max, grid_shape[0])
+    resolution = {
+        "lon": round(float(np.median(np.diff(np.unique(lon)))), 6) if lon.size > 1 else None,
+        "lat": round(float(np.median(np.diff(np.unique(lat)))), 6) if lat.size > 1 else None,
+    }
 
     return {
         "product_type": "LAND_NC",
@@ -613,7 +613,7 @@ def build_resolution_options(
         options.append(
             {
                 "key": key,
-                "label": f"{int(km)} km",
+                "label": f"{int(km)} km" + ("（显示受限）" if capped else ""),
                 "is_native": False,
                 "playable": False,
                 "width": target_width,
@@ -653,9 +653,6 @@ def resample_grid(
     )
     method = "nearest" if _is_discrete_variable(variable) else "bilinear"
     resized = _resize_grid(source, target_width, target_height, method)
-    warnings = []
-    if capped:
-        warnings.append(f"{key} grid was capped to {target_width} x {target_height} for display memory limits.")
     return {
         "data": resized,
         "resolution_key": key,
@@ -663,7 +660,8 @@ def resample_grid(
         "resampling": method,
         "is_native_resolution": False,
         "playable": False,
-        "warnings": warnings,
+        "capped": capped,
+        "warnings": [],
     }
 
 
@@ -1055,6 +1053,27 @@ def _is_zero_to_360_lon(lon: np.ndarray) -> bool:
     values = np.array(lon, dtype="float64").reshape(-1)
     values = values[np.isfinite(values)]
     return bool(values.size and np.nanmin(values) >= 0 and np.nanmax(values) > 180)
+
+
+def coordinate_edges(values: np.ndarray) -> tuple[float, float]:
+    flat = np.asarray(values, dtype="float64").reshape(-1)
+    ordered = np.unique(flat[np.isfinite(flat)])
+    if not ordered.size:
+        raise ValueError("CMA coordinate axis contains no finite values.")
+    if ordered.size == 1:
+        return float(ordered[0] - 0.5), float(ordered[0] + 0.5)
+    return (
+        float(ordered[0] - (ordered[1] - ordered[0]) / 2),
+        float(ordered[-1] + (ordered[-1] - ordered[-2]) / 2),
+    )
+
+
+def nc_grid_extent(lon: np.ndarray, lat: np.ndarray) -> list[float]:
+    west, east = coordinate_edges(lon)
+    south, north = coordinate_edges(lat)
+    if _is_zero_to_360_lon(lon):
+        west, east = -180.0, 180.0
+    return [max(-180.0, west), max(-90.0, south), min(180.0, east), min(90.0, north)]
 
 
 def _rgba_from_grid(data: np.ndarray, scale_min: float | None = None, scale_max: float | None = None) -> np.ndarray:

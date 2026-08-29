@@ -14,6 +14,7 @@ matplotlib
 scipy
 pyproj
 satpy
-sqlalchemy>=2.0,<3.0
-pyjwt
-python-dotenv
+cdsapi>=0.7,<1.0
+SQLAlchemy==2.0.36
+PyJWT==2.10.1
+python-dotenv==1.0.1

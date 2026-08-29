@@ -24,7 +24,6 @@ if str(WORKSPACE_ROOT) not in sys.path:
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from DB.config import create_database_engine
 from DB.migrate import init_database
 from DB.repository import (
     claim_next_satellite_collection,

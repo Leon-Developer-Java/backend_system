@@ -8,7 +8,9 @@ from fastapi.responses import JSONResponse
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-me").strip()
+JWT_SECRET = os.getenv("JWT_SECRET", "").strip()
+if len(JWT_SECRET.encode("utf-8")) < 32:
+    raise RuntimeError("JWT_SECRET 必须配置为至少 32 字节的随机密钥")
 WHITELIST = {"/", "/api/health", "/docs", "/openapi.json"}
 STATIC_PREFIXES = ("/data/", "/outputs/")
 

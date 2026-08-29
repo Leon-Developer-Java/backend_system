@@ -268,7 +268,6 @@ def get_display_data(
         include_scene_id=scene_id,
     )
     selected = _select_entry(entries, scene_id)
-    meta_files = [entry["path"] for entry in entries]
     meta_json = None
     if selected:
         meta_json = selected["meta"]

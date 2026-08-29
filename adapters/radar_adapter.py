@@ -494,7 +494,6 @@ def build_webp_catalog(source_file: str | Path, cache_dir: str | Path | None = N
     cache_path.mkdir(parents=True, exist_ok=True)
 
     with _open_radar_dataset(source_path) as dataset:
-        stations = _stations(dataset)
         products = []
 
         for variable_name in RADAR_SELECTABLE_PRODUCTS:

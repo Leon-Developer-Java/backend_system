@@ -40,6 +40,8 @@ def get_display_data(
     if meta_json:
         try:
             frame = _active_frame(frames, time_index)
+            if variable and not _variable_item(variables, variable):
+                raise ValueError(f"CMA variable is not available: {variable}")
             variable_item = _variable_item(variables, variable or _primary_variable(meta_json)) or {}
             variable_name = variable_item.get("name") or variable or _primary_variable(meta_json)
             source_file = _frame_source(frame or {}, meta_json) or _source_file(meta_json)
@@ -56,6 +58,7 @@ def get_display_data(
                     meta=meta_json,
                     source_file=render_source,
                 )
+                grid["file"] = source_file.name
                 resolution_options = _resolution_options(meta_json, grid)
                 meta_json = _merge_resolution_options(meta_json, resolution_options)
                 resolution_result = cma_adapter.resample_grid(
@@ -203,13 +206,10 @@ def _cached_display_grid(
     if not extent:
         return None
 
-    spatial = meta.get("spatial") if isinstance(meta.get("spatial"), dict) else {}
     option = _selected_resolution_option(resolution_options, resolution_key)
-    width = int(option.get("width") or spatial.get("nx") or 0)
-    height = int(option.get("height") or spatial.get("ny") or 0)
-    if width <= 0 or height <= 0:
-        with Image.open(webp_path) as image:
-            width, height = image.size
+    # Cached images may predate metadata/resampling changes; trust their headers.
+    with Image.open(webp_path) as image:
+        width, height = image.size
 
     stats = variable_item.get("stats") if isinstance(variable_item, dict) else {}
     min_value = _finite_float(stats.get("min"), 0.0)
@@ -241,6 +241,7 @@ def _cached_display_grid(
         "playable": bool(option.get("playable")),
         "resampling": option.get("resampling"),
         "target_resolution_km": option.get("target_resolution_km"),
+        "capped": bool(option.get("capped")),
         "resolution_options": resolution_options,
         "valid_count": int(width * height),
         "total_count": int(width * height),
@@ -342,6 +343,7 @@ def _apply_resolution_result(
             "playable": bool(resolution_result.get("playable")),
             "resampling": resolution_result.get("resampling"),
             "target_resolution_km": resolution_result.get("target_resolution_km"),
+            "capped": bool(resolution_result.get("capped")),
             "resolution_options": options,
             "valid_count": int(finite.size),
             "total_count": int(data.size),
@@ -702,7 +704,47 @@ def _meta_files() -> list[Path]:
 
 def _load_meta_file(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8-sig") as file:
-        return json.load(file)
+        return _normalize_legacy_nc_geometry(json.load(file))
+
+
+def _normalize_legacy_nc_geometry(meta: dict[str, Any]) -> dict[str, Any]:
+    if meta.get("file_format") != "NC" or meta.get("extent_reference") == "pixel_edges":
+        return meta
+    spatial = dict(meta.get("spatial") or {})
+    width, height = int(spatial.get("nx") or 0), int(spatial.get("ny") or 0)
+    extent = meta.get("extent") or meta.get("bbox")
+    if not isinstance(extent, list) or len(extent) != 4 or width < 2 or height < 2:
+        return meta
+    if _is_zero_to_360_extent(extent):
+        # These older assets still need the existing longitude reorientation path.
+        return meta
+
+    # Legacy CMA NC metadata used coordinate centers, except global longitude
+    # which was already normalized to [-180, 180]. Do not rewrite source files.
+    west, south, east, north = map(float, extent)
+    lon_step = (east - west) / (width - 1)
+    lat_step = (north - south) / (height - 1)
+    if west == -180.0 and east == 180.0:
+        lon_step = 360.0 / width
+    else:
+        west, east = west - lon_step / 2, east + lon_step / 2
+    bounds = _display_extent([west, south - lat_step / 2, east, north + lat_step / 2])
+    if not bounds:
+        return meta
+    spatial.update(
+        lon_min=bounds[0], lat_min=bounds[1], lon_max=bounds[2], lat_max=bounds[3],
+        resolution_lon=round(lon_step, 6), resolution_lat=round(lat_step, 6),
+    )
+    result = {
+        **meta, "extent": bounds, "bbox": bounds, "extent_reference": "pixel_edges",
+        "spatial": spatial, "range": _format_range_text(bounds),
+        "frames": [{**frame, "extent": bounds} for frame in meta.get("frames", [])],
+    }
+    options = cma_adapter.build_resolution_options(
+        bounds, width, height,
+        {"lon": spatial["resolution_lon"], "lat": spatial["resolution_lat"]},
+    )
+    return _merge_resolution_options(result, options)
 
 
 def _is_renderable_meta_file(path: Path) -> bool:
@@ -870,7 +912,7 @@ def _is_grid_variable(item: dict[str, Any]) -> bool:
 def _read_nc_grid(source_file: Path, meta: dict[str, Any], variable: str, level_index: int) -> dict[str, Any]:
     with h5py.File(io.BytesIO(source_file.read_bytes()), "r") as dataset:
         if variable not in dataset:
-            variable = _first_available_nc_variable(dataset)
+            raise ValueError(f"CMA variable is not available: {variable}")
         item = dataset[variable]
         attrs = {key: _decode_attr(value) for key, value in item.attrs.items()}
         raw = item[:]
@@ -894,24 +936,18 @@ def _read_nc_grid(source_file: Path, meta: dict[str, Any], variable: str, level_
         level_index=safe_level,
     )
 
-
-def _first_available_nc_variable(dataset: h5py.File) -> str:
-    for name, item in dataset.items():
-        if isinstance(item, h5py.Dataset) and name not in {"lat", "lon"} and len(item.shape) in {2, 3}:
-            return name
-    raise ValueError("No renderable CMA grid variable found.")
-
-
 def _read_grib_grid(source_file: Path, meta: dict[str, Any], variable: str) -> dict[str, Any]:
     with rasterio.open(source_file) as dataset:
-        band_index = 1
-        tags = dataset.tags(1)
+        band_index = None
+        tags = {}
         for band in range(1, dataset.count + 1):
             band_tags = dataset.tags(band)
             if band_tags.get("GRIB_ELEMENT") == variable:
                 band_index = band
                 tags = band_tags
                 break
+        if band_index is None:
+            raise ValueError(f"CMA variable is not available: {variable}")
         data = _clean_grid(dataset.read(band_index), dataset.nodata)
         extent = [float(dataset.bounds.left), float(dataset.bounds.bottom), float(dataset.bounds.right), float(dataset.bounds.top)]
     return _grid_payload(
@@ -928,30 +964,8 @@ def _nc_extent(dataset: h5py.File, meta: dict[str, Any]) -> list[float]:
     if "lon" in dataset and "lat" in dataset:
         lon = np.array(dataset["lon"][:], dtype="float64")
         lat = np.array(dataset["lat"][:], dtype="float64")
-        west, east = _coord_edges(lon)
-        south, north = _coord_edges(lat)
-        if _is_zero_to_360_lon(lon):
-            return [-180.0, south, 180.0, north]
-        return [west, south, east, north]
+        return cma_adapter.nc_grid_extent(lon, lat)
     return list(meta.get("extent") or meta.get("bbox") or [73, 15, 135, 55])
-
-
-def _coord_edges(values: np.ndarray) -> tuple[float, float]:
-    flat = np.array(values, dtype="float64").reshape(-1)
-    flat = flat[np.isfinite(flat)]
-    if flat.size == 0:
-        return 0.0, 0.0
-
-    unique = np.unique(flat)
-    if unique.size == 1:
-        center = float(unique[0])
-        return center - 0.5, center + 0.5
-
-    ordered = unique if unique[0] <= unique[-1] else unique[::-1]
-    deltas = np.diff(ordered)
-    step_start = float(deltas[0])
-    step_end = float(deltas[-1])
-    return float(ordered[0] - step_start / 2), float(ordered[-1] + step_end / 2)
 
 
 def _orient_nc_grid(dataset: h5py.File, data: np.ndarray) -> np.ndarray:
