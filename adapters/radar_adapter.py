@@ -159,7 +159,11 @@ RADAR_SINGLE_PRODUCT_LEVEL_LABELS = {
 }
 
 
-def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
+def process_file(
+    file_path: str,
+    data_type: str = "Radar",
+    expected_step_seconds: int | None = None,
+) -> dict[str, Any]:
     source_file = Path(file_path).resolve()
     if source_file.suffix.lower() != ".nc":
         raise ValueError("当前雷达适配器已实现 CAP_FMT NetCDF 解析；CINRAD/bz2 基数据后续再接入 wradlib。")
@@ -169,6 +173,13 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
 
     try:
         with _open_radar_dataset(source_file) as dataset:
+            step_seconds = _attr_number(dataset, "information.time.scan")
+            if expected_step_seconds is not None:
+                if step_seconds is None or abs(float(step_seconds) - expected_step_seconds) > 1:
+                    actual = "未知" if step_seconds is None else f"{float(step_seconds) / 60:g} 分钟"
+                    raise ValueError(
+                        f"雷达时间分辨率不匹配：上传时选择 {expected_step_seconds / 60:g} 分钟，文件实际为 {actual}。"
+                    )
             render_name = _choose_render_variable(dataset)
             render_data, render_mode = _make_render_data(dataset[render_name])
             default_level_key = _default_level_key(dataset[render_name], render_mode)
@@ -182,6 +193,14 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 values=render_data,
                 variable_name=render_name,
             )
+            display_catalog = build_webp_catalog(source_file)
+            display_products = display_catalog.get("products", [])
+            rendered_webps = [
+                level["webp_url"]
+                for product in display_products
+                for level in product.get("levels", [])
+                if level.get("webp_url")
+            ]
 
             render_stats = _stats(render_data)
             variables = _variables(dataset, source_file)
@@ -208,6 +227,7 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 "institution": str(dataset.attrs.get("information.institution", "")),
                 "producer": str(dataset.attrs.get("information.producer", "")),
                 "version": str(dataset.attrs.get("information.version", "")),
+                "temporal_resolution_minutes": int(round(step_seconds / 60)) if step_seconds else None,
                 "stations": stations,
                 "render": {
                     "variable": render_name,
@@ -271,6 +291,7 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 "mean": render_stats["mean"],
                 "alert": _alert_text(render_stats["max"]),
                 "updated_at": generated_at,
+                "temporal_resolution": f"{step_seconds / 60:g} 分钟" if step_seconds else "",
                 "update": generated_at,
                 "bars": _histogram_bars(render_data),
                 "bars_labels": ["0-10", "10-20", "20-30", "30-40", ">=40"],
@@ -284,6 +305,7 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
             meta: dict[str, Any] = {
                 "schema_version": "1.0",
                 "file": source_file.name,
+                "file_name": source_file.name,
                 "element": weather_info["element"],
                 "time": weather_info["time"],
                 "level": weather_info["level"],
@@ -299,8 +321,9 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                 "file_format": "RADAR_NC_CAP_FMT",
                 "source_file": source_file.as_posix(),
                 "meta_file": meta_file.as_posix(),
-                "webp_files": [public_data_path(webp_file)],
+                "webp_files": rendered_webps or [public_data_path(webp_file)],
                 "default_webp": public_data_path(webp_file),
+                "display_products": display_products,
                 "default_variable": product_code,
                 "product_info": product_meta,
                 "product_catalog": product_catalog,
@@ -324,7 +347,7 @@ def process_file(file_path: str, data_type: str = "Radar") -> dict[str, Any]:
                     "start": observation_time["iso"],
                     "end": observation_time["iso"],
                     "count": 1,
-                    "step_seconds": _attr_number(dataset, "information.time.scan"),
+                    "step_seconds": step_seconds,
                     "reference_time": None,
                 },
                 "spatial": {
@@ -429,6 +452,7 @@ def process_files(file_paths: list[str], data_type: str = "Radar") -> dict[str, 
     combined = {
         "schema_version": "1.0",
         "file": weather_info["file"],
+        "file_name": weather_info["file"],
         "element": weather_info.get("element"),
         "time": weather_info.get("time"),
         "level": weather_info.get("level"),

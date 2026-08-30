@@ -116,6 +116,7 @@ def run_adapter(
     attempt_dir: str | Path,
     collection_uuid: str | None = None,
     original_file_name: str | None = None,
+    adapter_options: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     data_type = canonical_data_type(data_type)
     module = importlib.import_module(ADAPTERS[data_type])
@@ -137,6 +138,10 @@ def run_adapter(
 
     adapter_data_type = "Radar" if data_type == "RADAR" else data_type
     process_options = {"sync_database": False} if data_type == "ERA5" else {}
+    if data_type == "RADAR" and adapter_options:
+        expected_step = adapter_options.get("expected_step_seconds")
+        if expected_step is not None:
+            process_options["expected_step_seconds"] = int(expected_step)
     try:
         meta = module.process_file(
             str(staged_source),

@@ -154,6 +154,16 @@ def _display_type(data_type: str) -> str:
     return {"RADAR": "Radar", "HIMAWARI": "Himawari"}.get(normalized, normalized)
 
 
+def _adapter_options(task: dict) -> dict:
+    if str(task.get("data_type") or "").upper() != "RADAR" or not task.get("remark"):
+        return {}
+    try:
+        minutes = int(json.loads(str(task["remark"])).get("radar_interval_minutes"))
+    except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
+        return {}
+    return {"expected_step_seconds": minutes * 60} if minutes in {3, 6} else {}
+
+
 def _cleanup_published_output(task: dict) -> None:
     final_dir = (
         PRODUCT_DATA_ROOT
@@ -196,6 +206,7 @@ def _run_child(engine, task: dict, worker_id: str) -> dict:
         "stage_dir": stage_dir.as_posix(),
         "result_path": result_path.as_posix(),
         "error_path": error_path.as_posix(),
+        "adapter_options": _adapter_options(task),
     }
     is_collection = task.get("task_kind") == "satellite_collection"
     if is_collection:

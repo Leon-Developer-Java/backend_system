@@ -508,16 +508,17 @@ def get_display_data(time_index: int = 0, meta_file_name: str | None = None) -> 
     current_frame = frames[_clamp_index(time_index, len(frames))] if frames else None
     source_path = _frame_source(current_frame) or _source_from_meta(meta_json)
 
-    products: list[dict[str, Any]] = []
+    frame_meta = _load_frame_meta(current_frame, meta_json)
+    products = list(frame_meta.get("display_products") or []) if isinstance(frame_meta, dict) else []
     catalog_error = None
-    if source_path:
+    if not products and source_path:
         try:
             catalog = radar_adapter.build_webp_catalog(source_path)
             products = catalog.get("products", [])
         except Exception as exc:  # pragma: no cover - surfaced to frontend for diagnostics
             catalog_error = str(exc)
     if not products:
-        products = _products_from_meta(_load_frame_meta(current_frame, meta_json))
+        products = _products_from_meta(frame_meta)
     if not products and catalog_error:
         display_error = catalog_error if display_error is None else f"{display_error}; {catalog_error}"
 

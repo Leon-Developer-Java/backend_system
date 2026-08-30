@@ -25,11 +25,12 @@ def get_display_data(
     time_index: int = 0,
     meta_file: str | None = None,
     resolution: str | None = None,
+    exact_meta: bool = False,
 ) -> dict[str, Any]:
     resolution_key = cma_adapter.normalize_resolution_key(resolution)
     meta_path = _selected_meta_file(meta_file)
     meta_json = _load_meta_file(meta_path) if meta_path else None
-    if meta_json:
+    if meta_json and not exact_meta:
         meta_json = _with_recent_series_fallback(meta_json)
     variables = _display_variables(meta_json)
     frames = _frames_from_meta(meta_json) or (_series_frames(_source_file(meta_json)) if meta_json else [])

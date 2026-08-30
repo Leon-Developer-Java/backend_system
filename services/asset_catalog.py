@@ -358,6 +358,15 @@ def build_asset_catalog(
         if element_key is None:
             element_match = re.search(r"[_\.]([A-Za-z][A-Za-z0-9_]{0,31})(?:_(?:step|frame)\d+)?$", path.stem)
             element_key = element_match.group(1) if element_match else "unknown"
+        radar_spatial = meta.get("spatial") if data_type == "RADAR" and isinstance(meta.get("spatial"), dict) else {}
+        radar_weather = meta.get("weather_info") if data_type == "RADAR" and isinstance(meta.get("weather_info"), dict) else {}
+        radar_details = meta.get("format_specific") if data_type == "RADAR" and isinstance(meta.get("format_specific"), dict) else {}
+        radar_render = radar_details.get("render") if isinstance(radar_details.get("render"), dict) else {}
+        radar_level = radar_weather.get("level") or ("垂直最大值" if len(meta.get("levels") or []) > 1 else None)
+        radar_resolution = radar_weather.get("resolution")
+        radar_time = _datetime(_first(_path_value(meta_times, frame_index), meta_observation_time, meta.get("time")))
+        if data_type == "RADAR":
+            element_key = str(_first(meta.get("default_variable"), radar_render.get("code"), element_key))
         assets.append({
             "asset_uuid": str(uuid.uuid5(uuid.NAMESPACE_URL, f"{file_uuid}:{webp_url}")),
             "file_uuid": file_uuid,
@@ -365,9 +374,13 @@ def build_asset_catalog(
             "element_key": element_key,
             "raw_element_name": element_key,
             "element_label": element_key,
-            "level_value": "surface",
+            "level_type": radar_spatial.get("level_type") if data_type == "RADAR" else None,
+            "level_value": radar_level if data_type == "RADAR" and radar_level else "surface",
+            "valid_time": radar_time if data_type == "RADAR" else None,
             "frame_index": frame_index,
-            "resolution_key": "native",
+            "resolution_key": str(radar_resolution) if data_type == "RADAR" and radar_resolution else "native",
+            "grid_width": radar_spatial.get("nx") if data_type == "RADAR" else None,
+            "grid_height": radar_spatial.get("ny") if data_type == "RADAR" else None,
             "bbox_west": west,
             "bbox_south": south,
             "bbox_east": east,
@@ -376,7 +389,7 @@ def build_asset_catalog(
             "is_default": bool(webp_url == default_url or not assets),
             "asset_status": "ready",
             "extra_json": json.dumps({"source": "filesystem_fallback"}, ensure_ascii=False),
-            **_specific_fields(data_type, meta, {}, None),
+            **_specific_fields(data_type, meta, {"productCode": radar_render.get("code")}, radar_time),
         })
         seen.add(webp_url)
     return assets

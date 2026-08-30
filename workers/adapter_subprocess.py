@@ -43,6 +43,7 @@ def main() -> int:
                 attempt_dir=job["stage_dir"],
                 collection_uuid=job.get("collection_uuid"),
                 original_file_name=job.get("original_file_name"),
+                adapter_options=job.get("adapter_options"),
             )
         _write_json(result_path, result)
         return 0
