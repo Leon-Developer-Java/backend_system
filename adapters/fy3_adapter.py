@@ -12,6 +12,7 @@ import h5py
 import numpy as np
 from PIL import Image
 from scipy.interpolate import LinearNDInterpolator
+from scipy.ndimage import zoom
 
 from adapters.base import (
     build_resolution_options,
@@ -99,7 +100,7 @@ BAND_META = {
 @dataclass(frozen=True)
 class FY3FilePair:
     science_path: Path
-    geo_path: Path
+    geo_path: Path | None
     scene_id: str
     satellite: str
 
@@ -159,27 +160,75 @@ def pair_fy3_files(paths: Iterable[str | Path]) -> FY3FilePair:
 
     for satellite, scene_id in sorted(scenes):
         scene = scenes[(satellite, scene_id)]
-        if scene.get("science") and scene.get("geo"):
+        if scene.get("science"):
             return FY3FilePair(
                 science_path=Path(scene["science"]),
-                geo_path=Path(scene["geo"]),
+                geo_path=Path(scene["geo"]) if scene.get("geo") else None,
                 scene_id=scene_id,
                 satellite=str(scene["satellite"]),
             )
-    raise ValueError("FY-3 解析需要同时提供 1000M_MS.HDF 与 GEO1K_MS.HDF 配对文件。")
+    if scenes:
+        raise ValueError(
+            "FY-3 场景缺少必需的 1000M_MS.HDF 科学数据文件；"
+            "GEO1K_MS.HDF 只提供定位信息，不能单独生成产品。"
+        )
+    raise ValueError("未找到文件名符合规范的 FY-3 MERSI L1 数据文件。")
+
+
+def _geolocation_path(pair: FY3FilePair) -> Path:
+    """Prefer the full-resolution GEO product, then use embedded geolocation."""
+    return pair.geo_path or pair.science_path
+
+
+def _read_geolocation(pair: FY3FilePair) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, Path]:
+    source_path = _geolocation_path(pair)
+    with h5py.File(source_path, "r") as geo_hdf:
+        if "Geolocation/Latitude" not in geo_hdf or "Geolocation/Longitude" not in geo_hdf:
+            if pair.geo_path is None:
+                raise ValueError(
+                    "FY-3 科学数据文件不含可用的内嵌经纬度，且未提供可选的 GEO1K_MS.HDF 定位文件。"
+                )
+            raise ValueError("FY-3 GEO1K_MS.HDF 文件缺少 Geolocation/Latitude 或 Longitude。")
+        lat = _scaled_geo(geo_hdf["Geolocation/Latitude"])
+        lon = _scaled_geo(geo_hdf["Geolocation/Longitude"])
+        sensor_ds = geo_hdf.get("Geolocation/SensorZenith")
+        sensor_zenith = _scaled_geo(sensor_ds) if sensor_ds is not None else None
+    return lat, lon, sensor_zenith, source_path
+
+
+def _resize_geo_array(values: np.ndarray, target_shape: tuple[int, int]) -> np.ndarray:
+    if values.shape == target_shape:
+        return np.asarray(values, dtype=np.float32)
+    if values.ndim != 2 or min(values.shape) <= 1:
+        raise ValueError(f"FY-3 定位变量形状 {values.shape} 无法匹配科学数据 {target_shape}")
+    factors = (target_shape[0] / values.shape[0], target_shape[1] / values.shape[1])
+    finite = np.isfinite(values)
+    weighted = zoom(np.where(finite, values, 0.0), factors, order=1, mode="nearest")
+    weights = zoom(finite.astype(np.float32), factors, order=1, mode="nearest")
+    if weighted.shape != target_shape:
+        raise ValueError(f"FY-3 定位变量重采样后形状 {weighted.shape} 与科学数据 {target_shape} 不一致")
+    return np.where(weights > 0.5, weighted / np.maximum(weights, 1e-6), np.nan).astype(np.float32)
+
+
+def _align_geolocation(
+    lon: np.ndarray,
+    lat: np.ndarray,
+    sensor_zenith: np.ndarray | None,
+    target_shape: tuple[int, int],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
+    aligned_lon = _resize_geo_array(lon, target_shape)
+    aligned_lat = _resize_geo_array(lat, target_shape)
+    aligned_sensor = None if sensor_zenith is None else _resize_geo_array(sensor_zenith, target_shape)
+    return aligned_lon, aligned_lat, aligned_sensor
 
 
 def validate_scene_inputs(pair: FY3FilePair, bands: list[int] | None = None) -> None:
-    """Fail before creating products when a FY-3 pair is incomplete or empty."""
+    """Fail before creating products when mandatory science/geolocation is unusable."""
     selected_bands = bands or CORE_BANDS
     try:
-        with h5py.File(pair.geo_path, "r") as geo_hdf:
-            if "Geolocation/Latitude" not in geo_hdf or "Geolocation/Longitude" not in geo_hdf:
-                raise ValueError("FY-3 GEO 文件缺少经纬度变量")
-            lat = _scaled_geo(geo_hdf["Geolocation/Latitude"])
-            lon = _scaled_geo(geo_hdf["Geolocation/Longitude"])
-            if lat.size == 0 or lon.size == 0 or lat.shape != lon.shape or not np.isfinite(lat).any() or not np.isfinite(lon).any():
-                raise ValueError("FY-3 GEO 经纬度为空、形状不一致或不含有效值")
+        lat, lon, _sensor_zenith, _source_path = _read_geolocation(pair)
+        if lat.size == 0 or lon.size == 0 or lat.shape != lon.shape or not np.isfinite(lat).any() or not np.isfinite(lon).any():
+            raise ValueError("FY-3 经纬度为空、形状不一致或不含有效值")
         with h5py.File(pair.science_path, "r") as science_hdf:
             for band in selected_bands:
                 values = _read_calibrated_band(science_hdf, band)
@@ -207,12 +256,12 @@ def discover_fy3_pairs(source_dir: str | Path) -> list[FY3FilePair]:
     pairs: list[FY3FilePair] = []
     for satellite, scene_id in sorted(scenes):
         scene = scenes[(satellite, scene_id)]
-        if not scene.get("science") or not scene.get("geo"):
+        if not scene.get("science"):
             continue
         pairs.append(
             FY3FilePair(
                 science_path=Path(scene["science"]),
-                geo_path=Path(scene["geo"]),
+                geo_path=Path(scene["geo"]) if scene.get("geo") else None,
                 scene_id=scene_id,
                 satellite=str(scene["satellite"]),
             )
@@ -286,7 +335,8 @@ def scan_raw_scenes(source_dir: str | Path = DATA_DIR) -> list[dict[str, Any]]:
     for satellite, scene_id in sorted(scenes):
         scene = scenes[(satellite, scene_id)]
         roles = set(scene.pop("roles"))
-        missing = [role for role in ("science", "geo") if role not in roles]
+        missing = ["science"] if "science" not in roles else []
+        optional_missing = ["geo"] if "geo" not in roles else []
         parsed, meta_status, quality = _published_scene_status(root, scene_id, satellite)
         status = meta_status if parsed else ("ready_to_parse" if not missing else "raw_incomplete")
         result.append(
@@ -295,6 +345,7 @@ def scan_raw_scenes(source_dir: str | Path = DATA_DIR) -> list[dict[str, Any]]:
                 "file_count": len(scene["files"]),
                 "complete": not missing,
                 "missing": missing,
+                "optional_missing": optional_missing,
                 "parsed": parsed,
                 "status": status,
                 "quality": quality,
@@ -313,8 +364,8 @@ def select_upload_files(files: list[Any]) -> list[Any]:
         scene_id, satellite, role = parsed
         by_scene.setdefault((satellite, scene_id), {})[role] = item
     for scene in by_scene.values():
-        if scene.get("science") and scene.get("geo"):
-            return [scene["science"], scene["geo"]]
+        if scene.get("science"):
+            return [scene[role] for role in ("science", "geo") if scene.get(role)]
     return files
 
 
@@ -384,6 +435,17 @@ def _fill_values(dataset: h5py.Dataset) -> set[float]:
     return values
 
 
+def _day_night_metadata(hdf: h5py.File) -> tuple[str, str]:
+    raw = hdf.attrs.get("Day Or Night Flag", "")
+    if isinstance(raw, bytes):
+        text = raw.decode("ascii", errors="ignore").strip().upper()
+    else:
+        values = np.asarray(raw).reshape(-1)
+        text = str(values[0] if values.size else "").strip().upper()
+    flag = text[:1] if text[:1] in {"D", "N"} else ""
+    return flag, {"D": "day", "N": "night"}.get(flag, "unknown")
+
+
 def _calibrate_reflective(raw: np.ndarray, hdf: h5py.File, band: int, dataset: h5py.Dataset, index: int) -> np.ndarray:
     coeffs_ds = hdf.get("Calibration/VIS_Cal_Coeff")
     if coeffs_ds is not None and coeffs_ds.shape[0] >= band:
@@ -433,9 +495,35 @@ def _scaled_geo(dataset: h5py.Dataset) -> np.ndarray:
     return raw
 
 
-def _target_extent(_lon: np.ndarray, _lat: np.ndarray) -> list[float]:
-    """返回固定业务网格范围，避免极轨条带跨日期变更线时扩展成全球网格。"""
-    return _configured_extent()
+def _target_extent(lon: np.ndarray, lat: np.ndarray) -> list[float]:
+    """计算展示网格范围。
+
+    优先使用业务网格与数据实际覆盖范围的交集；当极轨条带完全不落在业务网格内时
+    （例如轨道经过南半球），回退到数据实际覆盖范围，让数据仍能显示在其真实位置。
+    跨日期变更线（经度跨度超过 180°）或数据无效时保持业务网格，避免膨胀成全球网格。
+    """
+    business = _configured_extent()
+    lon = np.asarray(lon, dtype=np.float32)
+    lat = np.asarray(lat, dtype=np.float32)
+    valid = np.isfinite(lon) & np.isfinite(lat)
+    if not valid.any():
+        return business
+
+    west = float(lon[valid].min())
+    east = float(lon[valid].max())
+    south = float(lat[valid].min())
+    north = float(lat[valid].max())
+    if not (west < east and south < north) or east - west > 180.0:
+        return business
+
+    intersect_west = max(west, business[0])
+    intersect_south = max(south, business[1])
+    intersect_east = min(east, business[2])
+    intersect_north = min(north, business[3])
+    if intersect_west < intersect_east and intersect_south < intersect_north:
+        return [intersect_west, intersect_south, intersect_east, intersect_north]
+
+    return [west, south, east, north]
 
 
 def _build_grid(extent: list[float], resolution: float) -> dict[str, Any]:
@@ -651,18 +739,18 @@ def process_files(
     latlon_dir.mkdir(parents=True, exist_ok=True)
     meta_dir.mkdir(parents=True, exist_ok=True)
 
-    with h5py.File(pair.geo_path, "r") as geo_hdf:
-        lat = _scaled_geo(geo_hdf["Geolocation/Latitude"])
-        lon = _scaled_geo(geo_hdf["Geolocation/Longitude"])
-        sensor_ds = geo_hdf.get("Geolocation/SensorZenith")
-        sensor_zenith = _scaled_geo(sensor_ds) if sensor_ds is not None else None
+    lat, lon, sensor_zenith, geolocation_source = _read_geolocation(pair)
 
     extent = _target_extent(lon, lat)
     grid = _build_grid(extent, resolution)
     variables: list[dict[str, Any]] = []
     qualities: list[float] = []
     selected_bands = bands or CORE_BANDS
+    aligned_shape: tuple[int, int] | None = None
+    day_night_flag = ""
+    day_night = "unknown"
     with h5py.File(pair.science_path, "r") as science_hdf:
+        day_night_flag, day_night = _day_night_metadata(science_hdf)
         for band_index, band in enumerate(selected_bands, start=1):
             band_name = f"B{band:02d}"
             _emit_progress(
@@ -674,6 +762,9 @@ def process_files(
                 band_total=len(selected_bands),
             )
             data = _read_calibrated_band(science_hdf, band)
+            if aligned_shape != data.shape:
+                lon, lat, sensor_zenith = _align_geolocation(lon, lat, sensor_zenith, data.shape)
+                aligned_shape = data.shape
             points, values = _sample_valid_points(lon, lat, data, extent, sensor_zenith)
             gridded = _interpolate_to_grid(points, values, grid)
             webp_path = latlon_dir / f"{band_name}.webp"
@@ -715,12 +806,19 @@ def process_files(
     resolution_assets = variables[0].get("resolution_assets") if variables else {}
     resolution_options = build_resolution_options(grid["resolution"], resolution_assets)
     valid_pixel_ratio = float(np.mean(qualities)) if qualities else 0.0
+    source_paths = [pair.science_path]
+    if pair.geo_path is not None:
+        source_paths.append(pair.geo_path)
     meta = {
+        "dataset_id": f"{_scene_key(pair.scene_id, pair.satellite)}_MERSI_L1",
         "business_type": "FY3",
         "data_type": data_type,
+        "file_name": pair.science_path.name,
         "scene_id": pair.scene_id,
         "satellite": pair.satellite,
         "sensor": "MERSI",
+        "day_night": day_night,
+        "day_night_flag": day_night_flag,
         "observation_time": observed.isoformat().replace("+00:00", "Z"),
         "projection": "EPSG:4326",
         "grid_type": "latlon",
@@ -742,7 +840,9 @@ def process_files(
             "warnings": [] if valid_pixel_ratio >= 0.01 else ["轨迹未覆盖当前固定业务区域"],
         },
         "source_raw_dir": _scene_relative(pair.science_path.parent, scene_dir),
-        "source_files": [_scene_relative(pair.science_path, scene_dir), _scene_relative(pair.geo_path, scene_dir)],
+        "source_files": [_scene_relative(path, scene_dir) for path in source_paths],
+        "geolocation_source": _scene_relative(geolocation_source, scene_dir),
+        "geolocation_mode": "external_geo1k" if pair.geo_path is not None else "embedded_science",
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
     _write_json_atomic(meta_dir / "scene.meta.json", meta)
@@ -758,7 +858,10 @@ def process_pair(
     output_root: str | Path = DATA_DIR,
 ) -> dict[str, Any]:
     return process_files(
-        [pair.science_path.as_posix(), pair.geo_path.as_posix()],
+        [
+            pair.science_path.as_posix(),
+            *([pair.geo_path.as_posix()] if pair.geo_path is not None else []),
+        ],
         data_type=data_type,
         output_root=output_root,
         target_resolution=target_resolution,

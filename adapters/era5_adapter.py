@@ -1554,6 +1554,7 @@ def process_file(
             "schema_version": "1.0",
             "dataset_id": build_dataset_id(source_file),
             "data_type": data_type,
+            "file_name": source_file.name,
             "file_format": "NC",
             "source_file": source_file.as_posix(),
             "meta_file": meta_file.as_posix(),

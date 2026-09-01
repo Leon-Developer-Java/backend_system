@@ -98,7 +98,12 @@ def singleton_lock():
     lock_path = lock_dir / "parse_worker.lock"
     if not lock_path.exists() or lock_path.stat().st_size == 0:
         lock_path.write_text(" ", encoding="ascii")
-    handle = lock_path.open("r+")
+    holder = ""
+    try:
+        holder = lock_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        holder = "unknown"
+    handle = lock_path.open("r+b")
     acquired = False
     try:
         handle.seek(0)
@@ -108,7 +113,9 @@ def singleton_lock():
             try:
                 msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
             except OSError as exc:
-                raise RuntimeError("another Adapter Worker is already running") from exc
+                raise RuntimeError(
+                    f"another Adapter Worker is already running (lock holder: {holder})"
+                ) from exc
             acquired = True
         else:
             import fcntl
@@ -116,11 +123,13 @@ def singleton_lock():
             try:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             except OSError as exc:
-                raise RuntimeError("another Adapter Worker is already running") from exc
+                raise RuntimeError(
+                    f"another Adapter Worker is already running (lock holder: {holder})"
+                ) from exc
             acquired = True
         handle.seek(0)
         handle.truncate()
-        handle.write(f"{socket.gethostname()}:{os.getpid()}\n")
+        handle.write(f"{socket.gethostname()}:{os.getpid()}\n".encode("utf-8"))
         handle.flush()
         yield
     finally:

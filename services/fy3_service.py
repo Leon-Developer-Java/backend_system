@@ -107,6 +107,29 @@ def _product_name(item: dict[str, Any]) -> str:
     return str(item.get("name") or item.get("key") or "").strip()
 
 
+def _is_night_scene(meta: dict[str, Any]) -> bool:
+    day_night = str(meta.get("day_night") or meta.get("day_night_flag") or "").strip().lower()
+    if day_night in {"n", "night", "nighttime"}:
+        return True
+    if day_night in {"d", "day", "daytime"}:
+        return False
+
+    # Older metadata did not persist the HDF day/night flag. A non-positive
+    # visible-channel maximum is a reliable fallback for these night granules.
+    has_visible_stats = False
+    for item in meta.get("variables") or []:
+        if _product_name(item) not in {"B01", "B02", "B03"}:
+            continue
+        try:
+            visible_max = float((item.get("stats") or {}).get("max"))
+            has_visible_stats = True
+            if visible_max > 0:
+                return False
+        except (TypeError, ValueError):
+            continue
+    return has_visible_stats
+
+
 def _existing_path(value: str | None, meta_path: Path | None) -> Path | None:
     if not value:
         return None
@@ -161,7 +184,8 @@ def _with_urls(items: list[dict[str, Any]], meta_path: Path | None) -> list[dict
 
 def _default_product(meta: dict[str, Any]) -> dict[str, Any] | None:
     products = list(meta.get("composites") or []) + list(meta.get("variables") or [])
-    for key in ("B03", "B01", "B20"):
+    preferred = ("B20", "B24", "B25", "B03") if _is_night_scene(meta) else ("B03", "B01", "B20")
+    for key in preferred:
         for item in products:
             if _product_name(item) == key:
                 return item
@@ -238,6 +262,7 @@ def get_display_data(scene_id: str | None = None, limit: int = 24) -> dict[str, 
     meta_path = selected["path"] if selected else None
     variables = _with_urls(meta.get("variables") or [], meta_path)
     composites = _with_urls(meta.get("composites") or [], meta_path)
+    default_product = _default_product(meta)
     frames = [_frame_item(entry) for entry in entries]
     selected_frame = _frame_item(selected) if selected else None
     return {
@@ -254,6 +279,7 @@ def get_display_data(scene_id: str | None = None, limit: int = 24) -> dict[str, 
         "variables": variables,
         "composites": composites,
         "products": composites + variables,
+        "default_product_name": _product_name(default_product) if default_product else None,
         "webp": None,
         "webp_url": selected_frame.get("webp_url") if selected_frame else None,
         "webp_files": [frame["webp_url"] for frame in frames if frame.get("webp_url")],

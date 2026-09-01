@@ -78,6 +78,7 @@ def _process_files(paths: list[Path], data_type: str = "CMA") -> dict[str, Any]:
         **frontend_meta,
         "dataset_id": build_dataset_id(source_file),
         "data_type": data_type,
+        "file_name": source_file.name,
         "file_format": file_format,
         "source_file": source_files,
         "meta_file": meta_file.as_posix(),

@@ -242,6 +242,7 @@ def run_collection_adapter(
     if not isinstance(meta, dict):
         raise ValueError("Collection Adapter did not return a metadata object")
     meta_file = _select_meta_file(stage_dir, meta)
+    _validate_adapter_meta(data_type, meta, meta_file, stage_dir)
     webp_files = [path for path in stage_dir.rglob("*.webp") if path.is_file()]
     return {
         "file_uuid": file_uuid,

@@ -51,6 +51,13 @@ FTP_PORT = 21
 FTP_TIMEOUT = 60
 HIMAWARI_TARGET_BANDS = [f"B{i:02d}" for i in range(1, 17)]
 HIMAWARI_DEFAULT_BANDS = ["B13", "B03", "B02", "B01"]
+HIMAWARI_NATIVE_RESOLUTIONS = {
+    "B01": "R10",
+    "B02": "R10",
+    "B03": "R05",
+    "B04": "R10",
+    **{f"B{index:02d}": "R20" for index in range(5, 17)},
+}
 TRUE_COLOR_BANDS = ["B03", "B02", "B01"]
 PARTIAL_MAX_AGE_HOURS = 6
 DEFAULT_WINDOW_HOURS = 1
@@ -325,6 +332,7 @@ def normalize_himawari_meta(meta: dict[str, Any], meta_path: str | Path | None =
         "schema_version": "1.0",
         "dataset_id": meta.get("dataset_id") or f"{scene_id}_himawari_hsd",
         "data_type": "Himawari",
+        "file_name": meta.get("file_name") or f"{scene_id}_Himawari_HSD_collection",
         "file_format": "HSD",
         "source_file": source_raw_dir,
         "meta_file": meta_file,
@@ -1471,22 +1479,18 @@ def parse_hsd_filename(filename: str) -> dict[str, Any] | None:
     }
 
 
-def _hsd_scene_identity(info: dict[str, Any]) -> tuple[str, str, str, str, str]:
+def _hsd_scene_identity(info: dict[str, Any]) -> tuple[str, str, str, str]:
     return (
         str(info["satellite"]),
         str(info["date"]),
         str(info["time"]),
         str(info["region"]),
-        str(info["resolution"]),
     )
 
 
 def _canonical_hsd_scene_key(info: dict[str, Any]) -> str:
     satellite = str(info["satellite"]).replace("Himawari-", "H")
-    return (
-        f"{satellite}_{info['date']}_{info['time']}_"
-        f"{info['region']}_{info['resolution']}"
-    )
+    return f"{satellite}_{info['date']}_{info['time']}_{info['region']}"
 
 
 def _validate_hsd_scene_infos(infos: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1494,17 +1498,35 @@ def _validate_hsd_scene_infos(infos: list[dict[str, Any]]) -> dict[str, Any]:
         raise ValueError("未找到可识别的 Himawari HSD 文件名。")
     identities = {_hsd_scene_identity(info) for info in infos}
     if len(identities) != 1:
-        raise ValueError("HSD 场景混入了不同卫星、时次、区域或分辨率的分段。")
+        raise ValueError("HSD 场景混入了不同卫星、时次或区域的分段。")
     totals_by_band: dict[str, set[int]] = {}
+    resolutions_by_band: dict[str, set[str]] = {}
     for info in infos:
+        band = str(info["band"]).upper()
         total = int(info["total_segments"])
         segment = int(info["segment"])
         if total < 1 or segment < 1 or segment > total:
             raise ValueError(f"HSD 分段编号非法：{info['band']} S{segment:02d}/{total:02d}")
-        totals_by_band.setdefault(str(info["band"]), set()).add(total)
+        totals_by_band.setdefault(band, set()).add(total)
+        resolutions_by_band.setdefault(band, set()).add(str(info["resolution"]).upper())
     inconsistent = [band for band, totals in totals_by_band.items() if len(totals) != 1]
     if inconsistent:
         raise ValueError(f"HSD 同一通道的总分段数不一致：{','.join(sorted(inconsistent))}")
+    inconsistent_resolutions = [
+        band for band, resolutions in resolutions_by_band.items() if len(resolutions) != 1
+    ]
+    if inconsistent_resolutions:
+        raise ValueError(
+            f"HSD 同一通道混入多种原生分辨率：{','.join(sorted(inconsistent_resolutions))}"
+        )
+    invalid_native = [
+        f"{band}={next(iter(resolutions))}（应为 {HIMAWARI_NATIVE_RESOLUTIONS[band]}）"
+        for band, resolutions in resolutions_by_band.items()
+        if band in HIMAWARI_NATIVE_RESOLUTIONS
+        and next(iter(resolutions)) != HIMAWARI_NATIVE_RESOLUTIONS[band]
+    ]
+    if invalid_native:
+        raise ValueError(f"HSD 通道原生分辨率不匹配：{', '.join(sorted(invalid_native))}")
     return infos[0]
 
 
@@ -1660,7 +1682,8 @@ def _describe_raw_scene(
     scene_time = time or (infos[0]["time"] if infos else "")
     satellite = satellite or (identity["satellite"] if identity else "")
     region = region or (identity["region"] if identity else "")
-    resolution = resolution or (identity["resolution"] if identity else "")
+    scene_resolutions = sorted({str(info["resolution"]) for info in infos})
+    resolution = resolution or (scene_resolutions[0] if len(scene_resolutions) == 1 else ",".join(scene_resolutions))
     data_root = Path(output_root) if output_root else _data_root_for_raw_dir(raw_path)
     scene_dir = data_root / date / scene_time
     meta_candidates = [scene_dir / "meta" / "scene.meta.json"]
@@ -1711,7 +1734,7 @@ def scan_raw_scenes(input_root: str | Path = DATA_DIR, bands: list[str] | None =
             for file_path in raw_dir.glob("HS_H*.DAT*")
             if (info := parse_hsd_filename(file_path.name))
         })
-        for satellite, date, scene_time, region, resolution in scene_keys:
+        for satellite, date, scene_time, region in scene_keys:
             scene = _describe_raw_scene(
                 raw_dir,
                 bands=bands,
@@ -1719,7 +1742,6 @@ def scan_raw_scenes(input_root: str | Path = DATA_DIR, bands: list[str] | None =
                 time=scene_time,
                 satellite=satellite,
                 region=region,
-                resolution=resolution,
                 output_root=data_root,
             )
             if not scene["file_count"]:
@@ -2056,7 +2078,7 @@ def _scene_info_from_files(files: list[Path]) -> dict[str, Any]:
         "date": first["date"],
         "time": first["time"],
         "region": first["region"],
-        "resolution": first["resolution"],
+        "resolution": ",".join(sorted({item["resolution"] for item in infos})),
         "scene_key": _canonical_hsd_scene_key(first),
         "bands": sorted({item["band"] for item in infos}),
     }
