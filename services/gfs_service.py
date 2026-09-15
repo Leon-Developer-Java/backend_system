@@ -848,6 +848,19 @@ def _ensure_latest_meta(
     )
 
 
+def _latest_published_meta(
+    data_type: str,
+) -> tuple[Path | None, dict[str, Any] | None, Path | None]:
+    """Read the newest renderable metadata without parsing data in a GET request."""
+    for meta_file in _list_meta_files(_normalize_data_type(data_type)):
+        meta = _read_json(meta_file)
+        if not _meta_is_current(meta):
+            continue
+        source_name = str(meta.get("file_name") or "").strip()
+        return meta_file, meta, Path(source_name) if source_name else None
+    return None, None, None
+
+
 def get_display_data(
     data_type: str | None = "GFS",
 ) -> dict[str, Any]:
@@ -870,7 +883,7 @@ def get_display_data(
         meta_file,
         meta,
         source_file,
-    ) = _ensure_latest_meta(source)
+    ) = _latest_published_meta(source)
 
     if not meta:
         return {
