@@ -33,6 +33,7 @@ from adapters import (
     wrf_adapter,
 )
 from services import (
+    agent_tools,
     cma_service,
     era5_service,
     era5_store,
@@ -120,6 +121,8 @@ app = FastAPI(title="Weather Data Display Backend", version="0.1.0", lifespan=li
 install_auth(
     app,
     [
+        ("/api/agent-tools", {"POST": 1}),
+        ("/api/internal/parse-existing", {"POST": 2}),
         ("/data/", {"GET": 1, "HEAD": 1}),
         ("/api", {"GET": 1, "HEAD": 1, "*": 2}),
     ],
@@ -148,6 +151,60 @@ app.mount("/data", StaticFiles(directory=str(DATA_DIR)), name="data")
 
 def ok(data: Any = None, message: str = "success") -> dict[str, Any]:
     return {"code": 0, "data": data, "message": message}
+
+
+class AgentToolRequest(BaseModel):
+    operation: str = Field(min_length=1, max_length=80)
+    inputs: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.post("/api/agent-tools/execute")
+def execute_agent_read_tool(payload: AgentToolRequest) -> dict[str, Any]:
+    """Execute one allowlisted, read-only weather data operation."""
+    try:
+        return ok(agent_tools.dispatch(payload.operation, payload.inputs))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class ExistingParseRequest(BaseModel):
+    file_path: str = Field(min_length=1, max_length=4096)
+    business_type: str = Field(default="", max_length=32)
+
+
+@app.post("/api/internal/parse-existing")
+def parse_existing_project_file(payload: ExistingParseRequest) -> dict[str, Any]:
+    """Parse one existing source under backend_system/data."""
+    source = Path(payload.file_path)
+    if not source.is_absolute():
+        normalized = payload.file_path.replace("\\", "/")
+        source = (
+            BASE_DIR.parent / source
+            if normalized.startswith("backend_system/data/")
+            else DATA_DIR / source
+        )
+    source = source.resolve()
+    try:
+        source.relative_to(DATA_DIR.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="文件不在 backend_system/data 内") from exc
+    if not source.is_file() or source.name.endswith(".meta.json"):
+        raise HTTPException(status_code=400, detail="需要提供存在的原始数据文件")
+    try:
+        business = normalize_business_type(payload.business_type or source.parent.name)
+        if business not in ADAPTERS:
+            business = infer_business_type(source.name)
+        meta = _process_saved_paths([source], business)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return ok(
+        {
+            "source_file": str(source),
+            "business_type": business,
+            "meta": meta,
+            "meta_file": str(source.with_name(f"{source.name}.meta.json")),
+        },
+    )
 
 
 DIFF_TASK_LOG = DATA_DIR / "diff_tasks.jsonl"
