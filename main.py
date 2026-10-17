@@ -44,6 +44,8 @@ from services import (
     satellite_task_service,
     wrf_service,
 )
+from services.source_resolver import is_published_wrf_task, is_published_wrf_asset, is_visible_wrf_upload_asset
+from services.wrf_asset_access import allow_wrf_asset as wrf_asset_allowed
 from workers.launcher import start_adapter_worker, stop_adapter_worker
 
 
@@ -116,6 +118,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Weather Data Display Backend", version="0.1.0", lifespan=lifespan)
 
+
+def allow_wrf_asset(path: str, user: dict[str, Any]) -> bool:
+    return wrf_asset_allowed(path, is_published_wrf_task, is_published_wrf_asset,
+                             lambda value: is_visible_wrf_upload_asset(value, user))
+
 # 登录用户可读取展示数据，role 2 才能上传、解析或修改数据。
 # CORS 在鉴权之后注册，使 401/403 也带有正确的跨域响应头。
 install_auth(
@@ -126,6 +133,7 @@ install_auth(
         ("/data/", {"GET": 1, "HEAD": 1}),
         ("/api", {"GET": 1, "HEAD": 1, "*": 2}),
     ],
+    asset_authorizer=allow_wrf_asset,
 )
 
 _cors_origins = os.getenv(

@@ -69,6 +69,8 @@ backend :8002
 
 正式链路支持 ERA5、GFS、ECMWF、CMA、Radar、WRF、FY-3 和 Himawari。FY-3/Himawari 集合由 Worker 作为一个工作单元解析；集合不完整时不会进入解析队列。
 
+WRF 资源是特殊权限边界：`/data/WRF/runs/` 是私有任务运行目录，展示服务一律不共享；`/data/WRF/workbench/` 只有在 `public_info` 登记了对应任务且具体 WebP 进入 `wrf_info` 发布清单后才可访问。高分降尺度的已发布清单资源由其经过验证的 `downscale.product.json` 列出。经 Adapter 解析的 `/data/WRF/assets/<file_uuid>/` 则核对 `public_info`/`wrf_info`：未公开时仅上传者及管理员可读，正式标记 `visibility=public` 后向已登录用户共享。目录中文件存在不等于已发布。
+
 `POST /api/files/parse`、`POST /api/files/raw-upload` 以及旧卫星 raw 场景接口仍用于兼容和调试。前端正式上传页不应把文件再次提交到这些接口。
 
 ## 共享数据库与目录
