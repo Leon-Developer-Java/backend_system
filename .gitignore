@@ -45,7 +45,8 @@ data/Radar/
 
 data/WRF/
 
-tests/
+tests/*
+!tests/test_gridrad_adapter.py
 
 data/.DS_Store
 data/satellite_tasks.sqlite3

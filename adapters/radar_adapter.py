@@ -167,6 +167,11 @@ def process_file(
     source_file = Path(file_path).resolve()
     if source_file.suffix.lower() != ".nc":
         raise ValueError("当前雷达适配器已实现 CAP_FMT NetCDF 解析；CINRAD/bz2 基数据后续再接入 wradlib。")
+    from adapters.gridrad_adapter import is_gridrad, process_file as process_gridrad
+    if is_gridrad(source_file):
+        if expected_step_seconds is not None and expected_step_seconds != 300:
+            raise ValueError("GridRad-Severe原生时间间隔为5分钟。")
+        return process_gridrad(source_file, data_type)
 
     started = time.perf_counter()
     meta_file = source_file.with_name(f"{source_file.name}.meta.json")
@@ -403,10 +408,13 @@ def _open_radar_dataset(source_file: Path) -> xr.Dataset:
         return xr.open_dataset(source_file, decode_times=False)
 
 
-def process_files(file_paths: list[str], data_type: str = "Radar") -> dict[str, Any]:
+def process_files(file_paths: list[str], data_type: str = "Radar", *, gridrad_options=None, output_dir=None) -> dict[str, Any]:
     paths = [Path(item).resolve() for item in file_paths]
     if not paths:
         raise ValueError("No radar files were provided.")
+    from adapters.gridrad_adapter import is_gridrad, process_files as process_gridrad_files
+    if is_gridrad(paths[0]):
+        return process_gridrad_files(paths, data_type, gridrad_options, output_dir)
 
     metas = [process_file(str(path), data_type=data_type) for path in paths]
     if len(metas) == 1:
@@ -628,7 +636,7 @@ def _colorize_values(values: np.ndarray, variable_name: str) -> np.ndarray:
     product_code, _, _ = _product_info(variable_name)
 
     valid = np.isfinite(values)
-    if product_code != "VRAD":
+    if product_code not in {"VRAD", "ZDR", "KDP", "RHV"}:
         valid &= values >= thresholds[0]
     color_index = np.digitize(values[valid], thresholds, right=False) - 1
     color_index = np.clip(color_index, 0, len(colors) - 1)
@@ -973,6 +981,10 @@ def _product_catalog_for_dataset(dataset: xr.Dataset) -> list[dict[str, Any]]:
 
 def _color_scale_for_product(variable_name: str) -> tuple[np.ndarray, np.ndarray]:
     product_code = _product_meta_without_legend(variable_name)["code"]
+    if product_code in {"ZDR", "KDP", "RHV"}:
+        limits = {"ZDR": (-2.0, 8.0), "KDP": (-2.0, 10.0), "RHV": (0.5, 1.0)}
+        lo, hi = limits[product_code]
+        return np.linspace(lo, hi, len(RADAR_COLORS), dtype=np.float32), RADAR_COLORS
     if product_code == "VRAD":
         return VELOCITY_THRESHOLDS, VELOCITY_COLORS
     if product_code == "QPR":

@@ -1,0 +1,2 @@
+# Keep the upstream GridRad script byte-identical across Windows and Unix checkouts.
+adapters/gridrad_official_v4_2.py text eol=lf
