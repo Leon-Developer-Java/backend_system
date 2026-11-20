@@ -12,6 +12,7 @@ ADAPTERS = {
     "ERA5": "adapters.era5_adapter",
     "GFS": "adapters.gfs_adapter",
     "ECMWF": "adapters.gfs_adapter",
+    "SEASONAL_PRECIP": "adapters.seasonal_precip_adapter",
     "FY3": "adapters.fy3_adapter",
     "HIMAWARI": "adapters.himawari_adapter",
     "RADAR": "adapters.radar_adapter",
@@ -25,6 +26,8 @@ class AdapterValidationError(ValueError):
 
 def canonical_data_type(value: str) -> str:
     text = str(value or "").strip().upper().replace("-", "")
+    if text == "季节降水" or text in {"SEASONALPRECIP", "SEASONAL_PRECIP", "SEASONAL_PRECIPITATION", "SEASONALPRECIPITATION", "SEASONAL_RAINFALL"}:
+        return "SEASONAL_PRECIP"
     if text == "RADAR" or text == "雷达":
         return "RADAR"
     if text in {"FY3", "FY"}:
@@ -336,7 +339,11 @@ def publish_adapter_output(
 ) -> tuple[dict[str, Any], Path, Path]:
     product_root = product_root.resolve()
     data_type = canonical_data_type(child_result["data_type"])
-    display_type = {"RADAR": "Radar", "HIMAWARI": "Himawari"}.get(data_type, data_type)
+    display_type = {
+        "RADAR": "Radar",
+        "HIMAWARI": "Himawari",
+        "SEASONAL_PRECIP": "SeasonalPrecip",
+    }.get(data_type, data_type)
     stage_dir = Path(child_result["stage_dir"]).resolve()
     type_root = (product_root / display_type).resolve()
     assets_root = (type_root / "assets").resolve()

@@ -65,6 +65,11 @@ TIMEOUTS = {
     "ERA5": int(os.getenv("ADAPTER_TIMEOUT_ERA5", str(DEFAULT_TIMEOUT_SECONDS))),
     "GFS": int(os.getenv("ADAPTER_TIMEOUT_GFS", str(DEFAULT_TIMEOUT_SECONDS))),
     "ECMWF": int(os.getenv("ADAPTER_TIMEOUT_ECMWF", str(DEFAULT_TIMEOUT_SECONDS))),
+    "SEASONAL_PRECIP": int(os.getenv("ADAPTER_TIMEOUT_SEASONAL_PRECIP", str(DEFAULT_TIMEOUT_SECONDS))),
+    "SEASONALPRECIP": int(os.getenv("ADAPTER_TIMEOUT_SEASONAL_PRECIP", str(DEFAULT_TIMEOUT_SECONDS))),
+    "SEASONAL_PRECIPITATION": int(os.getenv("ADAPTER_TIMEOUT_SEASONAL_PRECIP", str(DEFAULT_TIMEOUT_SECONDS))),
+    "SEASONALPRECIPITATION": int(os.getenv("ADAPTER_TIMEOUT_SEASONAL_PRECIP", str(DEFAULT_TIMEOUT_SECONDS))),
+    "SEASONAL_RAINFALL": int(os.getenv("ADAPTER_TIMEOUT_SEASONAL_PRECIP", str(DEFAULT_TIMEOUT_SECONDS))),
     "CMA": int(os.getenv("ADAPTER_TIMEOUT_CMA", str(DEFAULT_TIMEOUT_SECONDS))),
     "RADAR": int(os.getenv("ADAPTER_TIMEOUT_RADAR", str(DEFAULT_TIMEOUT_SECONDS))),
     "WRF": int(os.getenv("ADAPTER_TIMEOUT_WRF", str(DEFAULT_TIMEOUT_SECONDS))),
@@ -160,7 +165,15 @@ def _raw_path(task: dict) -> Path:
 
 def _display_type(data_type: str) -> str:
     normalized = data_type.upper()
-    return {"RADAR": "Radar", "HIMAWARI": "Himawari"}.get(normalized, normalized)
+    return {
+        "RADAR": "Radar",
+        "HIMAWARI": "Himawari",
+        "SEASONAL_PRECIP": "SeasonalPrecip",
+        "SEASONALPRECIP": "SeasonalPrecip",
+        "SEASONAL_PRECIPITATION": "SeasonalPrecip",
+        "SEASONALPRECIPITATION": "SeasonalPrecip",
+        "SEASONAL_RAINFALL": "SeasonalPrecip",
+    }.get(normalized, normalized)
 
 
 def _adapter_options(task: dict) -> dict:

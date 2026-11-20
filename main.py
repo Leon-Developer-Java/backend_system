@@ -30,6 +30,7 @@ from adapters import (
     gfs_adapter,
     himawari_adapter,
     radar_adapter,
+    seasonal_precip_adapter,
     wrf_adapter,
 )
 from services import (
@@ -41,16 +42,19 @@ from services import (
     gfs_service,
     himawari_service,
     radar_service,
+    seasonal_precip_service,
     satellite_task_service,
     wrf_service,
 )
 from services.source_resolver import is_published_wrf_task, is_published_wrf_asset, is_visible_wrf_upload_asset
 from services.wrf_asset_access import allow_wrf_asset as wrf_asset_allowed
+from services import seasonal_point_service
 from workers.launcher import start_adapter_worker, stop_adapter_worker
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = Path(os.getenv("PRODUCT_DATA_ROOT", str(BASE_DIR / "data"))).resolve()
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 BUSINESS_DIRS = {
     "CMA": DATA_DIR / "CMA",
@@ -60,6 +64,7 @@ BUSINESS_DIRS = {
     "FY3": DATA_DIR / "FY3",
     "Himawari": DATA_DIR / "Himawari",
     "Radar": DATA_DIR / "Radar",
+    "SeasonalPrecip": DATA_DIR / "SeasonalPrecip",
     "WRF": DATA_DIR / "WRF",
 }
 
@@ -71,6 +76,7 @@ ADAPTERS = {
     "FY3": fy3_adapter,
     "Himawari": himawari_adapter,
     "Radar": radar_adapter,
+    "SeasonalPrecip": seasonal_precip_adapter,
     "WRF": wrf_adapter,
 }
 
@@ -82,6 +88,11 @@ DISPLAY_SERVICES = {
     "FY3": fy3_service,
     "HIMAWARI": himawari_service,
     "RADAR": radar_service,
+    "SEASONAL_PRECIP": seasonal_precip_service,
+    "SEASONALPRECIP": seasonal_precip_service,
+    "SEASONAL_PRECIPITATION": seasonal_precip_service,
+    "SEASONALPRECIPITATION": seasonal_precip_service,
+    "SEASONAL_RAINFALL": seasonal_precip_service,
     "WRF": wrf_service,
 }
 
@@ -117,6 +128,38 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Weather Data Display Backend", version="0.1.0", lifespan=lifespan)
+
+
+@app.get("/api/seasonal/point-series")
+def seasonal_point_series(
+    request: Request,
+    file_uuid: uuid.UUID,
+    variable_key: str = Query(..., min_length=1, max_length=160),
+    valid_time: list[str] = Query(..., min_length=1, max_length=36),
+    longitude: float = Query(..., ge=-180, le=180),
+    latitude: float = Query(..., ge=-90, le=90),
+) -> dict[str, Any]:
+    try:
+        data = seasonal_point_service.authorized_series(request.state.user, str(file_uuid), variable_key, valid_time, longitude, latitude)
+        return {"code":0,"data":data,"message":"读取最近原始格点成功"}
+    except seasonal_point_service.PointSeriesError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from None
+    except Exception:
+        raise HTTPException(status_code=503, detail="格点数据读取暂时失败，请稍后重试；未从图片估算。") from None
+
+
+@app.get('/api/seasonal/region-grid')
+def seasonal_region_grid(request: Request, file_uuid: uuid.UUID,
+                         variable_key: str = Query(...,min_length=1,max_length=160),
+                         valid_time: list[str] = Query(...,min_length=1,max_length=36),
+                         bbox: list[float] = Query(...,min_length=4,max_length=4)) -> dict[str,Any]:
+    try:
+        data=seasonal_point_service.authorized_series(request.state.user,str(file_uuid),variable_key,valid_time,0,0,bbox=bbox)
+        return {'code':0,'data':data,'message':'读取区域原始格点成功'}
+    except seasonal_point_service.PointSeriesError as exc:
+        raise HTTPException(status_code=exc.status,detail=str(exc)) from None
+    except Exception:
+        raise HTTPException(status_code=503,detail='区域格点读取失败，请稍后重试。') from None
 
 
 def allow_wrf_asset(path: str, user: dict[str, Any]) -> bool:
@@ -357,6 +400,8 @@ def normalize_business_type(value: str) -> str:
         return "Himawari"
     if upper == "RADAR":
         return "Radar"
+    if key == "季节降水" or upper in {"SEASONAL_PRECIP", "SEASONALPRECIP", "SEASONAL_PRECIPITATION", "SEASONALPRECIPITATION", "SEASONAL_RAINFALL"}:
+        return "SeasonalPrecip"
     if upper == "ECMWF":
         return "ECMWF"
     if upper in {"CMA", "ERA5", "FY3", "GFS", "WRF"}:
@@ -391,6 +436,8 @@ def infer_business_type(filename: str) -> str:
         return "Radar"
     if "wrf" in name:
         return "WRF"
+    if any(key in name for key in ("seasonal", "seas5", "season_precip", "seasonal_precip", "rainfall_forecast")):
+        return "SeasonalPrecip"
 
     if suffix in {".grib", ".grib2"}:
         return "GFS"
@@ -401,9 +448,9 @@ def infer_business_type(filename: str) -> str:
     if suffix in {".cinrad", ".radar", ".bz2"}:
         return "Radar"
     if suffix == ".nc":
-        return "ERA5"
+        return "SeasonalPrecip" if any(key in name for key in ("seasonal", "seas5", "rainfall", "precip")) else "ERA5"
 
-    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、ECMWF、FY3、Himawari、Radar 或 WRF。")
+    raise ValueError("无法根据文件名或扩展名识别业务类型，请在文件名中包含 CMA、ERA5、GFS、ECMWF、季节降水、FY3、Himawari、Radar 或 WRF。")
 
 
 def save_upload_file(file: UploadFile, target_dir: Path, business_type: str | None = None) -> Path:
@@ -1009,6 +1056,15 @@ def display_data(
 
     if raw_key == "ERA5":
         return ok(service.get_display_data(variable=variable, level_index=level_index))
+
+    if raw_key in {
+        "SEASONAL_PRECIP",
+        "SEASONALPRECIP",
+        "SEASONAL_PRECIPITATION",
+        "SEASONALPRECIPITATION",
+        "SEASONAL_RAINFALL",
+    }:
+        return ok(service.get_display_data())
 
     if raw_key == "HIMAWARI":
         return ok(service.get_display_data(scene_id=scene_id))

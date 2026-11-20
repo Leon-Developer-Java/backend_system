@@ -239,6 +239,16 @@ def _specific_fields(data_type: str, meta: dict[str, Any], layer: dict[str, Any]
             "total_segments": _int(layer.get("total_segments")),
             "is_segment": bool(layer.get("is_segment", False)),
         }
+    if data_type in {"SEASONAL_PRECIP", "SEASONALPRECIP", "SEASONAL_PRECIPITATION", "SEASONALPRECIPITATION"}:
+        times = _as_list(meta.get("times"))
+        return {
+            "product_name": _first(meta.get("product"), meta.get("product_name")),
+            "provider": _first(meta.get("provider"), meta.get("institution")),
+            "issue_time": _datetime(_first(meta.get("issue_time"), meta.get("run_time"))),
+            "valid_start": _datetime(_first(meta.get("valid_start"), times[0] if times else None)),
+            "valid_end": _datetime(_first(meta.get("valid_end"), times[-1] if times else None)),
+            "forecast_type": _first(meta.get("forecast_type"), meta.get("product_type")),
+        }
     return {}
 
 
