@@ -852,7 +852,26 @@ def _latest_published_meta(
     data_type: str,
 ) -> tuple[Path | None, dict[str, Any] | None, Path | None]:
     """Read the newest renderable metadata without parsing data in a GET request."""
-    for meta_file in _list_meta_files(_normalize_data_type(data_type)):
+    source = _normalize_data_type(data_type)
+    catalog_states = {}
+    if source == "GFS":
+        from sqlalchemy import select
+        from DB.config import create_database_engine
+        from DB.schema import public_info
+
+        engine = create_database_engine()
+        try:
+            with engine.connect() as conn:
+                catalog_states = dict(conn.execute(select(public_info.c.file_uuid, public_info.c.is_deleted)
+                                           .where(public_info.c.data_type == "GFS")).all())
+        finally:
+            engine.dispose()
+    for meta_file in _list_meta_files(source):
+        if source == "GFS" and meta_file.parent.parent == DATA_ROOT / "GFS/assets":
+            if catalog_states.get(meta_file.parent.name) is True:
+                continue
+            if meta_file.name.startswith("gfs_sequence_") and meta_file.parent.name not in catalog_states:
+                continue
         meta = _read_json(meta_file)
         if not _meta_is_current(meta):
             continue
